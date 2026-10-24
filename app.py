@@ -292,7 +292,11 @@ def parse_bytes_to_dataframe(contents: bytes, filename: str) -> pd.DataFrame:
             pass
         raise HTTPException(status_code=400, detail="No se pudo abrir el archivo Excel. Verifica que no esté dañado.")
         
-    # Sistema de seleccion inteligente de hoja
+    # Optimizacion: Si solo tiene 1 hoja (estandar en la gran mayoria de casos), se procesa directamente
+    if len(xl.sheet_names) == 1:
+        return xl.parse(xl.sheet_names[0])
+
+    # Sistema de seleccion inteligente de hoja para archivos con multiples pestañas
     sheet_scores = []
     for s in xl.sheet_names:
         try:
@@ -518,7 +522,7 @@ def build_debtor_matched_dataset(df: pd.DataFrame):
     if df["_Fila_Total"].sum() == 0 and "Total" in df.columns:
         df["_Fila_Total"] = df["Total"]
         
-    debtors = df.groupby("Cedula_Key").agg(
+    debtors = df.groupby("Cedula_Key", as_index=False).agg(
         Cedula=("Cedula Cliente", "first"),
         Nombre_Cliente=("Nombre Cliente", "first"),
         Cuotas_Vencidas=("Cedula Cliente", "count"),
@@ -527,16 +531,16 @@ def build_debtor_matched_dataset(df: pd.DataFrame):
         Pendiente_Cuota=("Pendiente Cuota", "sum"),
         Pendiente_Mora=("Pendiente Mora", "sum"),
         Max_Dias_Mora=("Dias de Mora", "max"),
-        Tramo_Mora=("Dias de Mora", lambda x: assign_tramo_mora(int(x.max()))),
-        Tipo_Campana=("Tipo_Campana", lambda x: next((str(v) for v in x if str(v) not in ["", "nan", "None"]), "Sin Campaña Asignada")),
-        Programa=("Programa", lambda x: next((str(v) for v in x if str(v) not in ["", "nan", "None"]), "General")),
+        Tipo_Campana=("Tipo_Campana", "first"),
+        Programa=("Programa", "first"),
         Tipo=("Tipo", lambda x: "/".join(sorted(set(str(v) for v in x if str(v) not in ["", "nan", "None", "General"]))) or "General"),
-        Telefono_1=("Telefono_1", lambda x: next((str(v) for v in x if str(v).strip()), "")),
-        Telefono_2=("Telefono_2", lambda x: next((str(v) for v in x if str(v).strip()), "")),
-        Telefono_3=("Telefono_3", lambda x: next((str(v) for v in x if str(v).strip()), "")),
-        Correo=("Correo", lambda x: next((str(v) for v in x if str(v).strip()), ""))
-    ).reset_index()
+        Telefono_1=("Telefono_1", "first"),
+        Telefono_2=("Telefono_2", "first"),
+        Telefono_3=("Telefono_3", "first"),
+        Correo=("Correo", "first")
+    )
 
+    debtors["Tramo_Mora"] = debtors["Max_Dias_Mora"].apply(assign_tramo_mora)
     debtors["Monto_Total_USD"] = debtors["Monto_Total_USD"].round(2)
     debtors["Pendiente_Tarifa"] = debtors["Pendiente_Tarifa"].round(2)
     debtors["Pendiente_Cuota"] = debtors["Pendiente_Cuota"].round(2)
