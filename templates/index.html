@@ -511,29 +511,43 @@
         </div>
       </div>
 
-      <!-- Sección Ejecutiva: Resumen Agrupado Fijo por Tramos de Mora (Modelo Oficial) -->
+      <!-- Sección Ejecutiva: Resumen Agrupado Fijo por Tramos de Mora -->
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
         
-        <!-- Header con Fecha de Corte y Banner "Cartera activa (USD)" estilo Excel Oficial -->
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+        <!-- Header con Fecha de Corte, Botones de Descarga y Card Cartera Activa -->
+        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
-                Indicador Macro Ejecutivo
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200">
+                Indicador Macro Directivo
               </span>
-              <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200" id="tramos-cutoff-date">al 20-10-2026</span>
+              <span class="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200" id="tramos-cutoff-date">al 18-10-2026</span>
             </div>
             <h3 class="text-lg font-bold text-slate-900 mt-1">Resumen Agrupado por Tramos de Mora</h3>
-            <p class="text-xs text-slate-500">Distribución fija de los 5 tramos sobre la Cartera Activa Total (visible siempre, sin importar el filtro).</p>
+            <p class="text-xs text-slate-500">Distribución consolidada de los 5 tramos sobre la Cartera Activa Total (fijo e independiente de los filtros).</p>
           </div>
 
-          <!-- Banner Ejecutivo Idéntico al Modelo (Fucsia + Amarillo) -->
-          <div class="inline-flex items-stretch rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm self-start sm:self-auto font-mono">
-            <div class="bg-[#ff4081] text-white px-5 py-2.5 flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
-              <i class="fa-solid fa-vault"></i> Cartera activa (USD)
+          <!-- Acciones de Descarga Exclusivas + Card Cartera Activa Armonizada -->
+          <div class="flex flex-wrap items-center gap-3">
+            <!-- Botones de Descarga del Indicador -->
+            <div class="flex items-center gap-2">
+              <a href="/api/tramos/download/excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar Resumen de Tramos en formato Excel">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Tramos
+              </a>
+              <a href="/api/tramos/download/pdf" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar Reporte PDF de Tramos">
+                <i class="fa-solid fa-file-pdf text-rose-600"></i> PDF Tramos
+              </a>
             </div>
-            <div class="bg-[#ffff00] text-slate-950 font-black px-6 py-2.5 text-lg flex items-center justify-center border-l-2 border-slate-900" id="banner-cartera-activa">
-              $0 USD
+
+            <!-- Card Ejecutiva Armonizada con el diseño de CobranzApp -->
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-blue-950 text-white rounded-2xl px-5 py-2.5 shadow-sm border border-slate-700/60 flex items-center gap-3.5">
+              <div class="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 border border-blue-400/20 flex items-center justify-center text-lg shrink-0">
+                <i class="fa-solid fa-vault"></i>
+              </div>
+              <div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Cartera Activa Total</div>
+                <div id="banner-cartera-activa" class="text-xl font-black font-mono tracking-tight text-white">$0 USD</div>
+              </div>
             </div>
           </div>
         </div>
@@ -544,7 +558,7 @@
           <!-- Tabla Oficial de Tramos -->
           <div class="lg:col-span-2 overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
             <table class="w-full text-left text-xs">
-              <thead class="bg-[#0f172a] text-white font-bold uppercase text-[11px] tracking-wider">
+              <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[11px] tracking-wider">
                 <tr>
                   <th class="py-3 px-3.5">Fase / Categoría</th>
                   <th class="py-3 px-3.5">Rango / Etiqueta</th>
@@ -555,9 +569,9 @@
                 </tr>
               </thead>
               <tbody id="global-tramos-tbody" class="divide-y divide-slate-100 font-mono">
-                <!-- Se llena con los 5 tramos oficiales -->
+                <!-- Se llena dinamicamente con los 5 tramos oficiales -->
               </tbody>
-              <tfoot id="global-tramos-tfoot" class="border-t-2 border-slate-900 bg-slate-900 text-white font-mono font-bold text-xs">
+              <tfoot id="global-tramos-tfoot" class="border-t-2 border-slate-300 bg-slate-100 font-mono font-bold text-xs text-slate-900">
                 <!-- Fila Total Gestión total -->
               </tfoot>
             </table>
@@ -568,7 +582,7 @@
             <div>
               <div class="flex items-center justify-between mb-2">
                 <span class="text-xs font-bold text-slate-800">Distribución de Deuda</span>
-                <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold">Tramos Oficiales</span>
+                <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold border border-blue-200">Tramos Oficiales</span>
               </div>
               <div class="h-48 relative">
                 <canvas id="chart-agrupacion"></canvas>
@@ -1097,14 +1111,14 @@
         chartValues.push(t.total_monto);
         chartColors.push(t.color || '#3b82f6');
 
-        // Destaque para el tramo más pesado en monto (ej: 91 a 180 días con > 30% como en el modelo)
+        // Destaque elegante para el tramo con mayor concentración (ej: 91 a 180 días)
         const isDominant = t.porcentaje >= 30;
         const pctBadge = isDominant
-          ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">${Number(t.porcentaje).toFixed(2)}%</span>`
-          : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${Number(t.porcentaje).toFixed(2)}%</span>`;
+          ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs">${Number(t.porcentaje).toFixed(2)}%</span>`
+          : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">${Number(t.porcentaje).toFixed(2)}%</span>`;
 
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-blue-50/50 transition-colors border-b border-slate-100 cursor-pointer';
+        tr.className = 'hover:bg-slate-50/80 transition-colors border-b border-slate-100 cursor-pointer';
         tr.title = `Clic para filtrar rápido de ${t.min_dias} a ${t.max_dias} días`;
         tr.onclick = () => {
           setMoraRange(t.min_dias, Math.min(t.max_dias, 999), t.etiqueta);
@@ -1114,7 +1128,7 @@
         tr.innerHTML = `
           <td class="py-3 px-3.5 text-slate-800 font-medium text-xs">
             <div class="flex items-center gap-2">
-              <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" style="background-color: ${t.color}"></span>
+              <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style="background-color: ${t.color}"></span>
               <span class="font-semibold text-slate-800">${t.fase}</span>
             </div>
           </td>
@@ -1131,18 +1145,18 @@
         tbody.appendChild(tr);
       });
 
-      // 4. Footer Fila Total Consolidada (Estilo oficial de la referencia: Total | Gestión total | Totales | 100%)
+      // 4. Footer Fila Total Consolidada (Armonizado con la paleta de CobranzApp)
       if (tfoot) {
         tfoot.innerHTML = `
-          <tr class="bg-[#0f172a] text-white font-bold border-t-2 border-slate-900 text-xs">
-            <td class="py-3 px-3.5 uppercase tracking-wider text-[11px] text-amber-400">
-              <i class="fa-solid fa-layer-group mr-1.5 text-amber-400"></i> Total Cartera
+          <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+            <td class="py-3.5 px-3.5 uppercase tracking-wider text-[11px] text-slate-800">
+              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> Total Cartera
             </td>
-            <td class="py-3 px-3.5 text-slate-300 text-xs font-semibold">Gestión total</td>
-            <td class="py-3 px-3.5 text-right font-mono text-xs text-white">${Number(globalSummary.total_cuotas).toLocaleString()}</td>
-            <td class="py-3 px-3.5 text-right font-mono text-xs text-white">${Number(globalSummary.total_clientes).toLocaleString()}</td>
-            <td class="py-3 px-3.5 text-right font-mono text-xs text-emerald-400 font-bold">$${Number(globalSummary.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-            <td class="py-3 px-3.5 text-right text-xs text-amber-400 font-bold">100.00%</td>
+            <td class="py-3.5 px-3.5 text-slate-600 text-xs font-semibold">Gestión total</td>
+            <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(globalSummary.total_cuotas).toLocaleString()}</td>
+            <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(globalSummary.total_clientes).toLocaleString()}</td>
+            <td class="py-3.5 px-3.5 text-right font-mono text-sm text-emerald-700 font-black">$${Number(globalSummary.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-3.5 px-3.5 text-right text-xs text-blue-700 font-black">100.00%</td>
           </tr>
         `;
       }

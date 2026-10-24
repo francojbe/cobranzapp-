@@ -1146,6 +1146,379 @@ def download_pdf():
         headers={"Content-Disposition": "attachment; filename=reporte_cartera_ejecutivo.pdf"}
     )
 
+@app.get("/api/tramos/download/excel")
+def download_tramos_excel():
+    """Descarga el Resumen Agrupado por Tramos de Mora en un archivo Excel formal."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
+        
+    global_summary = calculate_global_tramos_summary(active_df)
+    cutoff = global_summary.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = global_summary.get("total_cartera_usd", 0.0)
+    
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Resumen por Tramos"
+    ws.views.sheetView[0].showGridLines = True
+
+    # Estilos elegantes CobranzApp
+    font_title = Font(name="Calibri", size=14, bold=True, color="0F172A")
+    font_subtitle = Font(name="Calibri", size=10, italic=True, color="64748B")
+    font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    font_data = Font(name="Calibri", size=11, color="1E293B")
+    font_data_bold = Font(name="Calibri", size=11, bold=True, color="1E293B")
+    font_total = Font(name="Calibri", size=11, bold=True, color="0F172A")
+
+    fill_header = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    fill_alt = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    fill_total = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+    fill_banner = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    total_border = Border(
+        left=Side(style='thin', color='94A3B8'),
+        right=Side(style='thin', color='94A3B8'),
+        top=Side(style='medium', color='1E293B'),
+        bottom=Side(style='double', color='1E293B')
+    )
+
+    # Titulo
+    ws["A1"] = "COBRANZAPP - RESUMEN AGRUPADO POR TRAMOS DE MORA"
+    ws["A1"].font = font_title
+    
+    ws["A2"] = f"Fecha de corte: al {cutoff} | Cartera Activa Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws["A2"].font = font_subtitle
+
+    # Banner Ejecutivo
+    ws.merge_cells("A4:B4")
+    ws["A4"] = "CARTERA ACTIVA TOTAL (USD)"
+    ws["A4"].font = Font(name="Calibri", size=10, bold=True, color="1E3A8A")
+    ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["A4"].fill = fill_banner
+
+    ws.merge_cells("C4:D4")
+    ws["C4"] = total_usd
+    ws["C4"].font = Font(name="Calibri", size=15, bold=True, color="047857")
+    ws["C4"].number_format = '$#,##0.00'
+    ws["C4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["C4"].fill = fill_banner
+
+    ws.merge_cells("E4:F4")
+    ws["E4"] = f"{global_summary.get('total_cuotas', 0):,} cuotas | {global_summary.get('total_clientes', 0):,} clientes"
+    ws["E4"].font = Font(name="Calibri", size=10, bold=True, color="475569")
+    ws["E4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["E4"].fill = fill_banner
+
+    # Encabezados de Tabla en fila 6
+    headers = ["Fase / Categoría", "Rango / Etiqueta", "Cant. Cuotas", "Clientes", "Monto Total (USD)", "% Cartera"]
+    start_row = 6
+    for col_idx, h_text in enumerate(headers, start=1):
+        cell = ws.cell(row=start_row, column=col_idx, value=h_text)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center" if col_idx in [2, 6] else ("right" if col_idx in [3, 4, 5] else "left"), vertical="center")
+        cell.border = thin_border
+    ws.row_dimensions[start_row].height = 24
+
+    # Filas de datos
+    curr_row = start_row + 1
+    for idx, t in enumerate(global_summary.get("tramos", [])):
+        r = curr_row + idx
+        ws.row_dimensions[r].height = 20
+        c1 = ws.cell(row=r, column=1, value=t["fase"])
+        c2 = ws.cell(row=r, column=2, value=t["etiqueta"])
+        c3 = ws.cell(row=r, column=3, value=t["cuotas"])
+        c4 = ws.cell(row=r, column=4, value=t["clientes"])
+        c5 = ws.cell(row=r, column=5, value=t["total_monto"])
+        c6 = ws.cell(row=r, column=6, value=t["porcentaje"] / 100.0)
+
+        c1.font = font_data
+        c2.font = font_data_bold
+        c3.font = font_data
+        c4.font = font_data
+        c5.font = font_data_bold
+        c6.font = font_data_bold
+
+        c1.alignment = Alignment(horizontal="left", vertical="center")
+        c2.alignment = Alignment(horizontal="center", vertical="center")
+        c3.alignment = Alignment(horizontal="right", vertical="center")
+        c4.alignment = Alignment(horizontal="right", vertical="center")
+        c5.alignment = Alignment(horizontal="right", vertical="center")
+        c6.alignment = Alignment(horizontal="right", vertical="center")
+
+        c3.number_format = '#,##0'
+        c4.number_format = '#,##0'
+        c5.number_format = '$#,##0.00'
+        c6.number_format = '0.00%'
+
+        row_fill = fill_alt if idx % 2 == 1 else None
+        for col_idx in range(1, 7):
+            cell = ws.cell(row=r, column=col_idx)
+            cell.border = thin_border
+            if row_fill:
+                cell.fill = row_fill
+
+    # Fila Total
+    tot_row = curr_row + len(global_summary.get("tramos", []))
+    ws.row_dimensions[tot_row].height = 24
+
+    tc1 = ws.cell(row=tot_row, column=1, value="TOTAL CARTERA")
+    tc2 = ws.cell(row=tot_row, column=2, value="Gestión total")
+    tc3 = ws.cell(row=tot_row, column=3, value=global_summary.get("total_cuotas", 0))
+    tc4 = ws.cell(row=tot_row, column=4, value=global_summary.get("total_clientes", 0))
+    tc5 = ws.cell(row=tot_row, column=5, value=total_usd)
+    tc6 = ws.cell(row=tot_row, column=6, value=1.0)
+
+    for cell in [tc1, tc2, tc3, tc4, tc5, tc6]:
+        cell.font = font_total
+        cell.fill = fill_total
+        cell.border = total_border
+
+    tc1.alignment = Alignment(horizontal="left", vertical="center")
+    tc2.alignment = Alignment(horizontal="center", vertical="center")
+    tc3.alignment = Alignment(horizontal="right", vertical="center")
+    tc4.alignment = Alignment(horizontal="right", vertical="center")
+    tc5.alignment = Alignment(horizontal="right", vertical="center")
+    tc6.alignment = Alignment(horizontal="right", vertical="center")
+
+    tc3.number_format = '#,##0'
+    tc4.number_format = '#,##0'
+    tc5.number_format = '$#,##0.00'
+    tc6.number_format = '0.00%'
+
+    # Auto ancho de columnas
+    col_widths = {1: 34, 2: 20, 3: 16, 4: 16, 5: 22, 6: 15}
+    for col_idx, width in col_widths.items():
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    filename = f"resumen_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/tramos/download/pdf")
+def download_tramos_pdf():
+    """Genera un reporte PDF ejecutivo exclusivamente del Resumen Agrupado por Tramos de Mora."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
+        
+    global_summary = calculate_global_tramos_summary(active_df)
+    cutoff = global_summary.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = global_summary.get("total_cartera_usd", 0.0)
+    total_cuotas = global_summary.get("total_cuotas", 0)
+    total_clientes = global_summary.get("total_clientes", 0)
+    promedio = total_usd / total_clientes if total_clientes > 0 else 0.0
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'TramosTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        leading=22,
+        textColor=colors.HexColor("#0f172a"),
+        fontName="Helvetica-Bold",
+        spaceAfter=4
+    )
+    subtitle_style = ParagraphStyle(
+        'TramosSubtitle',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor("#64748b"),
+        spaceAfter=14
+    )
+    banner_label = ParagraphStyle(
+        'BannerLabel',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor("#64748b"),
+        alignment=1,
+        fontName="Helvetica-Bold"
+    )
+    banner_val = ParagraphStyle(
+        'BannerVal',
+        parent=styles['Heading2'],
+        fontSize=14,
+        leading=17,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=1,
+        fontName="Helvetica-Bold"
+    )
+    table_cell = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b")
+    )
+    table_cell_center = ParagraphStyle(
+        'TableCellCenter',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=1
+    )
+    table_cell_right = ParagraphStyle(
+        'TableCellRight',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=2
+    )
+    table_header = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#ffffff"),
+        fontName="Helvetica-Bold"
+    )
+    table_header_right = ParagraphStyle(
+        'TableHeaderRight',
+        parent=table_header,
+        alignment=2
+    )
+    table_header_center = ParagraphStyle(
+        'TableHeaderCenter',
+        parent=table_header,
+        alignment=1
+    )
+
+    story = []
+
+    # Encabezado
+    story.append(Paragraph("COBRANZAPP | RESUMEN AGRUPADO POR TRAMOS DE MORA", title_style))
+    story.append(Paragraph(f"<b>Fecha de corte:</b> al {cutoff} &nbsp;|&nbsp; <b>Fecha de emisión:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')} &nbsp;|&nbsp; <b>Cartera:</b> {html.escape(str(DATA_STORE.get('cartera_filename', 'Cartera Activa')))}", subtitle_style))
+    story.append(Spacer(1, 8))
+
+    # Tarjetas ejecutivas superiores
+    kpi_cards = [
+        [
+            Paragraph("CARTERA ACTIVA TOTAL", banner_label),
+            Paragraph("TOTAL CLIENTES", banner_label),
+            Paragraph("CANTIDAD DE CUOTAS", banner_label),
+            Paragraph("DEUDA PROMEDIO / CTE", banner_label)
+        ],
+        [
+            Paragraph(f"${total_usd:,.2f} USD", banner_val),
+            Paragraph(f"{total_clientes:,}", banner_val),
+            Paragraph(f"{total_cuotas:,}", banner_val),
+            Paragraph(f"${promedio:,.2f} USD", banner_val)
+        ]
+    ]
+    t_kpis = Table(kpi_cards, colWidths=[135, 135, 135, 135])
+    t_kpis.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#cbd5e1")),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_kpis)
+    story.append(Spacer(1, 16))
+
+    story.append(Paragraph("<b>Distribución de Deuda por los 5 Tramos Oficiales de Mora:</b>", styles['Normal']))
+    story.append(Spacer(1, 6))
+
+    # Tabla de Tramos Oficiales
+    table_rows = [
+        [
+            Paragraph("Fase / Categoría", table_header),
+            Paragraph("Rango / Etiqueta", table_header_center),
+            Paragraph("Cant. Cuotas", table_header_right),
+            Paragraph("Clientes", table_header_right),
+            Paragraph("Monto (USD)", table_header_right),
+            Paragraph("% Cartera", table_header_right)
+        ]
+    ]
+
+    for t in global_summary.get("tramos", []):
+        table_rows.append([
+            Paragraph(f"<b>{html.escape(t['fase'])}</b>", table_cell),
+            Paragraph(html.escape(t["etiqueta"]), table_cell_center),
+            Paragraph(f"{t['cuotas']:,}", table_cell_right),
+            Paragraph(f"{t['clientes']:,}", table_cell_right),
+            Paragraph(f"${t['total_monto']:,.2f}", table_cell_right),
+            Paragraph(f"<b>{t['porcentaje']:.2f}%</b>", table_cell_right)
+        ])
+
+    # Fila Total Consolidada
+    table_rows.append([
+        Paragraph("<b>TOTAL CARTERA</b>", table_cell),
+        Paragraph("<b>Gestión total</b>", table_cell_center),
+        Paragraph(f"<b>{total_cuotas:,}</b>", table_cell_right),
+        Paragraph(f"<b>{total_clientes:,}</b>", table_cell_right),
+        Paragraph(f"<b>${total_usd:,.2f}</b>", table_cell_right),
+        Paragraph("<b>100.00%</b>", table_cell_right)
+    ])
+
+    t_table = Table(table_rows, colWidths=[150, 95, 75, 75, 95, 50])
+    t_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e293b")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_table)
+    story.append(Spacer(1, 16))
+
+    # Notas ejecutivas estratégicas
+    tramos_list = global_summary.get("tramos", [])
+    max_tramo = max(tramos_list, key=lambda x: x["total_monto"]) if tramos_list else None
+    if max_tramo:
+        notes_text = (
+            f"<b>Observación Estratégica:</b> El tramo con mayor concentración de cartera es <b>{max_tramo['etiqueta']} ({max_tramo['fase']})</b> "
+            f"con un saldo acumulado de <b>${max_tramo['total_monto']:,.2f} USD</b> ({max_tramo['porcentaje']:.2f}% de la cartera activa total) "
+            f"distribuido en {max_tramo['cuotas']:,} cuotas y {max_tramo['clientes']:,} clientes únicos. "
+            f"Se sugiere enfocar las acciones intensivas de negociación y cobranza pre-jurídica en este segmento para maximizar la recuperación de liquidez."
+        )
+        p_notes = Paragraph(notes_text, styles['Normal'])
+        t_notes = Table([[p_notes]], colWidths=[540])
+        t_notes.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#eff6ff")),
+            ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#bfdbfe")),
+            ('TOPPADDING', (0,0), (-1,-1), 8),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+            ('LEFTPADDING', (0,0), (-1,-1), 10),
+            ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ]))
+        story.append(t_notes)
+
+    doc.build(story)
+    buf.seek(0)
+    
+    filename = f"resumen_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 # -------------------------------------------------------------
 # RUTAS DE CALL CENTER / DIALER / WHATSAPP
 # -------------------------------------------------------------
