@@ -511,62 +511,76 @@
         </div>
       </div>
 
-      <!-- Sección de Gráfico y Tabla de Agrupación -->
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <!-- Gráfico de Distribución por Tramos -->
-        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+      <!-- Sección Ejecutiva: Resumen Agrupado Fijo por Tramos de Mora (Modelo Oficial) -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        
+        <!-- Header con Fecha de Corte y Banner "Cartera activa (USD)" estilo Excel Oficial -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <div class="flex items-center justify-between mb-3">
-              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                <i class="fa-solid fa-chart-pie text-blue-600"></i> Distribución por Tramos
-              </h3>
-              <span class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-semibold">5 Tramos</span>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2.5 py-0.5 rounded-full border border-blue-200">
+                Indicador Macro Ejecutivo
+              </span>
+              <span class="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200" id="tramos-cutoff-date">al 20-10-2026</span>
             </div>
-            <div class="h-64 relative">
-              <canvas id="chart-agrupacion"></canvas>
-            </div>
+            <h3 class="text-lg font-bold text-slate-900 mt-1">Resumen Agrupado por Tramos de Mora</h3>
+            <p class="text-xs text-slate-500">Distribución fija de los 5 tramos sobre la Cartera Activa Total (visible siempre, sin importar el filtro).</p>
           </div>
-          <div class="mt-2 pt-2 border-t border-slate-100 text-[10px] text-slate-400 text-center">
-            Monto vencido USD por tramo estratégico oficial
+
+          <!-- Banner Ejecutivo Idéntico al Modelo (Fucsia + Amarillo) -->
+          <div class="inline-flex items-stretch rounded-xl overflow-hidden border-2 border-slate-900 shadow-sm self-start sm:self-auto font-mono">
+            <div class="bg-[#ff4081] text-white px-5 py-2.5 flex items-center gap-2 font-bold text-xs uppercase tracking-wider">
+              <i class="fa-solid fa-vault"></i> Cartera activa (USD)
+            </div>
+            <div class="bg-[#ffff00] text-slate-950 font-black px-6 py-2.5 text-lg flex items-center justify-center border-l-2 border-slate-900" id="banner-cartera-activa">
+              $0 USD
+            </div>
           </div>
         </div>
 
-        <!-- Tabla Agrupada Fija por Tramos Oficiales -->
-        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-3">
-              <div class="flex items-center gap-2">
-                <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
-                  <i class="fa-solid fa-layer-group text-blue-600"></i> Resumen Agrupado por Tramos de Mora
-                </h3>
-                <span class="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">Fijo Oficial</span>
+        <!-- Layout Grid: Tabla Oficial + Gráfico de Distribución -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          
+          <!-- Tabla Oficial de Tramos -->
+          <div class="lg:col-span-2 overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-[#0f172a] text-white font-bold uppercase text-[11px] tracking-wider">
+                <tr>
+                  <th class="py-3 px-3.5">Fase / Categoría</th>
+                  <th class="py-3 px-3.5">Rango / Etiqueta</th>
+                  <th class="py-3 px-3.5 text-right">Cant. Cuotas</th>
+                  <th class="py-3 px-3.5 text-right">Clientes</th>
+                  <th class="py-3 px-3.5 text-right">Monto (USD)</th>
+                  <th class="py-3 px-3.5 text-right">% Cartera</th>
+                </tr>
+              </thead>
+              <tbody id="global-tramos-tbody" class="divide-y divide-slate-100 font-mono">
+                <!-- Se llena con los 5 tramos oficiales -->
+              </tbody>
+              <tfoot id="global-tramos-tfoot" class="border-t-2 border-slate-900 bg-slate-900 text-white font-mono font-bold text-xs">
+                <!-- Fila Total Gestión total -->
+              </tfoot>
+            </table>
+          </div>
+
+          <!-- Gráfico de Tramos -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between min-h-[260px]">
+            <div>
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-bold text-slate-800">Distribución de Deuda</span>
+                <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold">Tramos Oficiales</span>
               </div>
-              <span class="text-xs text-slate-500 font-medium" id="grouped-by-label">Tramos Oficiales de Mora</span>
+              <div class="h-48 relative">
+                <canvas id="chart-agrupacion"></canvas>
+              </div>
             </div>
-            <div class="overflow-x-auto">
-              <table class="w-full text-left text-xs">
-                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] sticky top-0 border-b border-slate-200">
-                  <tr>
-                    <th class="py-2.5 px-3">Tramo Oficial</th>
-                    <th class="py-2.5 px-3">Fase Estratégica</th>
-                    <th class="py-2.5 px-3 text-right">Clientes</th>
-                    <th class="py-2.5 px-3 text-right">Cuotas</th>
-                    <th class="py-2.5 px-3 text-right">Tarifa ($)</th>
-                    <th class="py-2.5 px-3 text-right">Cuota + Mora ($)</th>
-                    <th class="py-2.5 px-3 text-right">Total Monto (USD)</th>
-                    <th class="py-2.5 px-3 text-right">% Cartera</th>
-                  </tr>
-                </thead>
-                <tbody id="agrupacion-tbody" class="divide-y divide-slate-100">
-                  <!-- Se llena con los 5 tramos oficiales -->
-                </tbody>
-                <tfoot id="agrupacion-tfoot" class="border-t-2 border-slate-200">
-                  <!-- Totales calculados dinámicamente -->
-                </tfoot>
-              </table>
+            <div class="text-[10px] text-slate-400 text-center mt-2 pt-2 border-t border-slate-200">
+              Participación sobre el Total de la Cartera Activa
             </div>
           </div>
+
         </div>
+
       </div>
 
       <!-- Vista Previa de la Cartera Detallada -->
@@ -739,6 +753,11 @@
       if (data.loaded) {
         populateMetadata(meta, totals);
       }
+
+      const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
+      if (globalSummary) {
+        renderGlobalTramosScorecard(globalSummary);
+      }
     }
 
     async function loadSampleFiles() {
@@ -757,7 +776,8 @@
             cartera_filename: 'mora.csv (Archivo Principal)',
             contacts_filename: 'Base de Datos Correos y Teléfonos...xlsx',
             metadata: data.metadata,
-            totals: data.totals
+            totals: data.totals,
+            resumen_global_tramos: data.resumen_global_tramos
           });
           alert('¡Archivos de prueba cargados y cruzados con éxito! 47.083 cuotas enriquecidas.');
           switchTab('tab-segment');
@@ -797,7 +817,8 @@
             cartera_filename: file.name,
             contacts_filename: data.metadata ? data.metadata.contacts_filename : '',
             metadata: data.metadata,
-            totals: data.totals
+            totals: data.totals,
+            resumen_global_tramos: data.resumen_global_tramos
           });
           alert('¡Archivo de cartera cargado con éxito!');
         } else {
@@ -838,7 +859,8 @@
             cartera_filename: data.metadata ? data.metadata.cartera_filename : '',
             contacts_filename: file.name,
             metadata: data.metadata,
-            totals: data.totals
+            totals: data.totals,
+            resumen_global_tramos: data.resumen_global_tramos
           });
           alert(`¡Base de contactos cargada y cruzada con éxito! ${Number(data.total_contacts).toLocaleString()} clientes indexados.`);
         } else {
@@ -1021,7 +1043,7 @@
     function renderResults(data, minDias, maxDias) {
       const k = data.kpis;
 
-      document.getElementById('results-subtitle').textContent = `Filtro: ${minDias} a ${maxDias} días de mora | ${data.total_filtered.toLocaleString()} cuotas coincidentes`;
+      document.getElementById('results-subtitle').textContent = `Filtro: ${minDias} a ${maxDias} días de mora | ${Number(data.total_filtered).toLocaleString()} cuotas coincidentes`;
       
       document.getElementById('kpi-clientes').textContent = Number(k.total_clientes).toLocaleString();
       document.getElementById('kpi-cuotas').textContent = `${Number(k.total_cuotas).toLocaleString()} cuotas en mora`;
@@ -1032,69 +1054,101 @@
       document.getElementById('kpi-monto-contactable').textContent = `$${Number(k.monto_contactable).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
       document.getElementById('kpi-pct-monto').textContent = `${k.pct_monto_contactable}% de la deuda`;
 
-      // Tabla Agrupada Fija por Tramos
-      document.getElementById('grouped-by-label').textContent = `Resumen Fijo por 5 Tramos Oficiales`;
-      const tbody = document.getElementById('agrupacion-tbody');
-      const tfoot = document.getElementById('agrupacion-tfoot');
+      // Renderizar el Indicador Macro Fijo por 5 Tramos Oficiales
+      const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
+      if (globalSummary) {
+        renderGlobalTramosScorecard(globalSummary);
+      }
+
+      renderPreviewTable(data.preview, data.total_filtered);
+    }
+
+    function renderGlobalTramosScorecard(globalSummary) {
+      if (!globalSummary || !globalSummary.tramos || globalSummary.tramos.length === 0) return;
+
+      // 1. Fecha de corte
+      const dateElem = document.getElementById('tramos-cutoff-date');
+      if (dateElem && globalSummary.cutoff_date) {
+        dateElem.textContent = `al ${globalSummary.cutoff_date}`;
+      }
+
+      // 2. Banner Ejecutivo "Cartera activa (USD)" (Diseño idéntico a referencia: Rosa/Fucsia + Amarillo)
+      const bannerElem = document.getElementById('banner-cartera-activa');
+      if (bannerElem) {
+        const formattedTotal = Number(globalSummary.total_cartera_usd).toLocaleString('es-CL', {
+          maximumFractionDigits: 0
+        });
+        bannerElem.textContent = `$${formattedTotal} USD`;
+      }
+
+      // 3. Tabla Oficial de 5 Tramos
+      const tbody = document.getElementById('global-tramos-tbody');
+      const tfoot = document.getElementById('global-tramos-tfoot');
+      if (!tbody) return;
+
       tbody.innerHTML = '';
-      if (tfoot) tfoot.innerHTML = '';
 
       const chartLabels = [];
       const chartValues = [];
       const chartColors = [];
 
-      let totClientes = 0;
-      let totCuotas = 0;
-      let totTarifa = 0;
-      let totCuotaMora = 0;
-      let totMonto = 0;
+      globalSummary.tramos.forEach(t => {
+        chartLabels.push(t.etiqueta);
+        chartValues.push(t.total_monto);
+        chartColors.push(t.color || '#3b82f6');
 
-      data.agrupacion.forEach(row => {
-        chartLabels.push(row.etiqueta + ' • ' + (row.fase.split('(')[0].trim()));
-        chartValues.push(row.total_monto);
-        chartColors.push(row.color || '#2563eb');
-
-        totClientes += row.clientes;
-        totCuotas += row.cuotas;
-        totTarifa += row.pendiente_tarifa;
-        totCuotaMora += row.cuota_mas_mora;
-        totMonto += row.total_monto;
-
-        const badgeHtml = `<span class="${row.badge_class}">${row.etiqueta}</span>`;
+        // Destaque para el tramo más pesado en monto (ej: 91 a 180 días con > 30% como en el modelo)
+        const isDominant = t.porcentaje >= 30;
+        const pctBadge = isDominant
+          ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-black bg-rose-100 text-rose-800 border border-rose-300 shadow-2xs">${Number(t.porcentaje).toFixed(2)}%</span>`
+          : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-700 border border-slate-200">${Number(t.porcentaje).toFixed(2)}%</span>`;
 
         const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50 transition-colors';
+        tr.className = 'hover:bg-blue-50/50 transition-colors border-b border-slate-100 cursor-pointer';
+        tr.title = `Clic para filtrar rápido de ${t.min_dias} a ${t.max_dias} días`;
+        tr.onclick = () => {
+          setMoraRange(t.min_dias, Math.min(t.max_dias, 999), t.etiqueta);
+          processFilters();
+        };
+
         tr.innerHTML = `
-          <td class="py-2.5 px-3 font-semibold">${badgeHtml}</td>
-          <td class="py-2.5 px-3 font-medium text-slate-700">${row.fase}</td>
-          <td class="py-2.5 px-3 text-right font-mono font-medium text-slate-800">${Number(row.clientes).toLocaleString()}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-slate-600">${Number(row.cuotas).toLocaleString()}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-slate-600">$${Number(row.pendiente_tarifa).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-          <td class="py-2.5 px-3 text-right font-mono text-slate-600">$${Number(row.cuota_mas_mora).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-          <td class="py-2.5 px-3 text-right font-bold text-slate-900 font-mono">$${Number(row.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-          <td class="py-2.5 px-3 text-right">
-            <span class="inline-block px-2 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200">${row.porcentaje}%</span>
+          <td class="py-3 px-3.5 text-slate-800 font-medium text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-xs" style="background-color: ${t.color}"></span>
+              <span class="font-semibold text-slate-800">${t.fase}</span>
+            </div>
+          </td>
+          <td class="py-3 px-3.5">
+            <span class="${t.badge_class}">${t.etiqueta}</span>
+          </td>
+          <td class="py-3 px-3.5 text-right font-mono text-xs text-slate-700">${Number(t.cuotas).toLocaleString()}</td>
+          <td class="py-3 px-3.5 text-right font-mono text-xs text-slate-700">${Number(t.clientes).toLocaleString()}</td>
+          <td class="py-3 px-3.5 text-right font-mono font-bold text-xs text-slate-900">$${Number(t.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td class="py-3 px-3.5 text-right">
+            ${pctBadge}
           </td>
         `;
         tbody.appendChild(tr);
       });
 
+      // 4. Footer Fila Total Consolidada (Estilo oficial de la referencia: Total | Gestión total | Totales | 100%)
       if (tfoot) {
         tfoot.innerHTML = `
-          <tr class="bg-slate-100/80 font-bold text-slate-900 border-t-2 border-slate-300">
-            <td class="py-2.5 px-3 uppercase text-[11px] text-slate-800" colspan="2">TOTAL CONSOLIDADO</td>
-            <td class="py-2.5 px-3 text-right font-mono font-bold">${Number(totClientes).toLocaleString()}</td>
-            <td class="py-2.5 px-3 text-right font-mono font-bold">${Number(totCuotas).toLocaleString()}</td>
-            <td class="py-2.5 px-3 text-right font-mono font-bold">$${Number(totTarifa).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-            <td class="py-2.5 px-3 text-right font-mono font-bold">$${Number(totCuotaMora).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-            <td class="py-2.5 px-3 text-right font-mono font-bold text-blue-700">$${Number(totMonto).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-            <td class="py-2.5 px-3 text-right font-bold text-blue-700">100.0%</td>
+          <tr class="bg-[#0f172a] text-white font-bold border-t-2 border-slate-900 text-xs">
+            <td class="py-3 px-3.5 uppercase tracking-wider text-[11px] text-amber-400">
+              <i class="fa-solid fa-layer-group mr-1.5 text-amber-400"></i> Total Cartera
+            </td>
+            <td class="py-3 px-3.5 text-slate-300 text-xs font-semibold">Gestión total</td>
+            <td class="py-3 px-3.5 text-right font-mono text-xs text-white">${Number(globalSummary.total_cuotas).toLocaleString()}</td>
+            <td class="py-3 px-3.5 text-right font-mono text-xs text-white">${Number(globalSummary.total_clientes).toLocaleString()}</td>
+            <td class="py-3 px-3.5 text-right font-mono text-xs text-emerald-400 font-bold">$${Number(globalSummary.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-3 px-3.5 text-right text-xs text-amber-400 font-bold">100.00%</td>
           </tr>
         `;
       }
 
+      // 5. Renderizar Gráfico
       renderChart(chartLabels, chartValues, chartColors);
-      renderPreviewTable(data.preview, data.total_filtered);
     }
 
     function renderChart(labels, values, colorsList) {

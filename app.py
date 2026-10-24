@@ -613,6 +613,79 @@ def calculate_totals(df: pd.DataFrame):
         "pct_monto_contactable": pct_monto_contactable,
     }
 
+def get_cutoff_date(df: pd.DataFrame) -> str:
+    """Extrae la fecha de corte de la cartera o la fecha actual."""
+    if df is not None and not df.empty and "Fecha Vencimiento" in df.columns:
+        try:
+            dates = pd.to_datetime(df["Fecha Vencimiento"], errors="coerce").dropna()
+            if not dates.empty:
+                return dates.max().strftime("%d-%m-%Y")
+        except Exception:
+            pass
+    return datetime.now().strftime("%d-%m-%Y")
+
+def calculate_global_tramos_summary(df: pd.DataFrame):
+    """Calcula el Resumen Fijo Oficial por Tramos de Mora para la Cartera Total,
+    independientemente de los filtros aplicados en la vista operativa."""
+    if df is None or df.empty:
+        return {
+            "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
+            "total_cartera_usd": 0.0,
+            "total_cuotas": 0,
+            "total_clientes": 0,
+            "tramos": []
+        }
+
+    df = df.copy()
+    if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+        df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    elif "Total" in df.columns:
+        df["_Tot"] = df["Total"]
+    else:
+        df["_Tot"] = 0.0
+
+    total_cartera_usd = round(float(df["_Tot"].sum()), 2)
+    total_cuotas = len(df)
+    total_clientes = int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else total_cuotas
+
+    tramos = []
+    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+        sub = df[df["Tramo_Mora"] == t_cfg["grupo"]]
+        cuotas_cnt = len(sub)
+        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
+        p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
+        p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
+        p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
+        monto_grp = round(float(sub["_Tot"].sum()), 2)
+        pct = round((monto_grp / total_cartera_usd * 100), 2) if total_cartera_usd > 0 else 0.0
+
+        tramos.append({
+            "id": t_cfg["id"],
+            "fase": t_cfg["fase"],
+            "etiqueta": t_cfg["etiqueta"],
+            "grupo": t_cfg["grupo"],
+            "color": t_cfg["color"],
+            "badge_class": t_cfg["badge_class"],
+            "min_dias": t_cfg["min"],
+            "max_dias": t_cfg["max"],
+            "cuotas": cuotas_cnt,
+            "clientes": clientes_cnt,
+            "pendiente_tarifa": p_tarifa,
+            "pendiente_cuota": p_cuota,
+            "pendiente_mora": p_mora,
+            "cuota_mas_mora": round(p_cuota + p_mora, 2),
+            "total_monto": monto_grp,
+            "porcentaje": pct
+        })
+
+    return {
+        "cutoff_date": get_cutoff_date(df),
+        "total_cartera_usd": total_cartera_usd,
+        "total_cuotas": total_cuotas,
+        "total_clientes": total_clientes,
+        "tramos": tramos
+    }
+
 def get_metadata(df: pd.DataFrame):
     if df is None or df.empty:
         return {
@@ -680,6 +753,7 @@ def get_status():
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     meta = get_metadata(active_df)
     totals = calculate_totals(active_df)
+    resumen_global = calculate_global_tramos_summary(active_df)
     
     return {
         "loaded": cartera_loaded,
@@ -688,6 +762,7 @@ def get_status():
         "contacts_filename": DATA_STORE["contacts_filename"],
         "metadata": meta,
         "totals": totals,
+        "resumen_global_tramos": resumen_global,
         "sample_available": sample_available,
         "contacts_sample_available": contacts_sample_available
     }
@@ -725,10 +800,12 @@ def load_sample():
     enrich_and_merge_datasets()
     
     active_df = DATA_STORE["df_original"]
+    resumen_global = calculate_global_tramos_summary(active_df)
     return {
         "message": f"Cartera cargada exitosamente: {len(df_cartera):,} cuotas{contacts_msg}",
         "metadata": get_metadata(active_df),
-        "totals": calculate_totals(active_df)
+        "totals": calculate_totals(active_df),
+        "resumen_global_tramos": resumen_global
     }
 
 @app.post("/api/upload")
@@ -749,10 +826,12 @@ async def upload_cartera(file: UploadFile = File(...)):
         enrich_and_merge_datasets()
         
         active_df = DATA_STORE["df_original"]
+        resumen_global = calculate_global_tramos_summary(active_df)
         return {
             "message": f"Archivo de cartera '{file.filename}' procesado con éxito.",
             "metadata": get_metadata(active_df),
-            "totals": calculate_totals(active_df)
+            "totals": calculate_totals(active_df),
+            "resumen_global_tramos": resumen_global
         }
     except HTTPException:
         raise
@@ -779,13 +858,15 @@ async def upload_contacts(file: UploadFile = File(...)):
         active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
         totals = calculate_totals(active_df) if active_df is not None else {}
         meta = get_metadata(active_df) if active_df is not None else {}
+        resumen_global = calculate_global_tramos_summary(active_df) if active_df is not None else {}
         
         return {
             "message": f"Base de contactos '{file.filename}' cargada: {len(df):,} clientes indexados.",
             "total_contacts": len(df),
             "filename": file.filename,
             "metadata": meta,
-            "totals": totals
+            "totals": totals,
+            "resumen_global_tramos": resumen_global
         }
     except HTTPException:
         raise
@@ -798,24 +879,24 @@ def process_data(req: FilterRequest):
     if DATA_STORE["df_original"] is None:
         raise HTTPException(status_code=400, detail="No se ha cargado ningún archivo de cartera.")
     
-    df = DATA_STORE["df_original"].copy()
+    df_master = DATA_STORE["df_original"].copy()
     
-    # 1. Filtro por dias de mora
+    # 1. Resumen Global Fijo por Tramos (Invariable ante cualquier filtro)
+    resumen_global = calculate_global_tramos_summary(df_master)
+    
+    # 2. Aplicar filtros a la cartera para la vista operativa detallada
+    df = df_master.copy()
     df = df[(df["Dias de Mora"] >= req.min_dias) & (df["Dias de Mora"] <= req.max_dias)]
     
-    # 2. Filtro por Tipo de Campaña
     if req.tipos_campana and len(req.tipos_campana) > 0 and "Tipo_Campana" in df.columns:
         df = df[df["Tipo_Campana"].isin(req.tipos_campana)]
 
-    # 3. Filtro por Programas
     if req.programas and len(req.programas) > 0 and "Programa" in df.columns:
         df = df[df["Programa"].isin(req.programas)]
         
-    # 4. Filtro por Tipos
     if req.tipos and len(req.tipos) > 0 and "Tipo" in df.columns:
         df = df[df["Tipo"].isin(req.tipos)]
 
-    # 5. Filtro opcional solo con telefono
     if req.only_with_phone:
         has_tel = (df["Telefono_1"].fillna("") != "") | (df["Telefono_2"].fillna("") != "") | (df["Telefono_3"].fillna("") != "")
         df = df[has_tel]
@@ -823,52 +904,8 @@ def process_data(req: FilterRequest):
     DATA_STORE["df_filtered"] = df
     DATA_STORE["filter_info"] = req.dict()
     
-    # Actualizar conjunto para Call Center
     build_debtor_matched_dataset(df)
-    
     kpis = calculate_totals(df)
-    
-    # ---------------------------------------------------------
-    # RESUMEN AGRUPADO FIJO POR TRAMOS OFICIALES DE MORA
-    # ---------------------------------------------------------
-    if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
-        df["_Total_Row"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
-    elif "Total" in df.columns:
-        df["_Total_Row"] = df["Total"]
-    else:
-        df["_Total_Row"] = 0.0
-
-    total_global = kpis["monto_total"]
-    agrupacion = []
-
-    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        sub = df[df["Tramo_Mora"] == t_cfg["grupo"]]
-        cuotas_cnt = len(sub)
-        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
-        p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
-        p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
-        p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
-        monto_grp = round(float(sub["_Total_Row"].sum()), 2)
-        pct = round((monto_grp / total_global * 100), 1) if total_global > 0 else 0.0
-        
-        agrupacion.append({
-            "id": t_cfg["id"],
-            "grupo": t_cfg["grupo"],
-            "etiqueta": t_cfg["etiqueta"],
-            "fase": t_cfg["fase"],
-            "color": t_cfg["color"],
-            "badge_class": t_cfg["badge_class"],
-            "min_dias": t_cfg["min"],
-            "max_dias": t_cfg["max"],
-            "cuotas": cuotas_cnt,
-            "clientes": clientes_cnt,
-            "pendiente_tarifa": p_tarifa,
-            "pendiente_cuota": p_cuota,
-            "pendiente_mora": p_mora,
-            "cuota_mas_mora": round(p_cuota + p_mora, 2),
-            "total_monto": monto_grp,
-            "porcentaje": pct
-        })
     
     # Vista previa: Primeras 100 filas
     cols_priority = [
@@ -879,7 +916,6 @@ def process_data(req: FilterRequest):
     cols_to_show = [c for c in cols_priority if c in df.columns] + [c for c in df.columns if c not in cols_priority and not c.startswith("_") and c != "Cedula_Key"]
     
     preview_df = df[cols_to_show].head(100).fillna("")
-    
     preview = []
     for r in preview_df.to_dict(orient="records"):
         tel1 = str(r.get("Telefono_1", ""))
@@ -889,7 +925,8 @@ def process_data(req: FilterRequest):
     
     return {
         "kpis": kpis,
-        "agrupacion": agrupacion,
+        "resumen_global_tramos": resumen_global,
+        "agrupacion": resumen_global["tramos"],
         "group_by_used": "Tramo Oficial de Mora",
         "preview_count": len(preview),
         "total_filtered": len(df),
@@ -1049,56 +1086,52 @@ def download_pdf():
     story.append(Spacer(1, 15))
     
     # Distribución Fija por Tramos Oficiales
-    story.append(Paragraph("<b>Distribución Fija de Deuda por Tramos Oficiales de Mora:</b>", styles['Heading3']))
-    story.append(Spacer(1, 8))
-    
-    df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
-    if df["_Tot"].sum() == 0 and "Total" in df.columns:
-        df["_Tot"] = df["Total"]
+    df_master = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else df
+    global_summary = calculate_global_tramos_summary(df_master)
+    cutoff = global_summary.get("cutoff_date", datetime.now().strftime('%d-%m-%Y'))
+    total_cartera_val = global_summary.get("total_cartera_usd", kpis['monto_total'])
 
-    tot_g = kpis["monto_total"]
+    story.append(Paragraph(f"<b>Resumen Agrupado por Tramos de Mora (al {cutoff})</b>", styles['Heading3']))
+    story.append(Paragraph(f"<b>Cartera Activa Total: ${total_cartera_val:,.2f} USD</b> | Cuotas: {global_summary.get('total_cuotas', 0):,} | Clientes: {global_summary.get('total_clientes', 0):,}", styles['Normal']))
+    story.append(Spacer(1, 8))
+
     table_rows = [
         [
-            Paragraph("Tramo Oficial de Mora", table_header),
-            Paragraph("Fase Estratégica", table_header),
+            Paragraph("Fase / Categoría", table_header),
+            Paragraph("Rango / Etiqueta", table_header),
+            Paragraph("Cant. Cuotas", table_header),
             Paragraph("Clientes", table_header),
-            Paragraph("Cuotas", table_header),
-            Paragraph("Monto Vencido", table_header),
+            Paragraph("Monto (USD)", table_header),
             Paragraph("% Cartera", table_header)
         ]
     ]
     
-    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        sub = df[df["Tramo_Mora"] == t_cfg["grupo"]]
-        cuotas_cnt = len(sub)
-        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
-        m_val = round(float(sub["_Tot"].sum()), 2)
-        pct = (m_val / tot_g * 100) if tot_g > 0 else 0
+    for t_data in global_summary.get("tramos", []):
         table_rows.append([
-            Paragraph(html.escape(t_cfg["etiqueta"]), table_cell),
-            Paragraph(html.escape(t_cfg["fase"]), table_cell),
-            Paragraph(f"{clientes_cnt:,}", table_cell),
-            Paragraph(f"{cuotas_cnt:,}", table_cell),
-            Paragraph(f"${m_val:,.2f}", table_cell),
-            Paragraph(f"{pct:.1f}%", table_cell)
+            Paragraph(html.escape(t_data["fase"]), table_cell),
+            Paragraph(html.escape(t_data["etiqueta"]), table_cell),
+            Paragraph(f"{t_data['cuotas']:,}", table_cell),
+            Paragraph(f"{t_data['clientes']:,}", table_cell),
+            Paragraph(f"${t_data['total_monto']:,.2f}", table_cell),
+            Paragraph(f"{t_data['porcentaje']:.2f}%", table_cell)
         ])
     
     # Fila de Totales Generales
     table_rows.append([
-        Paragraph("<b>TOTAL CONSOLIDADO</b>", table_cell),
-        Paragraph("<b>Todos los tramos</b>", table_cell),
-        Paragraph(f"<b>{kpis['total_clientes']:,}</b>", table_cell),
-        Paragraph(f"<b>{kpis['total_cuotas']:,}</b>", table_cell),
-        Paragraph(f"<b>${kpis['monto_total']:,.2f}</b>", table_cell),
+        Paragraph("<b>Total Cartera</b>", table_cell),
+        Paragraph("<b>Gestión total</b>", table_cell),
+        Paragraph(f"<b>{global_summary.get('total_cuotas', 0):,}</b>", table_cell),
+        Paragraph(f"<b>{global_summary.get('total_clientes', 0):,}</b>", table_cell),
+        Paragraph(f"<b>${total_cartera_val:,.2f}</b>", table_cell),
         Paragraph("<b>100.0%</b>", table_cell)
     ])
     
-    t_grp = Table(table_rows, colWidths=[120, 160, 60, 60, 85, 55])
+    t_grp = Table(table_rows, colWidths=[150, 110, 70, 70, 95, 55])
     t_grp.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#2563eb")),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e293b")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
         ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
-        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#f1f5f9")),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
         ('TOPPADDING', (0,0), (-1,-1), 5),
         ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]))
