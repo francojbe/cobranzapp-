@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Reestructuración y Segmentación de Cartera</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Heroicons / Lucide style svg -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body { font-family: 'Inter', sans-serif; }
+    .tab-active {
+      border-bottom: 2px solid #2563eb;
+      color: #2563eb;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white text-lg shadow-sm">
+          <i class="fa-solid fa-chart-pie"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">Cartera Manager</h1>
+          <p class="text-xs text-slate-500">Motor de Reestructuración, Segmentación y Cruce de Mora</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-3">
+        <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors shadow-xs cursor-pointer">
+          <i class="fa-solid fa-circle-question text-blue-600"></i> ¿Cómo usar?
+        </button>
+        <div id="file-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+          <span>Sin archivo activo</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100 text-sm font-medium">
+      <button onclick="switchTab('tab-upload')" id="nav-upload" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 tab-active flex items-center gap-2">
+        <i class="fa-solid fa-cloud-arrow-up"></i> 1. Cargar Archivo
+      </button>
+      <button onclick="switchTab('tab-segment')" id="nav-segment" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-sliders"></i> 2. Configurar Desglose
+      </button>
+      <button onclick="switchTab('tab-results')" id="nav-results" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+        <i class="fa-solid fa-chart-simple"></i> 3. Métricas y Descarga
+      </button>
+      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-3 px-1 border-b-2 border-transparent text-slate-400 hover:text-slate-600 flex items-center gap-2">
+        <i class="fa-solid fa-address-book"></i> 4. Cruce Contactos <span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">Fase 2</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ============================================== -->
+    <!-- TAB 1: CARGA DE ARCHIVO                        -->
+    <!-- ============================================== -->
+    <div id="tab-upload" class="space-y-6">
+
+      <!-- Banner de Flujo Visual Paso a Paso -->
+      <div class="bg-gradient-to-r from-slate-900 via-blue-950 to-indigo-950 rounded-2xl p-6 text-white shadow-sm border border-slate-800">
+        <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/10">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider text-blue-300 bg-blue-500/20 px-2.5 py-0.5 rounded-full border border-blue-400/30">Guía de Inicio Rápido</span>
+              <span class="text-xs text-slate-300">4 pasos sencillos</span>
+            </div>
+            <h3 class="text-base font-bold text-white mt-1">¿Cómo opera el Motor de Reestructuración de Cartera?</h3>
+          </div>
+          <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer self-start md:self-auto">
+            <i class="fa-solid fa-book-open"></i> Ver Manual Visual Completo
+          </button>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <!-- Step 1 -->
+          <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
+            <div class="flex items-center gap-2.5 mb-2">
+              <div class="w-6 h-6 rounded-md bg-blue-500 text-white font-bold flex items-center justify-center text-xs">1</div>
+              <h4 class="text-xs font-bold text-white">Cargar Cartera</h4>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-snug">
+              Sube <span class="text-white font-medium">mora.csv</span> o Excel. El sistema identifica montos, cuotas y clientes sin configurar nada.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
+            <div class="flex items-center gap-2.5 mb-2">
+              <div class="w-6 h-6 rounded-md bg-indigo-500 text-white font-bold flex items-center justify-center text-xs">2</div>
+              <h4 class="text-xs font-bold text-white">Elegir Tramo</h4>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-snug">
+              Presiona el botón de tu tramo: <span class="text-emerald-300 font-medium">1-30d</span>, <span class="text-blue-300 font-medium">31-60d</span>, <span class="text-amber-300 font-medium">61-90d</span>, <span class="text-orange-300 font-medium">91-180d</span> o <span class="text-rose-300 font-medium">181+d</span>.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
+            <div class="flex items-center gap-2.5 mb-2">
+              <div class="w-6 h-6 rounded-md bg-emerald-500 text-white font-bold flex items-center justify-center text-xs">3</div>
+              <h4 class="text-xs font-bold text-white">Ver Métricas</h4>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-snug">
+              Revisa el monto vencido, promedio por deudor, recargo de mora y gráficas de distribución por Campaña.
+            </p>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
+            <div class="flex items-center gap-2.5 mb-2">
+              <div class="w-6 h-6 rounded-md bg-amber-500 text-white font-bold flex items-center justify-center text-xs">4</div>
+              <h4 class="text-xs font-bold text-white">Exportar</h4>
+            </div>
+            <p class="text-[11px] text-slate-300 leading-snug">
+              Descarga el <span class="text-emerald-300 font-medium">Excel</span> para el equipo de cobranzas o el <span class="text-rose-300 font-medium">PDF Ejecutivo</span> para gerencia.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
+        <div class="max-w-2xl mx-auto text-center space-y-4">
+          <div class="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-2xl">
+            <i class="fa-regular fa-file-excel"></i>
+          </div>
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Cargar Archivo Principal de Mora</h2>
+            <p class="text-sm text-slate-500 mt-1">Sube el archivo descargado con las cuotas vencidas (.csv o .xlsx)</p>
+          </div>
+
+          <!-- Drop zone -->
+          <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer flex flex-col items-center justify-center">
+            <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
+            <i class="fa-solid fa-arrow-up-from-bracket text-3xl text-slate-400 mb-3"></i>
+            <p class="text-sm font-medium text-slate-700">Haz clic para seleccionar o arrastra tu archivo aquí</p>
+            <p class="text-xs text-slate-400 mt-1">Formatos admitidos: CSV, Excel (.xlsx)</p>
+          </div>
+
+          <!-- Acceso Rapido con mora.csv ya en servidor -->
+          <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <span class="text-xs text-slate-500">¿Quieres probar de inmediato con el archivo de ejemplo?</span>
+            <button onclick="loadSampleFile()" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
+              <i class="fa-solid fa-bolt"></i> Cargar "mora.csv" de prueba (47.083 filas)
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumen del Archivo Activo -->
+      <div id="file-summary-card" class="hidden bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
+          <i class="fa-solid fa-circle-check text-emerald-500"></i> Resumen del Archivo Activo
+        </h3>
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="text-xs text-slate-500 font-medium">Total Registros (Cuotas)</div>
+            <div id="meta-rows" class="text-xl font-bold text-slate-900 mt-1">-</div>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="text-xs text-slate-500 font-medium">Clientes Únicos</div>
+            <div id="meta-clients" class="text-xl font-bold text-slate-900 mt-1">-</div>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="text-xs text-slate-500 font-medium">Mora Detectada</div>
+            <div id="meta-mora-range" class="text-xl font-bold text-slate-900 mt-1">-</div>
+          </div>
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="text-xs text-slate-500 font-medium">Monto Total Cartera</div>
+            <div id="meta-total-amount" class="text-xl font-bold text-blue-600 mt-1">-</div>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button onclick="switchTab('tab-segment')" class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
+            Configurar Desglose de Cartera <i class="fa-solid fa-arrow-right"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- TAB 2: CONFIGURACIÓN DEL DESGLOSE              -->
+    <!-- ============================================== -->
+    <div id="tab-segment" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div class="border-b border-slate-100 pb-4 mb-6">
+          <h2 class="text-lg font-bold text-slate-900">Definir Criterios de Reestructuración / Desglose</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Indica los rangos de días vencidos, campañas y estatus que deseas extraer.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Columna 1: Días de Mora -->
+          <div class="space-y-4">
+            <label class="block text-sm font-semibold text-slate-800 flex items-center justify-between">
+              <span><i class="fa-regular fa-calendar-days text-blue-600 mr-1.5"></i> Rango de Días de Mora</span>
+              <span id="range-badge" class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">1 - 60 días</span>
+            </label>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <label class="text-xs text-slate-500">Mínimo (Días)</label>
+                <input type="number" id="input-min-dias" value="1" min="0" max="999" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              </div>
+              <div>
+                <label class="text-xs text-slate-500">Máximo (Días)</label>
+                <input type="number" id="input-max-dias" value="60" min="0" max="999" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+              </div>
+            </div>
+
+            <!-- Botones de Acceso Rápido a Tramos Oficiales -->
+            <div>
+              <span class="text-xs font-semibold text-slate-700 block mb-2">Tramos Estratégicos de Cobranza:</span>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <button type="button" onclick="setMoraRange(1, 30, '1 - 30 días • Preventiva')" class="p-2 text-left rounded-lg border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-900 transition-all">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>1 a 30 días</span>
+                    <span class="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">29.8%</span>
+                  </div>
+                  <div class="text-[11px] text-emerald-700 mt-0.5">Preventiva / temprana</div>
+                </button>
+                <button type="button" onclick="setMoraRange(31, 60, '31 - 60 días • Administrativa')" class="p-2 text-left rounded-lg border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-900 transition-all">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>31 a 60 días</span>
+                    <span class="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-semibold">13.5%</span>
+                  </div>
+                  <div class="text-[11px] text-blue-700 mt-0.5">Cobranza administrativa</div>
+                </button>
+                <button type="button" onclick="setMoraRange(61, 90, '61 - 90 días • Reestructuración')" class="p-2 text-left rounded-lg border border-amber-200 bg-amber-50/60 hover:bg-amber-100 text-amber-900 transition-all">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>61 a 90 días</span>
+                    <span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-semibold">10.6%</span>
+                  </div>
+                  <div class="text-[11px] text-amber-700 mt-0.5">Reestructuración / negociación</div>
+                </button>
+                <button type="button" onclick="setMoraRange(91, 180, '91 - 180 días • Pre-jurídica')" class="p-2 text-left rounded-lg border border-orange-200 bg-orange-50/60 hover:bg-orange-100 text-orange-900 transition-all">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>91 a 180 días</span>
+                    <span class="text-[10px] bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded font-semibold">35.0%</span>
+                  </div>
+                  <div class="text-[11px] text-orange-700 mt-0.5">Pre-jurídica (Tramo mayoritario)</div>
+                </button>
+                <button type="button" onclick="setMoraRange(181, 999, '181+ días • Castigo / Pesada')" class="p-2 text-left rounded-lg border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-900 transition-all">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>181+ días</span>
+                    <span class="text-[10px] bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded font-semibold">11.2%</span>
+                  </div>
+                  <div class="text-[11px] text-rose-700 mt-0.5">Castigo / cartera pesada</div>
+                </button>
+                <button type="button" onclick="setMoraRange(1, 999, '1 a 305 días • Toda la Cartera')" class="p-2 text-left rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-all flex flex-col justify-center">
+                  <div class="font-bold flex items-center justify-between">
+                    <span>Toda la Cartera</span>
+                    <span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-semibold">100%</span>
+                  </div>
+                  <div class="text-[11px] text-slate-500 mt-0.5">1 a 305 días completos</div>
+                </button>
+              </div>
+            </div>
+
+            <div class="pt-2">
+              <label class="block text-xs font-semibold text-slate-700 mb-1.5">Agrupar Reporte Por:</label>
+              <select id="select-group-by" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                <option value="Programa" selected>Campaña / Programa</option>
+                <option value="Tipo">Estatus / Tipo de Deuda</option>
+                <option value="Canal">Canal</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Columna 2: Campañas / Programa -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-semibold text-slate-800">
+                <i class="fa-solid fa-bullhorn text-indigo-600 mr-1.5"></i> Campañas (`Programa`)
+              </label>
+              <div class="space-x-2 text-xs">
+                <button type="button" onclick="toggleAllCheckboxes('program-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
+                <span class="text-slate-300">|</span>
+                <button type="button" onclick="toggleAllCheckboxes('program-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
+              </div>
+            </div>
+            <div id="programas-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2 text-xs">
+              <span class="text-slate-400">Carga un archivo para ver las campañas.</span>
+            </div>
+          </div>
+
+          <!-- Columna 3: Tipos / Estatus -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-semibold text-slate-800">
+                <i class="fa-solid fa-tags text-emerald-600 mr-1.5"></i> Tipo de Deuda (`Tipo`)
+              </label>
+              <div class="space-x-2 text-xs">
+                <button type="button" onclick="toggleAllCheckboxes('tipo-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
+                <span class="text-slate-300">|</span>
+                <button type="button" onclick="toggleAllCheckboxes('tipo-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
+              </div>
+            </div>
+            <div id="tipos-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2 text-xs">
+              <span class="text-slate-400">Carga un archivo para ver los tipos.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center">
+          <button onclick="switchTab('tab-upload')" class="text-sm text-slate-500 hover:text-slate-700">
+            <i class="fa-solid fa-arrow-left mr-1"></i> Volver a carga
+          </button>
+          <button onclick="processFilters()" id="btn-process" class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all">
+            <i class="fa-solid fa-bolt"></i> Generar Cartera y Ver Métricas
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- TAB 3: RESULTADOS, MÉTRICAS Y DESCARGA         -->
+    <!-- ============================================== -->
+    <div id="tab-results" class="hidden space-y-6">
+
+      <!-- Barra de Acciones de Descarga -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div>
+          <h2 class="text-lg font-bold text-slate-900" id="results-title">Resultados de Cartera Desglosada</h2>
+          <p class="text-xs text-slate-500" id="results-subtitle">Filtro aplicado: 1 a 60 días de mora</p>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="/api/download/excel" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
+            <i class="fa-solid fa-file-excel"></i> Descargar Excel (Misma Estructura)
+          </a>
+          <a href="/api/download/pdf" target="_blank" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
+            <i class="fa-solid fa-file-pdf"></i> Descargar Reporte PDF
+          </a>
+        </div>
+      </div>
+
+      <!-- Tarjetas de Métricas Ejecutivas (KPIs) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-solid fa-users"></i>
+          </div>
+          <div>
+            <div class="text-xs font-medium text-slate-500">Clientes Únicos</div>
+            <div id="kpi-clientes" class="text-2xl font-bold text-slate-900 mt-0.5">0</div>
+            <div class="text-[11px] text-slate-400" id="kpi-cuotas">0 cuotas vencidas</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-solid fa-sack-dollar"></i>
+          </div>
+          <div>
+            <div class="text-xs font-medium text-slate-500">Monto Total Vencido</div>
+            <div id="kpi-monto-total" class="text-2xl font-bold text-emerald-600 mt-0.5">$0.00 USD</div>
+            <div class="text-[11px] text-slate-400" id="kpi-promedio">Promedio: $0.00 / cte</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+          <div>
+            <div class="text-xs font-medium text-slate-500">Tarifa Pendiente</div>
+            <div id="kpi-tarifa" class="text-xl font-bold text-slate-900 mt-0.5">$0.00</div>
+            <div class="text-[11px] text-slate-400">Servicio recurrente</div>
+          </div>
+        </div>
+
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
+          <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
+            <i class="fa-solid fa-clock-rotate-left"></i>
+          </div>
+          <div>
+            <div class="text-xs font-medium text-slate-500">Cuotas + Recargo Mora</div>
+            <div id="kpi-cuota-mora" class="text-xl font-bold text-slate-900 mt-0.5">$0.00</div>
+            <div class="text-[11px] text-slate-400">Capital + Sanciones</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Sección de Gráfico y Tabla de Agrupación -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Gráfico de Distribución -->
+        <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+            <i class="fa-solid fa-chart-column text-blue-600"></i> Distribución de Monto
+          </h3>
+          <div class="h-64 relative">
+            <canvas id="chart-agrupacion"></canvas>
+          </div>
+        </div>
+
+        <!-- Tabla Agrupada (Resumen) -->
+        <div class="lg:col-span-2 bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i class="fa-solid fa-table-list text-slate-700"></i> Resumen Agrupado
+              </h3>
+              <span class="text-xs text-slate-400" id="grouped-by-label">Agrupado por Campaña</span>
+            </div>
+            <div class="overflow-x-auto max-h-64">
+              <table class="w-full text-left text-xs text-slate-600">
+                <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] sticky top-0">
+                  <tr>
+                    <th class="py-2.5 px-3">Grupo</th>
+                    <th class="py-2.5 px-3 text-right">Clientes</th>
+                    <th class="py-2.5 px-3 text-right">Cuotas</th>
+                    <th class="py-2.5 px-3 text-right">Total Monto (USD)</th>
+                    <th class="py-2.5 px-3 text-right">% Cartera</th>
+                  </tr>
+                </thead>
+                <tbody id="agrupacion-tbody" class="divide-y divide-slate-100">
+                  <!-- Se llena dinamicamente -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vista Previa de la Cartera Detallada -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <div class="flex items-center justify-between">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Vista Previa del Detalle (Primeras 100 filas)</h3>
+            <p class="text-xs text-slate-400">Estructura idéntica al archivo original `mora.csv`</p>
+          </div>
+          <span id="preview-tag" class="text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">0 registros</span>
+        </div>
+        <div class="overflow-x-auto border border-slate-100 rounded-xl max-h-80">
+          <table class="w-full text-left text-[11px] text-slate-600 whitespace-nowrap">
+            <thead class="bg-slate-100 text-slate-700 font-semibold sticky top-0" id="preview-thead">
+              <!-- Encabezados dinamicos -->
+            </thead>
+            <tbody id="preview-tbody" class="divide-y divide-slate-100">
+              <!-- Filas dinamicas -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- TAB 4: CRUCE DE CONTACTOS (FASE 2 PREVIEW)     -->
+    <!-- ============================================== -->
+    <div id="tab-contacts" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+        <div class="max-w-3xl mx-auto space-y-6">
+          <div class="border-b border-slate-100 pb-4">
+            <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Fase 2 del Proyecto</span>
+            <h2 class="text-xl font-bold text-slate-900 mt-1">Cruce Inteligente de Contactos (Enriquecimiento)</h2>
+            <p class="text-xs text-slate-500 mt-1">Sube la base de números telefónicos y correos para anexarlos a la cartera filtrada mediante la <b>Cédula del Cliente</b>.</p>
+          </div>
+
+          <!-- Diagrama de flujo interactivo -->
+          <div class="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex-1">
+              <div class="text-xs font-bold text-blue-600"><i class="fa-regular fa-file-lines mr-1"></i> Cartera Filtrada</div>
+              <div class="text-xs text-slate-500 mt-1">mora.csv (1 a 60 días)</div>
+              <div class="text-[10px] text-slate-400 mt-1 font-mono">Llave: Cedula Cliente</div>
+            </div>
+            <div class="text-slate-400 font-bold text-lg"><i class="fa-solid fa-plus"></i></div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex-1">
+              <div class="text-xs font-bold text-emerald-600"><i class="fa-solid fa-address-book mr-1"></i> Base de Contactos</div>
+              <div class="text-xs text-slate-500 mt-1">telefonos_email.xlsx</div>
+              <div class="text-[10px] text-slate-400 mt-1 font-mono">Llave: Cedula Cliente</div>
+            </div>
+            <div class="text-slate-400 font-bold text-lg"><i class="fa-solid fa-equals"></i></div>
+            <div class="bg-blue-600 text-white p-4 rounded-xl shadow-sm flex-1">
+              <div class="text-xs font-bold"><i class="fa-solid fa-file-export mr-1"></i> Excel Enriquecido</div>
+              <div class="text-xs text-blue-100 mt-1">Cartera + Tel 1 + Tel 2 + Email</div>
+              <div class="text-[10px] text-blue-200 mt-1">Listo para Call Center</div>
+            </div>
+          </div>
+
+          <!-- Demo Mockup Dropzone -->
+          <div class="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center bg-slate-50/50">
+            <i class="fa-solid fa-cloud-arrow-up text-3xl text-slate-300 mb-2"></i>
+            <h4 class="text-sm font-semibold text-slate-700">Subir Archivo de Contactos (Mockup)</h4>
+            <p class="text-xs text-slate-400 mt-1">Cuando tengas el archivo de ejemplo de contactos, se activará este motor de cruce automático.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- JavaScript Logica de la App -->
+  <script>
+    let appMetadata = null;
+    let chartInstance = null;
+
+    // Tabs Switcher
+    function switchTab(tabId) {
+      ['tab-upload', 'tab-segment', 'tab-results', 'tab-contacts'].forEach(id => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      ['nav-upload', 'nav-segment', 'nav-results', 'nav-contacts'].forEach(id => {
+        document.getElementById(id).classList.remove('tab-active');
+      });
+      
+      document.getElementById(tabId).classList.remove('hidden');
+      document.getElementById('nav-' + tabId.replace('tab-', '')).classList.add('tab-active');
+    }
+
+    // Al cargar la pagina
+    window.addEventListener('DOMContentLoaded', async () => {
+      // Verificar si hay archivo cargado en backend
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        if (data.loaded) {
+          populateMetadata(data.metadata, data.filename, data.totals);
+        }
+      } catch (err) {
+        console.error("Error al obtener status:", err);
+      }
+    });
+
+    // Cargar archivo mora.csv de prueba
+    async function loadSampleFile() {
+      const btn = event.currentTarget;
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando 47.083 filas...`;
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/load-sample', { method: 'POST' });
+        const data = await res.json();
+        if (res.ok) {
+          populateMetadata(data.metadata, 'mora.csv (Archivo Base)', data.totals);
+          alert('¡Archivo cargado con éxito! Se cargaron 47.083 filas.');
+          switchTab('tab-segment');
+        } else {
+          alert('Error: ' + data.detail);
+        }
+      } catch (err) {
+        alert('Error en conexión: ' + err.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // Subir archivo manual
+    async function handleFileUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const dropZone = document.getElementById('drop-zone');
+      const originalDropZone = dropZone.innerHTML;
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+
+      dropZone.innerHTML = `
+        <div class="py-4 text-center">
+          <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-3"></i>
+          <p class="text-sm font-semibold text-slate-800">Subiendo y procesando ${file.name} (${sizeMB} MB)...</p>
+          <p class="text-xs text-slate-500 mt-1">Analizando hojas de cálculo y calculando métricas...</p>
+        </div>
+      `;
+      dropZone.style.pointerEvents = 'none';
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (res.ok) {
+          populateMetadata(data.metadata, data.message || file.name, data.totals);
+          switchTab('tab-segment');
+        } else {
+          alert('Error al procesar: ' + (typeof data.detail === 'object' ? JSON.stringify(data.detail) : data.detail));
+        }
+      } catch (err) {
+        alert('Error al subir: ' + err.message);
+      } finally {
+        dropZone.innerHTML = originalDropZone;
+        dropZone.style.pointerEvents = 'auto';
+        document.getElementById('file-input').value = '';
+      }
+    }
+
+    // Poblar metadata y campos de seleccion
+    function populateMetadata(meta, filename, totals) {
+      appMetadata = meta;
+
+      // Actualizar Header Badge
+      const badge = document.getElementById('file-status-badge');
+      badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>${filename}</span>`;
+
+      // Card resumen
+      document.getElementById('file-summary-card').classList.remove('hidden');
+      document.getElementById('meta-rows').textContent = Number(meta.total_rows).toLocaleString();
+      document.getElementById('meta-clients').textContent = Number(meta.total_clientes).toLocaleString();
+      document.getElementById('meta-mora-range').textContent = `${meta.min_dias} a ${meta.max_dias} días`;
+      document.getElementById('meta-total-amount').textContent = `$${Number(totals.monto_total).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+
+      // Poblar Programas (Campañas)
+      const progContainer = document.getElementById('programas-list');
+      progContainer.innerHTML = '';
+      meta.programas.forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-2';
+        div.innerHTML = `
+          <input type="checkbox" id="prog-${p}" value="${p}" checked class="program-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          <label for="prog-${p}" class="text-slate-700 cursor-pointer select-none">${p}</label>
+        `;
+        progContainer.appendChild(div);
+      });
+
+      // Poblar Tipos
+      const tiposContainer = document.getElementById('tipos-list');
+      tiposContainer.innerHTML = '';
+      meta.tipos.forEach(t => {
+        const div = document.createElement('div');
+        div.className = 'flex items-center gap-2';
+        div.innerHTML = `
+          <input type="checkbox" id="tipo-${t}" value="${t}" checked class="tipo-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+          <label for="tipo-${t}" class="text-slate-700 cursor-pointer select-none">${t}</label>
+        `;
+        tiposContainer.appendChild(div);
+      });
+    }
+
+    function setMoraRange(min, max, customLabel = null) {
+      document.getElementById('input-min-dias').value = min;
+      document.getElementById('input-max-dias').value = max;
+      document.getElementById('range-badge').textContent = customLabel || `${min} - ${max} días`;
+    }
+
+    document.getElementById('input-min-dias').addEventListener('input', updateBadge);
+    document.getElementById('input-max-dias').addEventListener('input', updateBadge);
+
+    function updateBadge() {
+      const min = document.getElementById('input-min-dias').value;
+      const max = document.getElementById('input-max-dias').value;
+      document.getElementById('range-badge').textContent = `${min} - ${max} días`;
+    }
+
+    function toggleAllCheckboxes(className, state) {
+      document.querySelectorAll('.' + className).forEach(cb => cb.checked = state);
+    }
+
+    // Procesar filtros
+    async function processFilters() {
+      const minDias = parseInt(document.getElementById('input-min-dias').value) || 0;
+      const maxDias = parseInt(document.getElementById('input-max-dias').value) || 999;
+      const groupBy = document.getElementById('select-group-by').value;
+
+      const programas = Array.from(document.querySelectorAll('.program-checkbox:checked')).map(cb => cb.value);
+      const tipos = Array.from(document.querySelectorAll('.tipo-checkbox:checked')).map(cb => cb.value);
+
+      const btn = document.getElementById('btn-process');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Procesando segmentación...`;
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/process', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            min_dias: minDias,
+            max_dias: maxDias,
+            programas: programas,
+            tipos: tipos,
+            group_by: groupBy
+          })
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          renderResults(data, minDias, maxDias);
+          switchTab('tab-results');
+        } else {
+          alert('Error: ' + data.detail);
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
+
+    // Renderizar resultados en Tab 3
+    function renderResults(data, minDias, maxDias) {
+      const k = data.kpis;
+
+      // Subtitulos
+      document.getElementById('results-subtitle').textContent = `Filtro aplicado: ${minDias} a ${maxDias} días de mora | ${data.total_filtered.toLocaleString()} registros coincidentes`;
+      
+      // KPIs
+      document.getElementById('kpi-clientes').textContent = Number(k.total_clientes).toLocaleString();
+      document.getElementById('kpi-cuotas').textContent = `${Number(k.total_cuotas).toLocaleString()} cuotas / ${Number(k.total_creditos).toLocaleString()} créditos`;
+      document.getElementById('kpi-monto-total').textContent = `$${Number(k.monto_total).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('kpi-promedio').textContent = `Promedio: $${Number(k.promedio_cliente).toLocaleString('en-US', {minimumFractionDigits: 2})} / cliente`;
+      document.getElementById('kpi-tarifa').textContent = `$${Number(k.pendiente_tarifa).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      document.getElementById('kpi-cuota-mora').textContent = `$${Number(k.pendiente_cuota + k.pendiente_mora).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+
+      // Tabla Agrupada
+      document.getElementById('grouped-by-label').textContent = `Agrupado por: ${data.group_by_used}`;
+      const tbody = document.getElementById('agrupacion-tbody');
+      tbody.innerHTML = '';
+
+      const chartLabels = [];
+      const chartValues = [];
+
+      data.agrupacion.forEach(row => {
+        chartLabels.push(row.grupo);
+        chartValues.push(row.total_monto);
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition-colors';
+        tr.innerHTML = `
+          <td class="py-2 px-3 font-medium text-slate-800">${row.grupo}</td>
+          <td class="py-2 px-3 text-right font-mono">${row.clientes.toLocaleString()}</td>
+          <td class="py-2 px-3 text-right font-mono">${row.cuotas.toLocaleString()}</td>
+          <td class="py-2 px-3 text-right font-bold text-slate-900">$${row.total_monto.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+          <td class="py-2 px-3 text-right">
+            <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700">${row.porcentaje}%</span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Renderizar Chart.js
+      renderChart(chartLabels.slice(0, 6), chartValues.slice(0, 6));
+
+      // Vista Previa de Tabla de Detalle
+      renderPreviewTable(data.preview, data.total_filtered);
+    }
+
+    function renderChart(labels, values) {
+      const ctx = document.getElementById('chart-agrupacion').getContext('2d');
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      chartInstance = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [{
+            label: 'Monto Total Vencido (USD)',
+            data: values,
+            backgroundColor: '#2563eb',
+            borderRadius: 6
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false }
+          },
+          scales: {
+            y: {
+              ticks: {
+                callback: value => '$' + Number(value).toLocaleString()
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderPreviewTable(rows, totalFiltered) {
+      document.getElementById('preview-tag').textContent = `Mostrando ${rows.length} de ${Number(totalFiltered).toLocaleString()} registros`;
+
+      const thead = document.getElementById('preview-thead');
+      const tbody = document.getElementById('preview-tbody');
+      thead.innerHTML = '';
+      tbody.innerHTML = '';
+
+      if (rows.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">No hay registros con los filtros seleccionados</td></tr>`;
+        return;
+      }
+
+      // Headers
+      const trHead = document.createElement('tr');
+      const keys = Object.keys(rows[0]);
+      keys.forEach(k => {
+        const th = document.createElement('th');
+        th.className = 'py-2 px-3';
+        th.textContent = k;
+        trHead.appendChild(th);
+      });
+      thead.appendChild(trHead);
+
+      // Rows
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-blue-50/40 transition-colors';
+        keys.forEach(k => {
+          const td = document.createElement('td');
+          td.className = 'py-1.5 px-3 border-b border-slate-100 font-mono text-[10px]';
+          td.textContent = r[k];
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Drag and drop events
+    const dropZone = document.getElementById('drop-zone');
+    dropZone.addEventListener('click', () => document.getElementById('file-input').click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-blue-50'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
+      if (e.dataTransfer.files.length) {
+        document.getElementById('file-input').files = e.dataTransfer.files;
+        handleFileUpload({ target: { files: e.dataTransfer.files } });
+      }
+    });
+    // Modal Guía Visual
+    function toggleGuideModal(show) {
+      const modal = document.getElementById('guide-modal');
+      if (show) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+      } else {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+      }
+    }
+  </script>
+
+  <!-- ============================================== -->
+  <!-- MODAL DE GUÍA VISUAL COMPLETA                  -->
+  <!-- ============================================== -->
+  <div id="guide-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-xs">
+            <i class="fa-solid fa-book-open"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-bold text-slate-900">Guía Visual de Operación</h3>
+            <p class="text-xs text-slate-500">Manual paso a paso para el Motor de Reestructuración de Cartera</p>
+          </div>
+        </div>
+        <button onclick="toggleGuideModal(false)" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 overflow-y-auto space-y-6 text-sm text-slate-600">
+        
+        <!-- Bloque 1: Carga y formato -->
+        <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2">
+          <div class="flex items-center gap-2 font-bold text-slate-900">
+            <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">1</span>
+            <h4>¿Cómo cargar tu archivo de cartera?</h4>
+          </div>
+          <p class="text-xs text-slate-600 leading-relaxed">
+            Arrastra tu archivo <strong class="text-slate-800">mora.csv</strong> o tu hoja de cálculo <strong class="text-slate-800">Excel (.xlsx o .xls)</strong> a la zona punteada. El motor detecta automáticamente la codificación, puntos y comas decimales, y mapea de forma inteligente las columnas clave:
+          </p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
+            <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
+              <span class="font-bold text-slate-800 block">Días de Mora</span>
+              <span class="text-slate-500 text-[10px]">Antigüedad cuota</span>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
+              <span class="font-bold text-slate-800 block">Cédula y Nombre</span>
+              <span class="text-slate-500 text-[10px]">Identidad deudor</span>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
+              <span class="font-bold text-slate-800 block">Tarifa + Cuota</span>
+              <span class="text-slate-500 text-[10px]">Deuda neta capital</span>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
+              <span class="font-bold text-slate-800 block">Pendiente Mora</span>
+              <span class="text-slate-500 text-[10px]">Recargo sanción ($4)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bloque 2: Los 5 Tramos Oficiales -->
+        <div class="space-y-3">
+          <div class="flex items-center gap-2 font-bold text-slate-900">
+            <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">2</span>
+            <h4>Estrategia por Tramos Oficiales de Mora</h4>
+          </div>
+          <p class="text-xs text-slate-600">
+            En la pestaña <strong class="text-slate-800">"2. Configurar Desglose"</strong>, puedes hacer clic directo en cualquiera de los tramos para filtrar la base al instante:
+          </p>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+            <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
+              <div class="font-bold text-emerald-900 flex items-center justify-between">
+                <span>1 a 30 días • Preventiva</span>
+                <span class="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">29.8%</span>
+              </div>
+              <p class="text-[11px] text-emerald-800 mt-1">Recordatorio preventivo vía WhatsApp/SMS antes del corte definitivo del servicio.</p>
+            </div>
+
+            <div class="p-3 rounded-xl border border-blue-200 bg-blue-50/50">
+              <div class="font-bold text-blue-900 flex items-center justify-between">
+                <span>31 a 60 días • Administrativa</span>
+                <span class="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-semibold">13.5%</span>
+              </div>
+              <p class="text-[11px] text-blue-800 mt-1">Gestión telefónica directa. Compromisos de pago a corto plazo para evitar suspensión prolongada.</p>
+            </div>
+
+            <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/50">
+              <div class="font-bold text-amber-900 flex items-center justify-between">
+                <span>61 a 90 días • Reestructuración</span>
+                <span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-semibold">10.6%</span>
+              </div>
+              <p class="text-[11px] text-amber-800 mt-1">Ofertas de refinanciamiento en 2 o 3 partes para rescatar al cliente antes de que la deuda sea impagable.</p>
+            </div>
+
+            <div class="p-3 rounded-xl border border-orange-200 bg-orange-50/50">
+              <div class="font-bold text-orange-900 flex items-center justify-between">
+                <span>91 a 180 días • Pre-jurídica</span>
+                <span class="text-[10px] bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded font-semibold">35.0% (Mayor)</span>
+              </div>
+              <p class="text-[11px] text-orange-800 mt-1">Concentra el 35% del dinero. Negociación agresiva con posible condonación del recargo de mora.</p>
+            </div>
+
+            <div class="p-3 rounded-xl border border-rose-200 bg-rose-50/50 sm:col-span-2">
+              <div class="font-bold text-rose-900 flex items-center justify-between">
+                <span>181+ días • Castigo / Cartera Pesada</span>
+                <span class="text-[10px] bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded font-semibold">11.2%</span>
+              </div>
+              <p class="text-[11px] text-rose-800 mt-1">Recuperación de equipos, acuerdos de liquidación final con descuento o derivación a cobranza externa/judicial.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bloque 3: Reportes y Exportación -->
+        <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2">
+          <div class="flex items-center gap-2 font-bold text-slate-900">
+            <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center">3</span>
+            <h4>Descarga de Reportes Ejecutivos y Operativos</h4>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+            <div class="bg-white p-3 rounded-xl border border-slate-200">
+              <div class="font-bold text-emerald-700 flex items-center gap-1.5 mb-1">
+                <i class="fa-solid fa-file-excel"></i> Descargar Excel Filtrado
+              </div>
+              <p class="text-[11px] text-slate-500">Mantiene la estructura original con todas las columnas de identificación, cuotas y fechas, listo para cargarlo a un dialer o repartir por gestor.</p>
+            </div>
+            <div class="bg-white p-3 rounded-xl border border-slate-200">
+              <div class="font-bold text-rose-700 flex items-center gap-1.5 mb-1">
+                <i class="fa-solid fa-file-pdf"></i> Reporte PDF Ejecutivo
+              </div>
+              <p class="text-[11px] text-slate-500">Documento formal listo para imprimir o enviar a gerencia con el resumen financiero, gráficos y distribución porcentual por Campaña.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
+        <button onclick="toggleGuideModal(false)" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors">
+          Entendido, cerrar guía
+        </button>
+      </div>
+
+    </div>
+  </div>
+</body>
+</html>
