@@ -147,13 +147,19 @@
               <span id="badge-cartera" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Pendiente</span>
             </div>
 
-            <!-- Drop Zone Cartera -->
-            <div id="drop-zone-cartera" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer">
+            <!-- Drop Zone Cartera con Label Nativo -->
+            <label for="file-cartera-input" id="drop-zone-cartera" class="block border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer">
               <input type="file" id="file-cartera-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleCarteraUpload(event)">
-              <i class="fa-solid fa-arrow-up-from-bracket text-2xl text-blue-500 mb-2"></i>
-              <p class="text-xs font-bold text-slate-800">Haz clic o arrastra aquí tu archivo de Cartera</p>
-              <p class="text-[11px] text-slate-400 mt-1">Soporta: mora.csv, .xlsx, .xls</p>
-            </div>
+              <div id="cartera-prompt">
+                <i class="fa-solid fa-arrow-up-from-bracket text-2xl text-blue-500 mb-2"></i>
+                <p class="text-xs font-bold text-slate-800">Haz clic o arrastra aquí tu archivo de Cartera</p>
+                <p class="text-[11px] text-slate-400 mt-1">Soporta: mora.csv, .xlsx, .xls</p>
+              </div>
+              <div id="cartera-loading" class="hidden py-2 text-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-2"></i>
+                <p class="text-xs font-semibold text-slate-800" id="cartera-loading-text">Procesando archivo...</p>
+              </div>
+            </label>
           </div>
 
           <div id="status-cartera-box" class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
@@ -178,13 +184,19 @@
               <span id="badge-contacts" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Pendiente</span>
             </div>
 
-            <!-- Drop Zone Contactos -->
-            <div id="drop-zone-contacts" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
+            <!-- Drop Zone Contactos con Label Nativo -->
+            <label for="file-contacts-input" id="drop-zone-contacts" class="block border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
               <input type="file" id="file-contacts-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleContactsUpload(event)">
-              <i class="fa-solid fa-phone text-2xl text-emerald-500 mb-2"></i>
-              <p class="text-xs font-bold text-slate-800">Haz clic o arrastra la Base de Clientes / Contactos</p>
-              <p class="text-[11px] text-slate-400 mt-1">Soporta: Excel (.xlsx, .xls) o CSV (calamine ultra rápido)</p>
-            </div>
+              <div id="contacts-prompt">
+                <i class="fa-solid fa-phone text-2xl text-emerald-500 mb-2"></i>
+                <p class="text-xs font-bold text-slate-800">Haz clic o arrastra la Base de Clientes / Contactos</p>
+                <p class="text-[11px] text-slate-400 mt-1">Soporta: Excel (.xlsx, .xls) o CSV (calamine ultra rápido)</p>
+              </div>
+              <div id="contacts-loading" class="hidden py-2 text-center">
+                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-600 mb-2"></i>
+                <p class="text-xs font-semibold text-slate-800" id="contacts-loading-text">Indexando contactos...</p>
+              </div>
+            </label>
           </div>
 
           <div id="status-contacts-box" class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
@@ -761,17 +773,16 @@
     }
 
     async function handleCarteraUpload(e) {
-      const file = e.target.files[0];
+      const file = (e.target && e.target.files) ? e.target.files[0] : null;
       if (!file) return;
 
-      const dropZone = document.getElementById('drop-zone-cartera');
-      const originalDropZone = dropZone.innerHTML;
-      dropZone.innerHTML = `
-        <div class="py-2 text-center">
-          <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-2"></i>
-          <p class="text-xs font-semibold text-slate-800">Procesando ${file.name}...</p>
-        </div>
-      `;
+      const promptDiv = document.getElementById('cartera-prompt');
+      const loadDiv = document.getElementById('cartera-loading');
+      const loadText = document.getElementById('cartera-loading-text');
+
+      if (promptDiv) promptDiv.classList.add('hidden');
+      if (loadDiv) loadDiv.classList.remove('hidden');
+      if (loadText) loadText.textContent = `Procesando ${file.name}...`;
 
       const formData = new FormData();
       formData.append('file', file);
@@ -795,23 +806,24 @@
       } catch (err) {
         alert('Error al subir: ' + err.message);
       } finally {
-        dropZone.innerHTML = originalDropZone;
-        document.getElementById('file-cartera-input').value = '';
+        if (promptDiv) promptDiv.classList.remove('hidden');
+        if (loadDiv) loadDiv.classList.add('hidden');
+        const inputElem = document.getElementById('file-cartera-input');
+        if (inputElem) inputElem.value = '';
       }
     }
 
     async function handleContactsUpload(e) {
-      const file = e.target.files[0];
+      const file = (e.target && e.target.files) ? e.target.files[0] : null;
       if (!file) return;
 
-      const dropZone = document.getElementById('drop-zone-contacts');
-      const originalDropZone = dropZone.innerHTML;
-      dropZone.innerHTML = `
-        <div class="py-2 text-center">
-          <i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-600 mb-2"></i>
-          <p class="text-xs font-semibold text-slate-800">Indexando contactos en ${file.name}...</p>
-        </div>
-      `;
+      const promptDiv = document.getElementById('contacts-prompt');
+      const loadDiv = document.getElementById('contacts-loading');
+      const loadText = document.getElementById('contacts-loading-text');
+
+      if (promptDiv) promptDiv.classList.add('hidden');
+      if (loadDiv) loadDiv.classList.remove('hidden');
+      if (loadText) loadText.textContent = `Indexando contactos en ${file.name}...`;
 
       const formData = new FormData();
       formData.append('file', file);
@@ -835,8 +847,10 @@
       } catch (err) {
         alert('Error al subir contactos: ' + err.message);
       } finally {
-        dropZone.innerHTML = originalDropZone;
-        document.getElementById('file-contacts-input').value = '';
+        if (promptDiv) promptDiv.classList.remove('hidden');
+        if (loadDiv) loadDiv.classList.add('hidden');
+        const inputElem = document.getElementById('file-contacts-input');
+        if (inputElem) inputElem.value = '';
       }
     }
 
@@ -932,32 +946,32 @@
       });
     }
 
-    // Drag and drop events
+    // Drag and drop events (el clic lo maneja de forma nativa el <label for="...">)
     const dropCartera = document.getElementById('drop-zone-cartera');
-    dropCartera.addEventListener('click', () => document.getElementById('file-cartera-input').click());
-    dropCartera.addEventListener('dragover', (e) => { e.preventDefault(); dropCartera.classList.add('border-blue-500', 'bg-blue-50/50'); });
-    dropCartera.addEventListener('dragleave', () => dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50'));
-    dropCartera.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50');
-      if (e.dataTransfer.files.length) {
-        document.getElementById('file-cartera-input').files = e.dataTransfer.files;
-        handleCarteraUpload({ target: { files: e.dataTransfer.files } });
-      }
-    });
+    if (dropCartera) {
+      dropCartera.addEventListener('dragover', (e) => { e.preventDefault(); dropCartera.classList.add('border-blue-500', 'bg-blue-50/50'); });
+      dropCartera.addEventListener('dragleave', () => dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50'));
+      dropCartera.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          handleCarteraUpload({ target: { files: e.dataTransfer.files } });
+        }
+      });
+    }
 
     const dropContacts = document.getElementById('drop-zone-contacts');
-    dropContacts.addEventListener('click', () => document.getElementById('file-contacts-input').click());
-    dropContacts.addEventListener('dragover', (e) => { e.preventDefault(); dropContacts.classList.add('border-emerald-500', 'bg-emerald-50/50'); });
-    dropContacts.addEventListener('dragleave', () => dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50'));
-    dropContacts.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50');
-      if (e.dataTransfer.files.length) {
-        document.getElementById('file-contacts-input').files = e.dataTransfer.files;
-        handleContactsUpload({ target: { files: e.dataTransfer.files } });
-      }
-    });
+    if (dropContacts) {
+      dropContacts.addEventListener('dragover', (e) => { e.preventDefault(); dropContacts.classList.add('border-emerald-500', 'bg-emerald-50/50'); });
+      dropContacts.addEventListener('dragleave', () => dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50'));
+      dropContacts.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+        if (e.dataTransfer.files && e.dataTransfer.files.length) {
+          handleContactsUpload({ target: { files: e.dataTransfer.files } });
+        }
+      });
+    }
 
     // Procesar filtros
     async function processFilters() {
@@ -1112,32 +1126,6 @@
                 font: { size: 10 }
               }
             },
-            y: {
-              ticks: {
-                callback: value => '$' + Number(value).toLocaleString()
-              }
-            }
-          }
-        }
-      });
-    }
-        type: 'bar',
-        data: {
-          labels: labels,
-          datasets: [{
-            label: 'Monto Vencido (USD)',
-            data: values,
-            backgroundColor: '#2563eb',
-            borderRadius: 6
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          plugins: {
-            legend: { display: false }
-          },
-          scales: {
             y: {
               ticks: {
                 callback: value => '$' + Number(value).toLocaleString()
