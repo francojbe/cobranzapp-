@@ -715,6 +715,10 @@ def download_pdf():
         headers={"Content-Disposition": "attachment; filename=reporte_cartera_ejecutivo.pdf"}
     )
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok", "service": "cobranzapp"}
+
 @app.get("/", response_class=HTMLResponse)
 def get_dashboard():
     with open(os.path.join(os.path.dirname(__file__), "templates", "index.html"), "r", encoding="utf-8") as f:
@@ -722,4 +726,6 @@ def get_dashboard():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    uvicorn.run("app:app", host=host, port=port)
