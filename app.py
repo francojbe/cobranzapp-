@@ -85,15 +85,71 @@ def parse_number_value(val) -> float:
 def assign_tramo_mora(dias: int) -> str:
     """Asigna el tramo oficial de mora segun la antiguedad de la deuda."""
     if dias <= 30:
-        return "1 a 30 días (Preventiva)"
+        return "1 a 30 días (Cobranza preventiva / temprana)"
     elif dias <= 60:
-        return "31 a 60 días (Administrativa)"
+        return "31 a 60 días (Cobranza administrativa)"
     elif dias <= 90:
-        return "61 a 90 días (Reestructuración)"
+        return "61 a 90 días (Reestructuración / negociación)"
     elif dias <= 180:
         return "91 a 180 días (Pre-jurídica)"
     else:
-        return "181+ días (Castigo / Pesada)"
+        return "181+ días (Castigo / cartera pesada)"
+
+# -------------------------------------------------------------
+# CONFIGURACIÓN FIJA DE LOS 5 TRAMOS OFICIALES DE MORA
+# -------------------------------------------------------------
+OFFICIAL_TRAMOS_CONFIG = [
+    {
+        "id": "1-30",
+        "grupo": "1 a 30 días (Cobranza preventiva / temprana)",
+        "etiqueta": "1 a 30 días",
+        "fase": "Cobranza preventiva / temprana",
+        "min": 1,
+        "max": 30,
+        "color": "#10b981",
+        "badge_class": "bg-emerald-50 text-emerald-800 border-emerald-200 border text-[10px] font-bold px-2 py-0.5 rounded-full"
+    },
+    {
+        "id": "31-60",
+        "grupo": "31 a 60 días (Cobranza administrativa)",
+        "etiqueta": "31 a 60 días",
+        "fase": "Cobranza administrativa",
+        "min": 31,
+        "max": 60,
+        "color": "#3b82f6",
+        "badge_class": "bg-blue-50 text-blue-800 border-blue-200 border text-[10px] font-bold px-2 py-0.5 rounded-full"
+    },
+    {
+        "id": "61-90",
+        "grupo": "61 a 90 días (Reestructuración / negociación)",
+        "etiqueta": "61 a 90 días",
+        "fase": "Reestructuración / negociación",
+        "min": 61,
+        "max": 90,
+        "color": "#f59e0b",
+        "badge_class": "bg-amber-50 text-amber-800 border-amber-200 border text-[10px] font-bold px-2 py-0.5 rounded-full"
+    },
+    {
+        "id": "91-180",
+        "grupo": "91 a 180 días (Pre-jurídica)",
+        "etiqueta": "91 a 180 días",
+        "fase": "Pre-jurídica (Mayor monto)",
+        "min": 91,
+        "max": 180,
+        "color": "#f97316",
+        "badge_class": "bg-orange-50 text-orange-800 border-orange-200 border text-[10px] font-bold px-2 py-0.5 rounded-full"
+    },
+    {
+        "id": "181+",
+        "grupo": "181+ días (Castigo / cartera pesada)",
+        "etiqueta": "181+ días",
+        "fase": "Castigo / cartera pesada",
+        "min": 181,
+        "max": 9999,
+        "color": "#ef4444",
+        "badge_class": "bg-rose-50 text-rose-800 border-rose-200 border text-[10px] font-bold px-2 py-0.5 rounded-full"
+    }
+]
 
 def safe_read_bytes(path: str) -> bytes:
     """Lee un archivo en bytes de forma segura, con fallback para archivos bloqueados por Excel en Windows."""
@@ -772,46 +828,47 @@ def process_data(req: FilterRequest):
     
     kpis = calculate_totals(df)
     
-    # Calculo de agrupacion dinamica
-    group_col = req.group_by if req.group_by in df.columns else "Tipo_Campana"
-    if group_col not in df.columns:
-        group_col = "Programa" if "Programa" in df.columns else "Tramo_Mora"
-        
-    agrupacion = []
-    if not df.empty and group_col in df.columns:
-        if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
-            df["_Total_Row"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
-        elif "Total" in df.columns:
-            df["_Total_Row"] = df["Total"]
-        else:
-            df["_Total_Row"] = 0.0
+    # ---------------------------------------------------------
+    # RESUMEN AGRUPADO FIJO POR TRAMOS OFICIALES DE MORA
+    # ---------------------------------------------------------
+    if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+        df["_Total_Row"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    elif "Total" in df.columns:
+        df["_Total_Row"] = df["Total"]
+    else:
+        df["_Total_Row"] = 0.0
 
-        grouped = df.groupby(group_col).agg(
-            cuotas=("Cedula Cliente", "count"),
-            clientes=("Cedula Cliente", "nunique"),
-            p_tarifa=("Pendiente Tarifa", "sum"),
-            p_cuota=("Pendiente Cuota", "sum"),
-            p_mora=("Pendiente Mora", "sum"),
-            total=("_Total_Row", "sum")
-        ).reset_index()
+    total_global = kpis["monto_total"]
+    agrupacion = []
+
+    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+        sub = df[df["Tramo_Mora"] == t_cfg["grupo"]]
+        cuotas_cnt = len(sub)
+        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
+        p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
+        p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
+        p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
+        monto_grp = round(float(sub["_Total_Row"].sum()), 2)
+        pct = round((monto_grp / total_global * 100), 1) if total_global > 0 else 0.0
         
-        total_global = kpis["monto_total"]
-        
-        for _, r in grouped.iterrows():
-            monto_grp = round(float(r["total"]), 2)
-            pct = round((monto_grp / total_global * 100), 1) if total_global > 0 else 0
-            agrupacion.append({
-                "grupo": str(r[group_col]),
-                "cuotas": int(r["cuotas"]),
-                "clientes": int(r["clientes"]),
-                "pendiente_tarifa": round(float(r["p_tarifa"]), 2),
-                "pendiente_cuota": round(float(r["p_cuota"]), 2),
-                "pendiente_mora": round(float(r["p_mora"]), 2),
-                "total_monto": monto_grp,
-                "porcentaje": pct
-            })
-        
-        agrupacion = sorted(agrupacion, key=lambda x: x["total_monto"], reverse=True)
+        agrupacion.append({
+            "id": t_cfg["id"],
+            "grupo": t_cfg["grupo"],
+            "etiqueta": t_cfg["etiqueta"],
+            "fase": t_cfg["fase"],
+            "color": t_cfg["color"],
+            "badge_class": t_cfg["badge_class"],
+            "min_dias": t_cfg["min"],
+            "max_dias": t_cfg["max"],
+            "cuotas": cuotas_cnt,
+            "clientes": clientes_cnt,
+            "pendiente_tarifa": p_tarifa,
+            "pendiente_cuota": p_cuota,
+            "pendiente_mora": p_mora,
+            "cuota_mas_mora": round(p_cuota + p_mora, 2),
+            "total_monto": monto_grp,
+            "porcentaje": pct
+        })
     
     # Vista previa: Primeras 100 filas
     cols_priority = [
@@ -833,7 +890,7 @@ def process_data(req: FilterRequest):
     return {
         "kpis": kpis,
         "agrupacion": agrupacion,
-        "group_by_used": group_col,
+        "group_by_used": "Tramo Oficial de Mora",
         "preview_count": len(preview),
         "total_filtered": len(df),
         "preview": preview
@@ -991,28 +1048,19 @@ def download_pdf():
     story.append(Paragraph(f"<b>Composición de la Deuda:</b> Tarifa Pendiente: <b>${kpis['pendiente_tarifa']:,.2f}</b> | Cuota Pendiente: <b>${kpis['pendiente_cuota']:,.2f}</b> | Recargo Mora: <b>${kpis['pendiente_mora']:,.2f}</b>", styles['Normal']))
     story.append(Spacer(1, 15))
     
-    # Agrupacion
-    grp_col = f_info.get('group_by', 'Tipo_Campana')
-    if grp_col not in df.columns:
-        grp_col = 'Programa' if 'Programa' in df.columns else 'Tramo_Mora'
-        
-    story.append(Paragraph(f"<b>Distribución de Deuda Agrupada por: {html.escape(grp_col)}</b>", styles['Heading3']))
+    # Distribución Fija por Tramos Oficiales
+    story.append(Paragraph("<b>Distribución Fija de Deuda por Tramos Oficiales de Mora:</b>", styles['Heading3']))
     story.append(Spacer(1, 8))
     
     df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
     if df["_Tot"].sum() == 0 and "Total" in df.columns:
         df["_Tot"] = df["Total"]
 
-    grp = df.groupby(grp_col).agg(
-        cuotas=("Cedula Cliente", "count"),
-        clientes=("Cedula Cliente", "nunique"),
-        total=("_Tot", "sum")
-    ).reset_index().sort_values(by="total", ascending=False)
-    
     tot_g = kpis["monto_total"]
     table_rows = [
         [
-            Paragraph(f"Grupo ({grp_col})", table_header),
+            Paragraph("Tramo Oficial de Mora", table_header),
+            Paragraph("Fase Estratégica", table_header),
             Paragraph("Clientes", table_header),
             Paragraph("Cuotas", table_header),
             Paragraph("Monto Vencido", table_header),
@@ -1020,22 +1068,37 @@ def download_pdf():
         ]
     ]
     
-    for _, r in grp.head(25).iterrows():
-        m_val = float(r["total"])
+    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+        sub = df[df["Tramo_Mora"] == t_cfg["grupo"]]
+        cuotas_cnt = len(sub)
+        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
+        m_val = round(float(sub["_Tot"].sum()), 2)
         pct = (m_val / tot_g * 100) if tot_g > 0 else 0
         table_rows.append([
-            Paragraph(html.escape(str(r[grp_col])), table_cell),
-            Paragraph(f"{int(r['clientes']):,}", table_cell),
-            Paragraph(f"{int(r['cuotas']):,}", table_cell),
+            Paragraph(html.escape(t_cfg["etiqueta"]), table_cell),
+            Paragraph(html.escape(t_cfg["fase"]), table_cell),
+            Paragraph(f"{clientes_cnt:,}", table_cell),
+            Paragraph(f"{cuotas_cnt:,}", table_cell),
             Paragraph(f"${m_val:,.2f}", table_cell),
             Paragraph(f"{pct:.1f}%", table_cell)
         ])
     
-    t_grp = Table(table_rows, colWidths=[200, 75, 75, 110, 80])
+    # Fila de Totales Generales
+    table_rows.append([
+        Paragraph("<b>TOTAL CONSOLIDADO</b>", table_cell),
+        Paragraph("<b>Todos los tramos</b>", table_cell),
+        Paragraph(f"<b>{kpis['total_clientes']:,}</b>", table_cell),
+        Paragraph(f"<b>{kpis['total_cuotas']:,}</b>", table_cell),
+        Paragraph(f"<b>${kpis['monto_total']:,.2f}</b>", table_cell),
+        Paragraph("<b>100.0%</b>", table_cell)
+    ])
+    
+    t_grp = Table(table_rows, colWidths=[120, 160, 60, 60, 85, 55])
     t_grp.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#2563eb")),
         ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [colors.white, colors.HexColor("#f8fafc")]),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#f1f5f9")),
         ('TOPPADDING', (0,0), (-1,-1), 5),
         ('BOTTOMPADDING', (0,0), (-1,-1), 5),
     ]))
