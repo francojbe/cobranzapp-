@@ -18,9 +18,19 @@
       color: #2563eb;
       font-weight: 600;
     }
+    @keyframes progressPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.75; }
+    }
+    .animate-progress-pulse {
+      animation: progressPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    }
   </style>
 </head>
-<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
+
+  <!-- Toast Notification Container Flotante -->
+  <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm sm:max-w-md w-full pointer-events-none px-4 sm:px-0"></div>
 
   <!-- Header -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
@@ -128,99 +138,159 @@
         </div>
       </div>
 
-      <!-- Zona de Carga Dual (Cartera + Base de Contactos) -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <!-- ============================================================== -->
+      <!-- CAJA ÚNICA: SUBE TUS ARCHIVOS                                   -->
+      <!-- ============================================================== -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         
-        <!-- Tarjeta 1: Archivo de Cartera -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-4">
-              <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl">
-                  <i class="fa-solid fa-file-invoice-dollar"></i>
-                </div>
-                <div>
-                  <h3 class="text-base font-bold text-slate-900">1. Archivo de Cartera / Mora</h3>
-                  <p class="text-xs text-slate-500">Cuotas, días de mora, tarifas y recargos</p>
-                </div>
+        <!-- Cabecera de la Caja -->
+        <div class="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/70">
+          <div class="flex items-center gap-3.5">
+            <div class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-xs shrink-0">
+              <i class="fa-solid fa-cloud-arrow-up"></i>
+            </div>
+            <div>
+              <h3 class="text-lg font-bold text-slate-900 leading-tight">Sube tus archivos</h3>
+              <p class="text-xs text-slate-500 mt-0.5">Carga tus 2 archivos obligatorios para cruzar montos de deuda con teléfonos de WhatsApp y campañas</p>
+            </div>
+          </div>
+          
+          <!-- Botón de Cargar Archivos de Prueba Integrado -->
+          <button onclick="loadSampleFiles()" id="btn-load-samples" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer self-start md:self-auto shrink-0">
+            <i class="fa-solid fa-play text-amber-400"></i> Cargar Archivos de Prueba Locales
+          </button>
+        </div>
+
+        <!-- Zona de Carga Única -->
+        <div class="p-5 sm:p-6">
+          <div id="drop-zone-unified" onclick="document.getElementById('file-unified-input').click()" class="border-2 border-dashed border-slate-300 hover:border-blue-500 hover:bg-blue-50/20 rounded-2xl p-8 sm:p-10 text-center transition-all cursor-pointer bg-slate-50/40 group">
+            
+            <input type="file" id="file-unified-input" accept=".csv, .xlsx, .xls" multiple class="hidden" onchange="handleUnifiedUpload(event)">
+            <input type="file" id="file-cartera-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleCarteraUpload(event)">
+            <input type="file" id="file-contacts-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleContactsUpload(event)">
+
+            <div id="unified-prompt" class="space-y-4">
+              <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-blue-700 text-white flex items-center justify-center text-2xl mx-auto shadow-md group-hover:scale-105 transition-transform">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
               </div>
-              <span id="badge-cartera" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Pendiente</span>
+              
+              <div>
+                <p class="text-base sm:text-lg font-bold text-slate-900">Haz clic o arrastra aquí tus archivos</p>
+                <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
+                  Arrastra o selecciona tus 2 archivos obligatorios: <strong>Cartera de Mora</strong> (<code>mora.csv</code>) y <strong>Base de Contactos</strong> (<code>Excel .xlsx</code>). Puedes subirlos juntos o uno a uno.
+                </p>
+              </div>
+
+              <!-- Píldoras informativas -->
+              <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] text-slate-600">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
+                  <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> 1. Cartera: mora.csv o .xlsx
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
+                  <i class="fa-solid fa-address-book text-emerald-600"></i> 2. Contactos: .xlsx o .csv
+                </span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
+                  <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> Detección automática en memoria
+                </span>
+              </div>
             </div>
 
-            <!-- Drop Zone Cartera con Label Nativo -->
-            <label for="file-cartera-input" id="drop-zone-cartera" class="block border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer">
-              <input type="file" id="file-cartera-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleCarteraUpload(event)">
-              <div id="cartera-prompt">
-                <i class="fa-solid fa-arrow-up-from-bracket text-2xl text-blue-500 mb-2"></i>
-                <p class="text-xs font-bold text-slate-800">Haz clic o arrastra aquí tu archivo de Cartera</p>
-                <p class="text-[11px] text-slate-400 mt-1">Soporta: mora.csv, .xlsx, .xls</p>
-              </div>
-              <div id="cartera-loading" class="hidden py-2 text-center">
-                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-2"></i>
-                <p class="text-xs font-semibold text-slate-800" id="cartera-loading-text">Procesando archivo...</p>
-              </div>
-            </label>
-          </div>
-
-          <div id="status-cartera-box" class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
-            <span id="cartera-filename-label">Sin archivo de cartera cargado</span>
-            <span id="cartera-count-label" class="font-mono font-bold text-slate-700">0 cuotas</span>
+            <div id="unified-loading" class="hidden py-6 text-center space-y-2">
+              <i class="fa-solid fa-circle-notch fa-spin text-3xl text-blue-600"></i>
+              <p class="text-xs font-semibold text-slate-800" id="unified-loading-text">Procesando archivo...</p>
+            </div>
           </div>
         </div>
 
-        <!-- Tarjeta 2: Base de Clientes y Contactos -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
-          <div>
-            <div class="flex items-center justify-between mb-4">
+        <!-- Barra de Progreso Dinámica -->
+        <div id="upload-progress-box" class="hidden px-5 sm:px-6 pb-6 animate-in fade-in duration-200">
+          <div class="bg-slate-900 text-white rounded-2xl p-5 shadow-lg border border-slate-800 space-y-3">
+            <div class="flex items-center justify-between">
               <div class="flex items-center gap-3">
-                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
+                <div class="w-9 h-9 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center text-base shrink-0">
+                  <i class="fa-solid fa-spinner fa-spin" id="progress-spinner-icon"></i>
+                </div>
+                <div>
+                  <div class="text-xs font-bold text-white flex items-center gap-2">
+                    <span id="progress-title">Procesando información...</span>
+                  </div>
+                  <div class="text-[11px] text-slate-300 mt-0.5" id="progress-status-desc">Iniciando transferencia de datos...</div>
+                </div>
+              </div>
+              <span id="progress-percentage-label" class="text-xs font-mono font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">0%</span>
+            </div>
+
+            <!-- Track animado de progreso -->
+            <div class="w-full bg-slate-800 rounded-full h-3 p-0.5 overflow-hidden shadow-inner">
+              <div id="progress-bar-fill" class="bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 h-2 rounded-full transition-all duration-300 ease-out" style="width: 0%;"></div>
+            </div>
+
+            <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+              <span id="progress-step-indicator" class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Motor Calamine ultrarrápido</span>
+              <span id="progress-engine-tag" class="font-mono text-[10px] text-slate-500">Pipeline en memoria activa</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Checklist de Validación de Ambos Archivos Obligatorios -->
+        <div class="bg-slate-50 border-t border-slate-100 p-5 sm:p-6 space-y-4">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+              <i class="fa-solid fa-list-check text-blue-600"></i> Archivos requeridos para procesar (2 de 2 obligatorios)
+            </h4>
+            <span id="files-status-summary" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">0 de 2 cargados</span>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+            
+            <!-- Tarjeta 1: Cartera -->
+            <div id="card-status-cartera" class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div id="icon-status-cartera" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors">
+                  <i class="fa-solid fa-file-invoice"></i>
+                </div>
+                <div class="truncate">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-900 truncate" id="cartera-filename-label">1. Archivo de Cartera / Mora</span>
+                    <span id="badge-cartera" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Falta archivo</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="cartera-status-detail">Pendiente de subir (cuotas y días de mora)</div>
+                </div>
+              </div>
+              <span id="cartera-count-label" class="text-xs font-mono font-bold text-slate-500 shrink-0 ml-2">0 cuotas</span>
+            </div>
+
+            <!-- Tarjeta 2: Contactos -->
+            <div id="card-status-contacts" class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all">
+              <div class="flex items-center gap-3 overflow-hidden">
+                <div id="icon-status-contacts" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors">
                   <i class="fa-solid fa-address-book"></i>
                 </div>
-                <div>
-                  <h3 class="text-base font-bold text-slate-900">2. Base de Clientes y Contactos</h3>
-                  <p class="text-xs text-slate-500">Teléfonos, Tipo de Campaña, Programa y Correos</p>
+                <div class="truncate">
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-bold text-slate-900 truncate" id="contacts-filename-label">2. Base de Clientes y Contactos</span>
+                    <span id="badge-contacts" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Falta archivo</span>
+                  </div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Pendiente de subir (teléfonos y campañas)</div>
                 </div>
               </div>
-              <span id="badge-contacts" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Pendiente</span>
+              <span id="contacts-count-label" class="text-xs font-mono font-bold text-slate-500 shrink-0 ml-2">0 clientes</span>
             </div>
 
-            <!-- Drop Zone Contactos con Label Nativo -->
-            <label for="file-contacts-input" id="drop-zone-contacts" class="block border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
-              <input type="file" id="file-contacts-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleContactsUpload(event)">
-              <div id="contacts-prompt">
-                <i class="fa-solid fa-phone text-2xl text-emerald-500 mb-2"></i>
-                <p class="text-xs font-bold text-slate-800">Haz clic o arrastra la Base de Clientes / Contactos</p>
-                <p class="text-[11px] text-slate-400 mt-1">Soporta: Excel (.xlsx, .xls) o CSV (calamine ultra rápido)</p>
-              </div>
-              <div id="contacts-loading" class="hidden py-2 text-center">
-                <i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-600 mb-2"></i>
-                <p class="text-xs font-semibold text-slate-800" id="contacts-loading-text">Indexando contactos...</p>
-              </div>
-            </label>
           </div>
 
-          <div id="status-contacts-box" class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
-            <span id="contacts-filename-label">Sin base de contactos cargada</span>
-            <span id="contacts-count-label" class="font-mono font-bold text-slate-700">0 clientes</span>
+          <!-- Botón de Procesar Archivos con Validación Estricta -->
+          <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/60">
+            <div class="text-xs text-slate-500 flex items-center gap-1.5" id="process-help-text">
+              <i class="fa-solid fa-circle-info text-blue-500"></i> Se requieren ambos archivos para cruzar montos de deuda con teléfonos de WhatsApp.
+            </div>
+            <button onclick="handleProcessClick()" id="btn-process-files" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer">
+              <span>Procesar Archivos</span> <i class="fa-solid fa-arrow-right"></i>
+            </button>
           </div>
+
         </div>
 
-      </div>
-
-      <!-- Barra de Acceso Rápido y Carga de Archivos de Prueba -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-base shrink-0">
-            <i class="fa-solid fa-bolt"></i>
-          </div>
-          <div>
-            <div class="text-xs font-bold text-slate-800">¿Quieres probar de inmediato con los archivos del servidor?</div>
-            <div class="text-[11px] text-slate-500">Carga automática de <code>mora.csv</code> (47k cuotas) + <code>Base de Contactos</code> (194k clientes con teléfonos y campañas).</div>
-          </div>
-        </div>
-        <button onclick="loadSampleFiles()" id="btn-load-samples" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0">
-          <i class="fa-solid fa-play text-amber-400"></i> Cargar Archivos de Prueba Locales
-        </button>
       </div>
 
       <!-- Resumen Unificado del Archivo Activo -->
@@ -235,9 +305,9 @@
               <p class="text-xs text-slate-500" id="summary-subtitle">Información unificada de cuotas, montos, teléfonos y campañas.</p>
             </div>
           </div>
-          <button onclick="switchTab('tab-segment')" class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer self-start sm:self-auto">
-            Configurar Desglose de Cartera <i class="fa-solid fa-arrow-right"></i>
-          </button>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-semibold self-start sm:self-auto shadow-2xs">
+            <i class="fa-solid fa-check-double text-emerald-600"></i> Cruce sincronizado en memoria
+          </span>
         </div>
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -803,16 +873,273 @@
     let appMetadata = null;
     let chartInstance = null;
 
-    function switchTab(tabId) {
+    // ==============================================================
+    // SISTEMA ELEGANTE DE NOTIFICACIONES TOAST (CobranzApp Theme)
+    // ==============================================================
+    function showToast(type, title, message, duration = 4500) {
+      const container = document.getElementById('toast-container');
+      if (!container) return;
+
+      const toastId = 'toast-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+
+      const configs = {
+        success: {
+          border: 'border-emerald-200/90',
+          iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+          icon: 'fa-solid fa-circle-check',
+          progressBg: 'bg-emerald-500'
+        },
+        error: {
+          border: 'border-rose-200/90',
+          iconBg: 'bg-rose-50 text-rose-600 border border-rose-200',
+          icon: 'fa-solid fa-circle-xmark',
+          progressBg: 'bg-rose-500'
+        },
+        warning: {
+          border: 'border-amber-200/90',
+          iconBg: 'bg-amber-50 text-amber-600 border border-amber-200',
+          icon: 'fa-solid fa-triangle-exclamation',
+          progressBg: 'bg-amber-500'
+        },
+        info: {
+          border: 'border-blue-200/90',
+          iconBg: 'bg-blue-50 text-blue-600 border border-blue-200',
+          icon: 'fa-solid fa-circle-info',
+          progressBg: 'bg-blue-500'
+        }
+      };
+
+      const cfg = configs[type] || configs.info;
+
+      const toast = document.createElement('div');
+      toast.id = toastId;
+      toast.className = `pointer-events-auto bg-white/95 backdrop-blur-sm border ${cfg.border} rounded-2xl shadow-xl shadow-slate-900/10 p-4 transition-all duration-300 ease-out transform translate-x-8 opacity-0 relative overflow-hidden flex items-start gap-3.5`;
+      
+      toast.innerHTML = `
+        <div class="w-9 h-9 rounded-xl ${cfg.iconBg} flex items-center justify-center text-base shrink-0 shadow-2xs">
+          <i class="${cfg.icon}"></i>
+        </div>
+        <div class="flex-1 min-w-0 pr-1">
+          <div class="text-xs font-bold text-slate-900 leading-snug">${title}</div>
+          <div class="text-xs text-slate-600 mt-0.5 leading-relaxed break-words">${message}</div>
+        </div>
+        <button onclick="dismissToast('${toastId}')" class="text-slate-400 hover:text-slate-600 transition-colors p-1 cursor-pointer shrink-0">
+          <i class="fa-solid fa-xmark text-sm"></i>
+        </button>
+        <div class="absolute bottom-0 left-0 h-1 bg-slate-100 rounded-full w-full overflow-hidden">
+          <div id="${toastId}-bar" class="h-full ${cfg.progressBg} rounded-full transition-all linear" style="width: 100%;"></div>
+        </div>
+      `;
+
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-x-8', 'opacity-0');
+        toast.classList.add('translate-x-0', 'opacity-100');
+      });
+
+      const startTime = Date.now();
+      const bar = document.getElementById(`${toastId}-bar`);
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const remainingPct = Math.max(0, 100 - (elapsed / duration) * 100);
+        if (bar) bar.style.width = `${remainingPct}%`;
+        if (elapsed >= duration) {
+          clearInterval(interval);
+          dismissToast(toastId);
+        }
+      }, 40);
+
+      toast._interval = interval;
+    }
+
+    function dismissToast(id) {
+      const toast = document.getElementById(id);
+      if (!toast) return;
+      if (toast._interval) clearInterval(toast._interval);
+      toast.classList.add('translate-x-8', 'opacity-0');
+      setTimeout(() => {
+        if (toast.parentNode) toast.remove();
+      }, 300);
+    }
+
+    // Interceptor global para que ningún alert() nativo vuelva a interrumpir la interfaz
+    window.alert = function(msg) {
+      showToast('info', 'Aviso del Sistema', msg);
+    };
+
+    // ==============================================================
+    // CONTROLADOR DE BARRA DE PROGRESO DE CARGA Y PROCESAMIENTO
+    // ==============================================================
+    const ProgressController = {
+      interval: null,
+      start(title, initialStatus) {
+        const box = document.getElementById('upload-progress-box');
+        const bar = document.getElementById('progress-bar-fill');
+        const percLabel = document.getElementById('progress-percentage-label');
+        const titleElem = document.getElementById('progress-title');
+        const descElem = document.getElementById('progress-status-desc');
+        const icon = document.getElementById('progress-spinner-icon');
+
+        if (!box) return;
+        box.classList.remove('hidden');
+        titleElem.textContent = title || 'Procesando archivo...';
+        descElem.textContent = initialStatus || 'Iniciando carga de datos...';
+        icon.className = 'fa-solid fa-spinner fa-spin text-blue-400';
+        bar.className = 'bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 h-2 rounded-full transition-all duration-300 ease-out';
+        percLabel.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30';
+        bar.style.width = '12%';
+        percLabel.textContent = '12%';
+
+        let current = 12;
+        clearInterval(this.interval);
+        this.interval = setInterval(() => {
+          if (current < 35) {
+            current += 6;
+            descElem.textContent = 'Transfiriendo bytes al servidor...';
+          } else if (current < 70) {
+            current += 4;
+            descElem.textContent = 'Procesando hojas de cálculo con motor Calamine...';
+          } else if (current < 88) {
+            current += 2;
+            descElem.textContent = 'Estandarizando cédulas y unificando cartera con contactos...';
+          } else if (current < 95) {
+            current += 0.5;
+            descElem.textContent = 'Generando métricas ejecutivas y matriz de campañas...';
+          }
+          bar.style.width = `${Math.min(current, 95)}%`;
+          percLabel.textContent = `${Math.round(Math.min(current, 95))}%`;
+        }, 220);
+      },
+      complete(successMessage, callback) {
+        clearInterval(this.interval);
+        const box = document.getElementById('upload-progress-box');
+        const bar = document.getElementById('progress-bar-fill');
+        const percLabel = document.getElementById('progress-percentage-label');
+        const descElem = document.getElementById('progress-status-desc');
+        const icon = document.getElementById('progress-spinner-icon');
+
+        if (!box) {
+          if (callback) callback();
+          return;
+        }
+
+        bar.style.width = '100%';
+        percLabel.textContent = '100%';
+        descElem.textContent = successMessage || '¡Información cargada con éxito!';
+        icon.className = 'fa-solid fa-circle-check text-emerald-400';
+
+        setTimeout(() => {
+          box.classList.add('hidden');
+          bar.style.width = '0%';
+          if (callback) callback();
+        }, 650);
+      },
+      error(errorMessage) {
+        clearInterval(this.interval);
+        const box = document.getElementById('upload-progress-box');
+        const bar = document.getElementById('progress-bar-fill');
+        const percLabel = document.getElementById('progress-percentage-label');
+        const descElem = document.getElementById('progress-status-desc');
+        const icon = document.getElementById('progress-spinner-icon');
+
+        if (!box) return;
+        bar.className = 'bg-rose-500 h-2 rounded-full transition-all duration-300';
+        percLabel.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30';
+        descElem.textContent = errorMessage || 'Ocurrió un error durante la carga.';
+        icon.className = 'fa-solid fa-circle-xmark text-rose-400';
+
+        setTimeout(() => {
+          box.classList.add('hidden');
+          bar.className = 'bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-400 h-2 rounded-full transition-all duration-300 ease-out';
+          percLabel.className = 'text-xs font-mono font-bold px-3 py-1 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30';
+          bar.style.width = '0%';
+        }, 4500);
+      }
+    };
+
+    // ==============================================================
+    // ESTADO GLOBAL DE ARCHIVOS OBLIGATORIOS (2 DE 2)
+    // ==============================================================
+    let currentFilesState = {
+      cartera_loaded: false,
+      contacts_loaded: false,
+      cartera_filename: '',
+      contacts_filename: ''
+    };
+    let hasProcessedOnce = false;
+
+    function highlightMissingCard(cardType) {
+      const cardId = cardType === 'cartera' ? 'card-status-cartera' : 'card-status-contacts';
+      const card = document.getElementById(cardId);
+      if (!card) return;
+      
+      card.classList.remove('border-slate-200/90');
+      card.classList.add('ring-2', 'ring-rose-500', 'bg-rose-50/70', 'border-rose-300', 'scale-[1.02]');
+      
+      setTimeout(() => {
+        card.classList.remove('ring-2', 'ring-rose-500', 'bg-rose-50/70', 'border-rose-300', 'scale-[1.02]');
+        card.classList.add('border-slate-200/90');
+      }, 2500);
+    }
+
+    function handleProcessClick() {
+      const hasCartera = Boolean(currentFilesState.cartera_loaded);
+      const hasContacts = Boolean(currentFilesState.contacts_loaded);
+
+      if (!hasCartera && !hasContacts) {
+        showToast('error', 'Faltan Ambos Archivos', 'Debes subir la Cartera de Mora (mora.csv) y la Base de Contactos (.xlsx) para poder procesar.');
+        highlightMissingCard('cartera');
+        highlightMissingCard('contacts');
+        return false;
+      }
+
+      if (!hasCartera && hasContacts) {
+        showToast('error', 'Falta el Archivo de Cartera', 'Falta subir el archivo de Cartera / Mora (mora.csv o .xlsx) con las cuotas y días de mora.');
+        highlightMissingCard('cartera');
+        return false;
+      }
+
+      if (hasCartera && !hasContacts) {
+        showToast('error', 'Falta la Base de Contactos', 'Falta subir la Base de Contactos (.xlsx o .csv) para vincular teléfonos de WhatsApp y campañas.');
+        highlightMissingCard('contacts');
+        return false;
+      }
+
+      // Ambos archivos presentes
+      showToast('success', '¡Archivos Verificados!', 'Cartera y Base de Contactos listas. Abriendo desglose y segmentación...');
+      switchTab('tab-segment', true);
+      return true;
+    }
+
+    function switchTab(tabId, bypassCheck = false) {
+      // Si el usuario intenta salir de la carga sin ambos archivos, bloquear y avisar
+      if (tabId !== 'tab-upload' && !bypassCheck) {
+        if (!currentFilesState.cartera_loaded || !currentFilesState.contacts_loaded) {
+          handleProcessClick();
+          return;
+        }
+      }
+
+      // Si navega directo a Métricas y Descarga por primera vez, ejecutar el filtro inicial automáticamente
+      if (tabId === 'tab-results' && !hasProcessedOnce) {
+        processFilters();
+        return;
+      }
+
       ['tab-upload', 'tab-segment', 'tab-results', 'tab-contacts'].forEach(id => {
-        document.getElementById(id).classList.add('hidden');
+        const el = document.getElementById(id);
+        if (el) el.classList.add('hidden');
       });
       ['nav-upload', 'nav-segment', 'nav-results', 'nav-contacts'].forEach(id => {
-        document.getElementById(id).classList.remove('tab-active');
+        const el = document.getElementById(id);
+        if (el) el.classList.remove('tab-active');
       });
       
-      document.getElementById(tabId).classList.remove('hidden');
-      document.getElementById('nav-' + tabId.replace('tab-', '')).classList.add('tab-active');
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) targetTab.classList.remove('hidden');
+      const targetNav = document.getElementById('nav-' + tabId.replace('tab-', ''));
+      if (targetNav) targetNav.classList.add('tab-active');
 
       if (tabId === 'tab-contacts') {
         loadCallCenterData();
@@ -823,9 +1150,7 @@
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
-        if (data.loaded || data.contacts_loaded) {
-          updateUIState(data);
-        }
+        updateUIState(data);
       } catch (err) {
         console.error("Error al obtener status:", err);
       }
@@ -835,35 +1160,141 @@
       const meta = data.metadata || {};
       const totals = data.totals || {};
 
-      // Badges
+      // Sincronizar estado global
+      currentFilesState.cartera_loaded = Boolean(data.loaded);
+      currentFilesState.contacts_loaded = Boolean(data.contacts_loaded);
+      if (data.cartera_filename) currentFilesState.cartera_filename = data.cartera_filename;
+      if (data.contacts_filename) currentFilesState.contacts_filename = data.contacts_filename;
+
+      // Elementos de la tarjeta de Cartera
+      const carteraCard = document.getElementById('card-status-cartera');
       const carteraBadge = document.getElementById('badge-cartera');
+      const carteraIcon = document.getElementById('icon-status-cartera');
+      const carteraName = document.getElementById('cartera-filename-label');
+      const carteraCount = document.getElementById('cartera-count-label');
+      const carteraDetail = document.getElementById('cartera-status-detail');
+
+      if (currentFilesState.cartera_loaded) {
+        if (carteraBadge) {
+          carteraBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+          carteraBadge.textContent = '✓ Listo';
+        }
+        if (carteraIcon) {
+          carteraIcon.className = 'w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-sm shrink-0 transition-colors';
+        }
+        if (carteraName) carteraName.textContent = currentFilesState.cartera_filename || 'Cartera de Mora activa';
+        if (carteraCount) carteraCount.textContent = `${Number(meta.total_rows || 0).toLocaleString()} cuotas`;
+        if (carteraDetail) carteraDetail.textContent = 'Verificado e indexado en memoria';
+        if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
+      } else {
+        if (carteraBadge) {
+          carteraBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+          carteraBadge.textContent = 'Falta archivo';
+        }
+        if (carteraIcon) {
+          carteraIcon.className = 'w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors';
+        }
+        if (carteraName) carteraName.textContent = '1. Archivo de Cartera / Mora';
+        if (carteraCount) carteraCount.textContent = '0 cuotas';
+        if (carteraDetail) carteraDetail.textContent = 'Obligatorio: mora.csv o .xlsx';
+        if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
+      }
+
+      // Elementos de la tarjeta de Contactos
+      const contactsCard = document.getElementById('card-status-contacts');
       const contactsBadge = document.getElementById('badge-contacts');
+      const contactsIcon = document.getElementById('icon-status-contacts');
+      const contactsName = document.getElementById('contacts-filename-label');
+      const contactsCount = document.getElementById('contacts-count-label');
+      const contactsDetail = document.getElementById('contacts-status-detail');
 
-      if (data.loaded) {
-        carteraBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200';
-        carteraBadge.textContent = 'Cargado';
-        document.getElementById('cartera-filename-label').textContent = data.cartera_filename || 'Cartera activa';
-        document.getElementById('cartera-count-label').textContent = `${Number(meta.total_rows || 0).toLocaleString()} cuotas`;
+      if (currentFilesState.contacts_loaded) {
+        if (contactsBadge) {
+          contactsBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+          contactsBadge.textContent = '✓ Listo';
+        }
+        if (contactsIcon) {
+          contactsIcon.className = 'w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-sm shrink-0 transition-colors';
+        }
+        if (contactsName) contactsName.textContent = currentFilesState.contacts_filename || 'Base de Contactos activa';
+        const totalContactsIdx = Number(data.total_contacts || meta.total_contacts || 0);
+        const totalWithPhone = Number(totals.total_con_telefono || 0);
+        if (contactsCount) {
+          if (currentFilesState.cartera_loaded && totalWithPhone > 0) {
+            contactsCount.textContent = `${totalWithPhone.toLocaleString()} con WhatsApp`;
+          } else {
+            contactsCount.textContent = `${(totalContactsIdx || totalWithPhone).toLocaleString()} clientes`;
+          }
+        }
+        if (contactsDetail) contactsDetail.textContent = 'Indexado y listo para WhatsApp y campañas';
+        if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
+      } else {
+        if (contactsBadge) {
+          contactsBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+          contactsBadge.textContent = 'Falta archivo';
+        }
+        if (contactsIcon) {
+          contactsIcon.className = 'w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors';
+        }
+        if (contactsName) contactsName.textContent = '2. Base de Clientes y Contactos';
+        if (contactsCount) contactsCount.textContent = '0 clientes';
+        if (contactsDetail) contactsDetail.textContent = 'Obligatorio: teléfonos y campañas';
+        if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
       }
 
-      if (data.contacts_loaded) {
-        contactsBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
-        contactsBadge.textContent = 'Cargado';
-        document.getElementById('contacts-filename-label').textContent = data.contacts_filename || 'Base de contactos activa';
-        document.getElementById('contacts-count-label').textContent = `${Number(totals.total_con_telefono || 0).toLocaleString()} con teléfono`;
+      // Resumen del checklist (X de 2 cargados)
+      const summaryBadge = document.getElementById('files-status-summary');
+      const btnProcess = document.getElementById('btn-process-files');
+      const loadedCount = (currentFilesState.cartera_loaded ? 1 : 0) + (currentFilesState.contacts_loaded ? 1 : 0);
+
+      if (summaryBadge) {
+        if (loadedCount === 2) {
+          summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5';
+          summaryBadge.innerHTML = `<i class="fa-solid fa-check"></i> 2 de 2 cargados (Listo)`;
+        } else if (loadedCount === 1) {
+          summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1.5';
+          summaryBadge.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> 1 de 2 cargados (Incompleto)`;
+        } else {
+          summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700';
+          summaryBadge.textContent = '0 de 2 cargados';
+        }
       }
 
+      if (btnProcess) {
+        if (loadedCount === 2) {
+          btnProcess.className = 'w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer ring-2 ring-emerald-400/50';
+          btnProcess.innerHTML = `<span>Procesar Archivos</span> <i class="fa-solid fa-arrow-right"></i>`;
+        } else {
+          btnProcess.className = 'w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer';
+          btnProcess.innerHTML = `<span>Procesar Archivos</span> <i class="fa-solid fa-arrow-right"></i>`;
+        }
+      }
+
+      // Top badge en cabecera
       const topBadge = document.getElementById('file-status-badge');
-      if (data.loaded && data.contacts_loaded) {
-        topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
-        topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera + Contactos vinculados (${Number(meta.total_rows).toLocaleString()} cuotas)</span>`;
-      } else if (data.loaded) {
-        topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200';
-        topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500"></span><span>Cartera activa (${Number(meta.total_rows).toLocaleString()} cuotas)</span>`;
+      if (topBadge) {
+        if (currentFilesState.cartera_loaded && currentFilesState.contacts_loaded) {
+          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera + Contactos vinculados (${Number(meta.total_rows || 0).toLocaleString()} cuotas)</span>`;
+        } else if (currentFilesState.cartera_loaded) {
+          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200';
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Cartera cargada (Falta Base de Contactos)</span>`;
+        } else if (currentFilesState.contacts_loaded) {
+          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200';
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Contactos cargados (Falta Cartera de Mora)</span>`;
+        } else {
+          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200';
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Sin archivos cargados</span>`;
+        }
       }
 
-      if (data.loaded) {
+      hasProcessedOnce = false;
+
+      if (currentFilesState.cartera_loaded) {
         populateMetadata(meta, totals);
+      } else {
+        const summaryCard = document.getElementById('file-summary-card');
+        if (summaryCard) summaryCard.classList.add('hidden');
       }
 
       const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
@@ -880,8 +1311,10 @@
     async function loadSampleFiles() {
       const btn = document.getElementById('btn-load-samples');
       const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando y cruzando archivos...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando y cruzando...`;
       btn.disabled = true;
+
+      ProgressController.start('Cargando archivos del servidor...', 'Leyendo mora.csv y Base de Contactos del servidor...');
 
       try {
         const res = await fetch('/api/load-sample', { method: 'POST' });
@@ -890,37 +1323,63 @@
           updateUIState({
             loaded: true,
             contacts_loaded: true,
-            cartera_filename: 'mora.csv (Archivo Principal)',
-            contacts_filename: 'Base de Datos Correos y Teléfonos...xlsx',
+            cartera_filename: 'mora.csv (Cartera Principal)',
+            contacts_filename: 'Base de Contactos y Campañas (Ejemplo)',
             metadata: data.metadata,
             totals: data.totals,
             resumen_global_tramos: data.resumen_global_tramos,
             matriz_campanas_tramos: data.matriz_campanas_tramos
           });
-          alert('¡Archivos de prueba cargados y cruzados con éxito! 47.083 cuotas enriquecidas.');
-          switchTab('tab-segment');
+          ProgressController.complete('¡Cartera y contactos sincronizados!', () => {
+            showToast('success', '¡Carga Completada con Éxito!', '47.083 cuotas de cartera y 194.042 contactos vinculados al instante.');
+            switchTab('tab-segment', true);
+          });
         } else {
-          alert('Error: ' + data.detail);
+          ProgressController.error(data.detail || 'Error al procesar archivos');
+          showToast('error', 'Error en la Carga', data.detail || 'No se pudieron procesar los archivos de prueba.');
         }
       } catch (err) {
-        alert('Error en conexión: ' + err.message);
+        ProgressController.error(err.message);
+        showToast('error', 'Error de Conexión', 'No se pudo conectar con el servidor: ' + err.message);
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
       }
     }
 
+    async function handleUnifiedUpload(e) {
+      const files = (e.target && e.target.files) ? Array.from(e.target.files) : [];
+      if (!files.length) return;
+      for (const file of files) {
+        await processSingleFile(file);
+      }
+      if (e.target) e.target.value = '';
+    }
+
     async function handleCarteraUpload(e) {
       const file = (e.target && e.target.files) ? e.target.files[0] : null;
+      if (file) await processSingleFile(file);
+      if (e.target) e.target.value = '';
+    }
+
+    async function handleContactsUpload(e) {
+      const file = (e.target && e.target.files) ? e.target.files[0] : null;
+      if (file) await processSingleFile(file);
+      if (e.target) e.target.value = '';
+    }
+
+    async function processSingleFile(file) {
       if (!file) return;
 
-      const promptDiv = document.getElementById('cartera-prompt');
-      const loadDiv = document.getElementById('cartera-loading');
-      const loadText = document.getElementById('cartera-loading-text');
+      const promptDiv = document.getElementById('unified-prompt');
+      const loadDiv = document.getElementById('unified-loading');
+      const loadText = document.getElementById('unified-loading-text');
 
       if (promptDiv) promptDiv.classList.add('hidden');
       if (loadDiv) loadDiv.classList.remove('hidden');
       if (loadText) loadText.textContent = `Procesando ${file.name}...`;
+
+      ProgressController.start(`Subiendo: ${file.name}`, 'Analizando estructura del archivo con motor Calamine...');
 
       const formData = new FormData();
       formData.append('file', file);
@@ -929,77 +1388,69 @@
         const res = await fetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json();
         if (res.ok) {
-          updateUIState({
-            loaded: true,
-            contacts_loaded: (data.metadata && data.metadata.has_contacts),
-            cartera_filename: file.name,
-            contacts_filename: data.metadata ? data.metadata.contacts_filename : '',
-            metadata: data.metadata,
-            totals: data.totals,
-            resumen_global_tramos: data.resumen_global_tramos,
-            matriz_campanas_tramos: data.matriz_campanas_tramos
-          });
-          alert('¡Archivo de cartera cargado con éxito!');
+          if (data.auto_routed === 'contacts') {
+            updateUIState({
+              loaded: currentFilesState.cartera_loaded,
+              contacts_loaded: true,
+              cartera_filename: currentFilesState.cartera_filename,
+              contacts_filename: file.name,
+              total_contacts: data.total_contacts,
+              metadata: data.metadata,
+              totals: data.totals,
+              resumen_global_tramos: data.resumen_global_tramos,
+              matriz_campanas_tramos: data.matriz_campanas_tramos
+            });
+            ProgressController.complete('¡Base de contactos unificada!', () => {
+              if (currentFilesState.cartera_loaded) {
+                showToast('success', '¡Ambos Archivos Listos!', `Base de Contactos indexada (${Number(data.total_contacts).toLocaleString()} clientes). Ya puedes hacer clic en 'Procesar Archivos'.`);
+              } else {
+                showToast('info', 'Base de Contactos Cargada', `Se indexaron ${Number(data.total_contacts).toLocaleString()} contactos. Recuerda que aún falta subir la Cartera de Mora (mora.csv) para poder procesar.`);
+              }
+            });
+          } else {
+            updateUIState({
+              loaded: true,
+              contacts_loaded: (data.metadata && data.metadata.has_contacts) || currentFilesState.contacts_loaded,
+              cartera_filename: file.name,
+              contacts_filename: currentFilesState.contacts_filename,
+              metadata: data.metadata,
+              totals: data.totals,
+              resumen_global_tramos: data.resumen_global_tramos,
+              matriz_campanas_tramos: data.matriz_campanas_tramos
+            });
+            ProgressController.complete('¡Cartera procesada con éxito!', () => {
+              if (currentFilesState.contacts_loaded) {
+                showToast('success', '¡Ambos Archivos Listos!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas). Ya puedes hacer clic en 'Procesar Archivos'.`);
+              } else {
+                showToast('info', 'Cartera de Mora Cargada', `Se procesaron ${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas. Recuerda que aún falta subir la Base de Contactos (.xlsx) para poder procesar.`);
+              }
+            });
+          }
         } else {
-          alert('Error: ' + data.detail);
+          ProgressController.error(data.detail || 'Error en el archivo');
+          showToast('error', 'Error al procesar archivo', data.detail || 'No se pudo interpretar el archivo.');
         }
       } catch (err) {
-        alert('Error al subir: ' + err.message);
+        ProgressController.error(err.message);
+        showToast('error', 'Error de conexión', 'No se pudo subir el archivo: ' + err.message);
       } finally {
         if (promptDiv) promptDiv.classList.remove('hidden');
         if (loadDiv) loadDiv.classList.add('hidden');
-        const inputElem = document.getElementById('file-cartera-input');
-        if (inputElem) inputElem.value = '';
-      }
-    }
-
-    async function handleContactsUpload(e) {
-      const file = (e.target && e.target.files) ? e.target.files[0] : null;
-      if (!file) return;
-
-      const promptDiv = document.getElementById('contacts-prompt');
-      const loadDiv = document.getElementById('contacts-loading');
-      const loadText = document.getElementById('contacts-loading-text');
-
-      if (promptDiv) promptDiv.classList.add('hidden');
-      if (loadDiv) loadDiv.classList.remove('hidden');
-      if (loadText) loadText.textContent = `Indexando contactos en ${file.name}...`;
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const res = await fetch('/api/contacts/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (res.ok) {
-          updateUIState({
-            loaded: true,
-            contacts_loaded: true,
-            cartera_filename: data.metadata ? data.metadata.cartera_filename : '',
-            contacts_filename: file.name,
-            metadata: data.metadata,
-            totals: data.totals,
-            resumen_global_tramos: data.resumen_global_tramos,
-            matriz_campanas_tramos: data.matriz_campanas_tramos
-          });
-          alert(`¡Base de contactos cargada y cruzada con éxito! ${Number(data.total_contacts).toLocaleString()} clientes indexados.`);
-        } else {
-          alert('Error: ' + data.detail);
-        }
-      } catch (err) {
-        alert('Error al subir contactos: ' + err.message);
-      } finally {
-        if (promptDiv) promptDiv.classList.remove('hidden');
-        if (loadDiv) loadDiv.classList.add('hidden');
-        const inputElem = document.getElementById('file-contacts-input');
-        if (inputElem) inputElem.value = '';
       }
     }
 
     function populateMetadata(meta, totals) {
       appMetadata = meta;
 
-      document.getElementById('file-summary-card').classList.remove('hidden');
+      const summaryCard = document.getElementById('file-summary-card');
+      if (summaryCard) {
+        if (currentFilesState.cartera_loaded && currentFilesState.contacts_loaded) {
+          summaryCard.classList.remove('hidden');
+        } else {
+          summaryCard.classList.add('hidden');
+        }
+      }
+
       document.getElementById('meta-rows').textContent = Number(meta.total_rows || 0).toLocaleString();
       document.getElementById('meta-clients').textContent = Number(meta.total_clientes || 0).toLocaleString();
       document.getElementById('meta-mora-range').textContent = `${meta.min_dias || 0} a ${meta.max_dias || 0} días`;
@@ -1008,6 +1459,16 @@
       document.getElementById('meta-tel-pct').textContent = `${totals.pct_con_telefono || 0}% de cobertura`;
       document.getElementById('meta-contactable-amount').textContent = `$${Number(totals.monto_contactable || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
       document.getElementById('meta-contactable-pct').textContent = `${totals.pct_monto_contactable || 0}% de cartera`;
+
+      // Pre-poblar KPIs de Tab 3 con los totales iniciales de la cartera
+      document.getElementById('kpi-clientes').textContent = Number(totals.total_clientes || meta.total_clientes || 0).toLocaleString();
+      document.getElementById('kpi-cuotas').textContent = `${Number(totals.total_cuotas || meta.total_rows || 0).toLocaleString()} cuotas en mora`;
+      document.getElementById('kpi-monto-total').textContent = `$${Number(totals.monto_total || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('kpi-promedio').textContent = `Promedio: $${Number(totals.promedio_cliente || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} / cliente`;
+      document.getElementById('kpi-con-telefono').textContent = Number(totals.total_con_telefono || 0).toLocaleString();
+      document.getElementById('kpi-pct-telefono').textContent = `${totals.pct_con_telefono || 0}% de cobertura`;
+      document.getElementById('kpi-monto-contactable').textContent = `$${Number(totals.monto_contactable || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('kpi-pct-monto').textContent = `${totals.pct_monto_contactable || 0}% de la deuda`;
 
       // Poblar Tipo de Campaña
       const campanaContainer = document.getElementById('campanas-list');
@@ -1088,29 +1549,23 @@
       });
     }
 
-    // Drag and drop events (el clic lo maneja de forma nativa el <label for="...">)
-    const dropCartera = document.getElementById('drop-zone-cartera');
-    if (dropCartera) {
-      dropCartera.addEventListener('dragover', (e) => { e.preventDefault(); dropCartera.classList.add('border-blue-500', 'bg-blue-50/50'); });
-      dropCartera.addEventListener('dragleave', () => dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50'));
-      dropCartera.addEventListener('drop', (e) => {
+    // Drag and drop events en la Zona Unificada
+    const dropUnified = document.getElementById('drop-zone-unified');
+    if (dropUnified) {
+      dropUnified.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50');
-        if (e.dataTransfer.files && e.dataTransfer.files.length) {
-          handleCarteraUpload({ target: { files: e.dataTransfer.files } });
-        }
+        dropUnified.classList.add('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-400/50');
       });
-    }
-
-    const dropContacts = document.getElementById('drop-zone-contacts');
-    if (dropContacts) {
-      dropContacts.addEventListener('dragover', (e) => { e.preventDefault(); dropContacts.classList.add('border-emerald-500', 'bg-emerald-50/50'); });
-      dropContacts.addEventListener('dragleave', () => dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50'));
-      dropContacts.addEventListener('drop', (e) => {
+      dropUnified.addEventListener('dragleave', () => {
+        dropUnified.classList.remove('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-400/50');
+      });
+      dropUnified.addEventListener('drop', async (e) => {
         e.preventDefault();
-        dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+        dropUnified.classList.remove('border-blue-500', 'bg-blue-50/50', 'ring-2', 'ring-blue-400/50');
         if (e.dataTransfer.files && e.dataTransfer.files.length) {
-          handleContactsUpload({ target: { files: e.dataTransfer.files } });
+          for (const file of Array.from(e.dataTransfer.files)) {
+            await processSingleFile(file);
+          }
         }
       });
     }
@@ -1147,13 +1602,15 @@
 
         const data = await res.json();
         if (res.ok) {
+          hasProcessedOnce = true;
           renderResults(data, minDias, maxDias);
-          switchTab('tab-results');
+          showToast('success', 'Filtros Aplicados', `${Number(data.total_filtered).toLocaleString()} cuotas coincidentes encontradas.`);
+          switchTab('tab-results', true);
         } else {
-          alert('Error: ' + data.detail);
+          showToast('error', 'Error al filtrar', data.detail || 'Ocurrió un error al aplicar los filtros.');
         }
       } catch (err) {
-        alert('Error: ' + err.message);
+        showToast('error', 'Error al procesar', 'No se pudieron aplicar los filtros: ' + err.message);
       } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;

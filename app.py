@@ -427,6 +427,26 @@ def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df["Cedula_Key"] = df["Cedula"]
     return df.drop_duplicates(subset=["Cedula_Key"])
 
+def detect_file_type(df: pd.DataFrame) -> str:
+    """Detecta inteligentemente si un DataFrame corresponde a Cartera ('cartera') o a Contactos ('contacts')."""
+    cleaned_cols = [clean_col(str(c)) for c in df.columns]
+    
+    # Indicadores de Cartera / Mora
+    has_dias = any(any(re.match(p, c) for p in TARGET_PATTERNS["Dias de Mora"]) for c in cleaned_cols)
+    has_cuota = any(any(re.match(p, c) for p in TARGET_PATTERNS["Pendiente Cuota"]) for c in cleaned_cols)
+    has_mora = any(any(re.match(p, c) for p in TARGET_PATTERNS["Pendiente Mora"]) for c in cleaned_cols)
+    
+    # Indicadores de Contactos / Telefonos
+    has_phone = any(any(re.match(p, c) for p in [r"^telefono.*", r"^tel\d?$", r"^celular.*", r"^telf.*"]) for c in cleaned_cols)
+    has_email = any(any(re.match(p, c) for p in [r"^correo.*", r"^email.*", r"^mail$"]) for c in cleaned_cols)
+    has_campana = any(any(re.match(p, c) for p in [r"^tipodecampana.*", r"^campana.*", r"^tipocampana.*"]) for c in cleaned_cols)
+    
+    if has_dias or (has_cuota and has_mora):
+        return "cartera"
+    elif has_phone or has_email or has_campana:
+        return "contacts"
+    return "unknown"
+
 # -------------------------------------------------------------
 # FASTAPI APP & STATE
 # -------------------------------------------------------------
@@ -833,11 +853,15 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
     }
 
 def get_metadata(df: pd.DataFrame):
+    has_contacts = (DATA_STORE["df_contacts_raw"] is not None and not DATA_STORE["df_contacts_raw"].empty)
+    total_contacts = len(DATA_STORE["df_contacts_raw"]) if has_contacts else 0
+
     if df is None or df.empty:
         return {
             "total_rows": 0, "total_clientes": 0, "programas": [],
             "tipos_campana": [], "tipos": [], "canales": [], "tramos": {},
-            "min_dias": 0, "max_dias": 0, "has_contacts": False,
+            "min_dias": 0, "max_dias": 0, "has_contacts": has_contacts,
+            "total_contacts": total_contacts,
             "cartera_filename": DATA_STORE["cartera_filename"],
             "contacts_filename": DATA_STORE["contacts_filename"]
         }
@@ -851,8 +875,6 @@ def get_metadata(df: pd.DataFrame):
 
     min_dias = int(df["Dias de Mora"].min()) if "Dias de Mora" in df.columns and not df.empty else 0
     max_dias = int(df["Dias de Mora"].max()) if "Dias de Mora" in df.columns and not df.empty else 0
-    
-    has_contacts = (DATA_STORE["df_contacts_raw"] is not None and not DATA_STORE["df_contacts_raw"].empty)
 
     return {
         "total_rows": len(df),
@@ -865,6 +887,7 @@ def get_metadata(df: pd.DataFrame):
         "min_dias": min_dias,
         "max_dias": max_dias,
         "has_contacts": has_contacts,
+        "total_contacts": total_contacts,
         "cartera_filename": DATA_STORE["cartera_filename"],
         "contacts_filename": DATA_STORE["contacts_filename"]
     }
@@ -892,6 +915,7 @@ def get_status():
     if not cartera_loaded and not contacts_loaded:
         return {
             "loaded": False,
+            "contacts_loaded": False,
             "sample_available": sample_available,
             "contacts_sample_available": contacts_sample_available
         }
@@ -960,15 +984,41 @@ def load_sample():
 
 @app.post("/api/upload")
 async def upload_cartera(file: UploadFile = File(...)):
-    """Sube el archivo de cartera (CSV o Excel). Si ya habia contactos cargados, cruza inmediatamente."""
+    """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos, se auto-enruta inteligentemente."""
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
         
     try:
-        df = parse_bytes_to_dataframe(contents, file.filename)
-        df = standardize_cartera_dataframe(df)
+        raw_df = parse_bytes_to_dataframe(contents, file.filename)
+        detected = detect_file_type(raw_df)
         
+        # Auto-enrutamiento inteligente: si el usuario subió la base de contactos en la opción de cartera
+        if detected == "contacts":
+            df_contacts = standardize_contacts_dataframe(raw_df)
+            DATA_STORE["df_contacts_raw"] = df_contacts
+            DATA_STORE["contacts_filename"] = file.filename
+            
+            enrich_and_merge_datasets()
+            
+            active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+            totals = calculate_totals(active_df) if active_df is not None else {}
+            meta = get_metadata(active_df) if active_df is not None else {}
+            resumen_global = calculate_global_tramos_summary(active_df) if active_df is not None else {}
+            matriz_campanas = calculate_campanas_tramos_matrix(active_df) if active_df is not None else {}
+            
+            return {
+                "auto_routed": "contacts",
+                "message": f"Detección inteligente: '{file.filename}' es la Base de Contactos ({len(df_contacts):,} clientes) y fue procesada automáticamente en su sección.",
+                "total_contacts": len(df_contacts),
+                "filename": file.filename,
+                "metadata": meta,
+                "totals": totals,
+                "resumen_global_tramos": resumen_global,
+                "matriz_campanas_tramos": matriz_campanas
+            }
+
+        df = standardize_cartera_dataframe(raw_df)
         DATA_STORE["df_cartera_raw"] = df
         DATA_STORE["cartera_filename"] = file.filename
         
@@ -992,15 +1042,36 @@ async def upload_cartera(file: UploadFile = File(...)):
 
 @app.post("/api/contacts/upload")
 async def upload_contacts(file: UploadFile = File(...)):
-    """Sube la base de contactos y campañas. Si ya habia cartera cargada, cruza inmediatamente."""
+    """Sube la base de contactos y campañas. Si se detecta que es cartera, se auto-enruta inteligentemente."""
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
         
     try:
-        df = parse_bytes_to_dataframe(contents, file.filename)
-        df = standardize_contacts_dataframe(df)
+        raw_df = parse_bytes_to_dataframe(contents, file.filename)
+        detected = detect_file_type(raw_df)
         
+        # Auto-enrutamiento inteligente: si el usuario subió la cartera en la opción de contactos
+        if detected == "cartera":
+            df = standardize_cartera_dataframe(raw_df)
+            DATA_STORE["df_cartera_raw"] = df
+            DATA_STORE["cartera_filename"] = file.filename
+            
+            enrich_and_merge_datasets()
+            
+            active_df = DATA_STORE["df_original"]
+            resumen_global = calculate_global_tramos_summary(active_df)
+            matriz_campanas = calculate_campanas_tramos_matrix(active_df)
+            return {
+                "auto_routed": "cartera",
+                "message": f"Detección inteligente: '{file.filename}' es el Archivo de Cartera ({len(df):,} cuotas) y fue procesado automáticamente en su sección.",
+                "metadata": get_metadata(active_df),
+                "totals": calculate_totals(active_df),
+                "resumen_global_tramos": resumen_global,
+                "matriz_campanas_tramos": matriz_campanas
+            }
+
+        df = standardize_contacts_dataframe(raw_df)
         DATA_STORE["df_contacts_raw"] = df
         DATA_STORE["contacts_filename"] = file.filename
         
@@ -1029,9 +1100,20 @@ async def upload_contacts(file: UploadFile = File(...)):
 
 @app.post("/api/process")
 def process_data(req: FilterRequest):
-    """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados."""
-    if DATA_STORE["df_original"] is None:
-        raise HTTPException(status_code=400, detail="No se ha cargado ningún archivo de cartera.")
+    """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Requiere ambos archivos obligatorios."""
+    has_cartera = DATA_STORE["df_cartera_raw"] is not None
+    has_contacts = DATA_STORE["df_contacts_raw"] is not None
+    
+    if not has_cartera or not has_contacts:
+        missing = []
+        if not has_cartera:
+            missing.append("Archivo de Cartera / Mora (cuotas y saldos)")
+        if not has_contacts:
+            missing.append("Base de Contactos y Clientes (teléfonos y campañas)")
+        raise HTTPException(
+            status_code=400, 
+            detail=f"Falta archivo obligatorio: {', '.join(missing)}. Debes subir ambos archivos para poder procesar la cartera."
+        )
     
     df_master = DATA_STORE["df_original"].copy()
     
