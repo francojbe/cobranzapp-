@@ -229,8 +229,64 @@ DATA_STORE = {
     "df_original": None,
     "df_filtered": None,
     "filter_info": {},
-    "filename": ""
+    "filename": "",
+    "df_contacts": None,
+    "df_matched": None,
+    "contacts_filename": ""
 }
+
+def clean_phone_str(val) -> str:
+    """Limpia y estandariza números telefónicos al formato venezolano 584..."""
+    if pd.isna(val) or val is None or val == "":
+        return ""
+    s = str(val).strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    digits = re.sub(r'\D', '', s)
+    if not digits:
+        return ""
+    if digits.startswith("58") and len(digits) >= 12:
+        return digits
+    elif len(digits) == 10 and digits.startswith("4"):
+        return f"58{digits}"
+    elif len(digits) == 11 and digits.startswith("04"):
+        return f"58{digits[1:]}"
+    return digits
+
+def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Estandariza columnas y cédula del archivo de contactos."""
+    col_map = {}
+    for c in df.columns:
+        norm = clean_col(str(c))
+        if any(re.match(p, norm) for p in [r"^cedula.*", r"^dni$", r"^identificacion$", r"^etiquetasdefila$"]):
+            col_map[c] = "Cedula"
+        elif any(re.match(p, norm) for p in [r"^telefono1$", r"^tel1$", r"^telf1$", r"^celular1$", r"^celular$", r"^telefono$"]):
+            col_map[c] = "Telefono_1"
+        elif any(re.match(p, norm) for p in [r"^telefono2$", r"^tel2$", r"^telf2$", r"^celular2$"]):
+            col_map[c] = "Telefono_2"
+        elif any(re.match(p, norm) for p in [r"^telefono3$", r"^tel3$", r"^telf3$", r"^celular3$"]):
+            col_map[c] = "Telefono_3"
+        elif any(re.match(p, norm) for p in [r"^correo.*", r"^email.*", r"^mail$"]):
+            col_map[c] = "Correo"
+        elif any(re.match(p, norm) for p in [r"^nombre.*", r"^cliente$"]):
+            col_map[c] = "Nombre_Contacto"
+
+    df = df.rename(columns=col_map)
+    if "Cedula" not in df.columns:
+        raise HTTPException(status_code=400, detail="El archivo de contactos debe contener una columna de Cédula o Identificación.")
+
+    for col in ["Telefono_1", "Telefono_2", "Telefono_3", "Correo", "Nombre_Contacto"]:
+        if col not in df.columns:
+            df[col] = ""
+        else:
+            if "Telefono" in col:
+                df[col] = df[col].apply(clean_phone_str)
+            else:
+                df[col] = df[col].fillna("").astype(str).str.strip()
+
+    df["Cedula"] = df["Cedula"].fillna("").astype(str).str.strip().str.upper()
+    df["Cedula_Key"] = df["Cedula"]
+    return df.drop_duplicates(subset=["Cedula_Key"])
 
 DEFAULT_CSV_PATH = os.path.join(os.path.dirname(__file__), "mora.csv")
 
@@ -713,6 +769,212 @@ def download_pdf():
         buf,
         media_type="application/pdf",
         headers={"Content-Disposition": "attachment; filename=reporte_cartera_ejecutivo.pdf"}
+    )
+
+# -------------------------------------------------------------
+# RUTAS DE CRUCE DE CONTACTOS (CALL CENTER / WHATSAPP)
+# -------------------------------------------------------------
+
+@app.get("/api/contacts/status")
+def get_contacts_status():
+    pkl_path = os.path.join(os.path.dirname(__file__), "contacts.pkl.gz")
+    excel_path = os.path.join(os.path.dirname(__file__), "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx")
+    sample_available = os.path.exists(pkl_path) or os.path.exists(excel_path)
+    
+    if DATA_STORE["df_contacts"] is None:
+        return {
+            "loaded": False,
+            "sample_available": sample_available,
+            "sample_name": "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx (194.042 clientes)"
+        }
+    
+    return {
+        "loaded": True,
+        "filename": DATA_STORE["contacts_filename"],
+        "total_contacts": len(DATA_STORE["df_contacts"]),
+        "sample_available": sample_available
+    }
+
+@app.post("/api/contacts/load-sample")
+def load_sample_contacts():
+    pkl_path = os.path.join(os.path.dirname(__file__), "contacts.pkl.gz")
+    excel_path = os.path.join(os.path.dirname(__file__), "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx")
+    
+    if os.path.exists(pkl_path):
+        df = pd.read_pickle(pkl_path)
+    elif os.path.exists(excel_path):
+        df = pd.read_excel(excel_path, sheet_name="Data de Clientes")
+    else:
+        raise HTTPException(status_code=404, detail="Archivo de contactos no encontrado en el servidor.")
+        
+    df = standardize_contacts_dataframe(df)
+    DATA_STORE["df_contacts"] = df
+    DATA_STORE["contacts_filename"] = "Base Maestra de Contactos (194.042 clientes)"
+    
+    return {
+        "message": "Base de contactos cargada exitosamente.",
+        "total_contacts": len(df),
+        "filename": DATA_STORE["contacts_filename"]
+    }
+
+@app.post("/api/contacts/upload")
+async def upload_contacts(file: UploadFile = File(...)):
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
+        
+    filename_lower = file.filename.lower()
+    try:
+        if filename_lower.endswith(".csv"):
+            try:
+                df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
+            except Exception:
+                df = pd.read_csv(io.BytesIO(contents), encoding="latin1")
+        elif filename_lower.endswith((".xlsx", ".xls")):
+            engine = "openpyxl" if filename_lower.endswith(".xlsx") else "xlrd"
+            try:
+                df = pd.read_excel(io.BytesIO(contents), engine=engine)
+            except Exception:
+                df = pd.read_excel(io.BytesIO(contents))
+        else:
+            raise HTTPException(status_code=400, detail="Formato no soportado. Usa .xlsx o .csv")
+            
+        df = standardize_contacts_dataframe(df)
+        DATA_STORE["df_contacts"] = df
+        DATA_STORE["contacts_filename"] = file.filename
+        
+        return {
+            "message": f"Base de contactos cargada: {len(df):,} clientes disponibles.",
+            "total_contacts": len(df),
+            "filename": file.filename
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al procesar archivo de contactos: {str(e)}")
+
+@app.post("/api/contacts/cross-match")
+def cross_match_contacts():
+    if DATA_STORE["df_filtered"] is None:
+        raise HTTPException(status_code=400, detail="Primero debes cargar y procesar la cartera.")
+    if DATA_STORE["df_contacts"] is None:
+        raise HTTPException(status_code=400, detail="Primero debes cargar la base de contactos.")
+        
+    df_cartera = DATA_STORE["df_filtered"].copy()
+    df_contacts = DATA_STORE["df_contacts"].copy()
+    
+    # Consolidar cartera a nivel de cliente
+    df_cartera["Cedula_Key"] = df_cartera["Cedula Cliente"].astype(str).str.strip().str.upper()
+    df_cartera["_Fila_Total"] = df_cartera["Pendiente Tarifa"] + df_cartera["Pendiente Cuota"] + df_cartera["Pendiente Mora"]
+    
+    debtors = df_cartera.groupby("Cedula_Key").agg(
+        Cedula=("Cedula Cliente", "first"),
+        Nombre_Cliente=("Nombre Cliente", "first"),
+        Cuotas_Vencidas=("Cedula Cliente", "count"),
+        Monto_Total_USD=("_Fila_Total", "sum"),
+        Pendiente_Tarifa=("Pendiente Tarifa", "sum"),
+        Pendiente_Cuota=("Pendiente Cuota", "sum"),
+        Pendiente_Mora=("Pendiente Mora", "sum"),
+        Max_Dias_Mora=("Dias de Mora", "max"),
+        Programa=("Programa", "first"),
+        Tipo=("Tipo", lambda x: "/".join(sorted(set(str(v) for v in x if str(v) != 'nan'))))
+    ).reset_index()
+    
+    debtors["Monto_Total_USD"] = debtors["Monto_Total_USD"].round(2)
+    debtors["Pendiente_Tarifa"] = debtors["Pendiente_Tarifa"].round(2)
+    debtors["Pendiente_Cuota"] = debtors["Pendiente_Cuota"].round(2)
+    debtors["Pendiente_Mora"] = debtors["Pendiente_Mora"].round(2)
+    
+    # Cruzar mediante Cedula_Key
+    merged = pd.merge(
+        debtors,
+        df_contacts[["Cedula_Key", "Telefono_1", "Telefono_2", "Telefono_3", "Correo"]],
+        on="Cedula_Key",
+        how="left"
+    )
+    
+    for col in ["Telefono_1", "Telefono_2", "Telefono_3", "Correo"]:
+        merged[col] = merged[col].fillna("").astype(str).str.strip()
+        
+    merged = merged.sort_values(by="Monto_Total_USD", ascending=False)
+    DATA_STORE["df_matched"] = merged
+    
+    # Métricas de cobertura
+    has_tel = (merged["Telefono_1"] != "") | (merged["Telefono_2"] != "") | (merged["Telefono_3"] != "")
+    has_mail = merged["Correo"] != ""
+    has_both = has_tel & has_mail
+    has_any = has_tel | has_mail
+    has_none = ~has_any
+    
+    total_deudores = len(merged)
+    total_con_tel = int(has_tel.sum())
+    total_con_mail = int(has_mail.sum())
+    total_con_any = int(has_any.sum())
+    total_sin_contacto = int(has_none.sum())
+    
+    monto_total_cartera = float(merged["Monto_Total_USD"].sum())
+    monto_contactable = float(merged.loc[has_any, "Monto_Total_USD"].sum())
+    monto_sin_contacto = float(merged.loc[has_none, "Monto_Total_USD"].sum())
+    
+    pct_cobertura = round((total_con_any / total_deudores * 100), 1) if total_deudores > 0 else 0
+    pct_monto_contactable = round((monto_contactable / monto_total_cartera * 100), 1) if monto_total_cartera > 0 else 0
+    
+    preview = []
+    for _, r in merged.head(100).iterrows():
+        tel_principal = r["Telefono_1"] or r["Telefono_2"] or r["Telefono_3"]
+        wa_link = f"https://wa.me/{tel_principal}" if tel_principal and len(tel_principal) >= 10 else ""
+        preview.append({
+            "cedula": r["Cedula"],
+            "nombre": r["Nombre_Cliente"],
+            "cuotas": int(r["Cuotas_Vencidas"]),
+            "monto_total": float(r["Monto_Total_USD"]),
+            "tarifa": float(r["Pendiente_Tarifa"]),
+            "cuota": float(r["Pendiente_Cuota"]),
+            "mora": float(r["Pendiente_Mora"]),
+            "dias_mora": int(r["Max_Dias_Mora"]),
+            "programa": r["Programa"],
+            "telefono_1": r["Telefono_1"],
+            "telefono_2": r["Telefono_2"],
+            "telefono_3": r["Telefono_3"],
+            "correo": r["Correo"],
+            "wa_link": wa_link
+        })
+        
+    return {
+        "kpis": {
+            "total_deudores": total_deudores,
+            "total_con_telefono": total_con_tel,
+            "total_con_correo": total_con_mail,
+            "total_con_contacto": total_con_any,
+            "total_sin_contacto": total_sin_contacto,
+            "porcentaje_cobertura": pct_cobertura,
+            "monto_total": round(monto_total_cartera, 2),
+            "monto_contactable": round(monto_contactable, 2),
+            "monto_sin_contacto": round(monto_sin_contacto, 2),
+            "porcentaje_monto_contactable": pct_monto_contactable
+        },
+        "preview": preview
+    }
+
+@app.get("/api/contacts/download/excel")
+def download_contacts_excel():
+    if DATA_STORE["df_matched"] is None or DATA_STORE["df_matched"].empty:
+        raise HTTPException(status_code=400, detail="No se ha realizado el cruce de cartera con contactos.")
+        
+    df = DATA_STORE["df_matched"].copy()
+    if "Cedula_Key" in df.columns:
+        df = df.drop(columns=["Cedula_Key"])
+        
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False, sheet_name="Contactos Call Center")
+        
+    output.seek(0)
+    filename = f"cartera_enriquecida_callcenter_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
     )
 
 @app.get("/health")
