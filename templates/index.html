@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistema de Reestructuración y Segmentación de Cartera</title>
+  <title>CobranzApp - Sistema de Reestructuración, Segmentación y Cruce de Cartera</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <!-- Heroicons / Lucide style svg -->
+  <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -30,34 +30,34 @@
           <i class="fa-solid fa-chart-pie"></i>
         </div>
         <div>
-          <h1 class="text-lg font-bold text-slate-900 leading-tight">Cartera Manager</h1>
-          <p class="text-xs text-slate-500">Motor de Reestructuración, Segmentación y Cruce de Mora</p>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">CobranzApp</h1>
+          <p class="text-xs text-slate-500">Motor de Reestructuración, Segmentación y Enriquecimiento de Cartera</p>
         </div>
       </div>
       <div class="flex items-center gap-3">
         <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors shadow-xs cursor-pointer">
-          <i class="fa-solid fa-circle-question text-blue-600"></i> ¿Cómo usar?
+          <i class="fa-solid fa-circle-question text-blue-600"></i> Manual Visual
         </button>
         <div id="file-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-          <span>Sin archivo activo</span>
+          <span>Sin archivos activos</span>
         </div>
       </div>
     </div>
 
     <!-- Navigation Tabs -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-8 border-t border-slate-100 text-sm font-medium">
-      <button onclick="switchTab('tab-upload')" id="nav-upload" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 tab-active flex items-center gap-2">
-        <i class="fa-solid fa-cloud-arrow-up"></i> 1. Cargar Archivo
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 sm:space-x-8 border-t border-slate-100 text-sm font-medium overflow-x-auto">
+      <button onclick="switchTab('tab-upload')" id="nav-upload" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 tab-active flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-cloud-arrow-up"></i> 1. Cargar Archivos (Cartera + Contactos)
       </button>
-      <button onclick="switchTab('tab-segment')" id="nav-segment" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+      <button onclick="switchTab('tab-segment')" id="nav-segment" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-sliders"></i> 2. Configurar Desglose
       </button>
-      <button onclick="switchTab('tab-results')" id="nav-results" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
+      <button onclick="switchTab('tab-results')" id="nav-results" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
         <i class="fa-solid fa-chart-simple"></i> 3. Métricas y Descarga
       </button>
-      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2">
-        <i class="fa-solid fa-address-book text-emerald-600"></i> 4. Cruce Contactos <span class="text-[10px] bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">¡Activo!</span>
+      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
+        <i class="fa-solid fa-phone-volume text-emerald-600"></i> 4. Call Center & WhatsApp
       </button>
     </div>
   </header>
@@ -66,7 +66,7 @@
   <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
 
     <!-- ============================================== -->
-    <!-- TAB 1: CARGA DE ARCHIVO                        -->
+    <!-- TAB 1: CARGA DE ARCHIVOS (CARTERA + CONTACTOS) -->
     <!-- ============================================== -->
     <div id="tab-upload" class="space-y-6">
 
@@ -75,119 +75,189 @@
         <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5 pb-4 border-b border-white/10">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-[10px] font-bold uppercase tracking-wider text-blue-300 bg-blue-500/20 px-2.5 py-0.5 rounded-full border border-blue-400/30">Guía de Inicio Rápido</span>
-              <span class="text-xs text-slate-300">4 pasos sencillos</span>
+              <span class="text-[10px] font-bold uppercase tracking-wider text-blue-300 bg-blue-500/20 px-2.5 py-0.5 rounded-full border border-blue-400/30">Flujo Integrado</span>
+              <span class="text-xs text-slate-300">Cruce Automático de Información</span>
             </div>
-            <h3 class="text-base font-bold text-white mt-1">¿Cómo opera el Motor de Reestructuración de Cartera?</h3>
+            <h3 class="text-base font-bold text-white mt-1">Carga inicial de Cartera Vencida y Base de Clientes</h3>
           </div>
           <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-xs transition-all cursor-pointer self-start md:self-auto">
-            <i class="fa-solid fa-book-open"></i> Ver Manual Visual Completo
+            <i class="fa-solid fa-book-open"></i> Ver Guía Operativa
           </button>
         </div>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <!-- Step 1 -->
           <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
             <div class="flex items-center gap-2.5 mb-2">
               <div class="w-6 h-6 rounded-md bg-blue-500 text-white font-bold flex items-center justify-center text-xs">1</div>
               <h4 class="text-xs font-bold text-white">Cargar Cartera</h4>
             </div>
             <p class="text-[11px] text-slate-300 leading-snug">
-              Sube <span class="text-white font-medium">mora.csv</span> o Excel. El sistema identifica montos, cuotas y clientes sin configurar nada.
+              Sube <span class="text-white font-medium">mora.csv</span> o Excel. Identifica montos, cuotas vencidas y días de mora automáticamente.
             </p>
           </div>
 
-          <!-- Step 2 -->
           <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
             <div class="flex items-center gap-2.5 mb-2">
-              <div class="w-6 h-6 rounded-md bg-indigo-500 text-white font-bold flex items-center justify-center text-xs">2</div>
-              <h4 class="text-xs font-bold text-white">Elegir Tramo</h4>
+              <div class="w-6 h-6 rounded-md bg-emerald-500 text-white font-bold flex items-center justify-center text-xs">2</div>
+              <h4 class="text-xs font-bold text-white">Cargar Contactos</h4>
             </div>
             <p class="text-[11px] text-slate-300 leading-snug">
-              Presiona el botón de tu tramo: <span class="text-emerald-300 font-medium">1-30d</span>, <span class="text-blue-300 font-medium">31-60d</span>, <span class="text-amber-300 font-medium">61-90d</span>, <span class="text-orange-300 font-medium">91-180d</span> o <span class="text-rose-300 font-medium">181+d</span>.
+              Sube la <span class="text-emerald-300 font-medium">Base de Clientes</span>. El motor cruza teléfonos, correos y <span class="text-white font-medium">Tipo de Campaña</span>.
             </p>
           </div>
 
-          <!-- Step 3 -->
           <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
             <div class="flex items-center gap-2.5 mb-2">
-              <div class="w-6 h-6 rounded-md bg-emerald-500 text-white font-bold flex items-center justify-center text-xs">3</div>
-              <h4 class="text-xs font-bold text-white">Ver Métricas</h4>
+              <div class="w-6 h-6 rounded-md bg-indigo-500 text-white font-bold flex items-center justify-center text-xs">3</div>
+              <h4 class="text-xs font-bold text-white">Filtrar por Tramo</h4>
             </div>
             <p class="text-[11px] text-slate-300 leading-snug">
-              Revisa el monto vencido, promedio por deudor, recargo de mora y gráficas de distribución por Campaña.
+              Selecciona tramos oficiales: <span class="text-emerald-300">1-30d</span>, <span class="text-blue-300">31-60d</span>, <span class="text-amber-300">61-90d</span>, <span class="text-orange-300">91-180d</span> o <span class="text-rose-300">181+d</span>.
             </p>
           </div>
 
-          <!-- Step 4 -->
           <div class="bg-white/5 border border-white/10 rounded-xl p-3.5 hover:bg-white/10 transition-colors">
             <div class="flex items-center gap-2.5 mb-2">
               <div class="w-6 h-6 rounded-md bg-amber-500 text-white font-bold flex items-center justify-center text-xs">4</div>
               <h4 class="text-xs font-bold text-white">Exportar</h4>
             </div>
             <p class="text-[11px] text-slate-300 leading-snug">
-              Descarga el <span class="text-emerald-300 font-medium">Excel</span> para el equipo de cobranzas o el <span class="text-rose-300 font-medium">PDF Ejecutivo</span> para gerencia.
+              Descarga el <span class="text-emerald-300 font-medium">Excel enriquecido</span> con contactos, marcación directa de WhatsApp y el reporte en PDF.
             </p>
           </div>
         </div>
       </div>
-      <div class="bg-white rounded-2xl border border-slate-200 p-8 shadow-sm">
-        <div class="max-w-2xl mx-auto text-center space-y-4">
-          <div class="w-16 h-16 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto text-2xl">
-            <i class="fa-regular fa-file-excel"></i>
-          </div>
+
+      <!-- Zona de Carga Dual (Cartera + Base de Contactos) -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Tarjeta 1: Archivo de Cartera -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
           <div>
-            <h2 class="text-xl font-bold text-slate-900">Cargar Archivo Principal de Mora</h2>
-            <p class="text-sm text-slate-500 mt-1">Sube el archivo descargado con las cuotas vencidas (.csv o .xlsx)</p>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-2xl">
+                  <i class="fa-solid fa-file-invoice-dollar"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-slate-900">1. Archivo de Cartera / Mora</h3>
+                  <p class="text-xs text-slate-500">Cuotas, días de mora, tarifas y recargos</p>
+                </div>
+              </div>
+              <span id="badge-cartera" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Pendiente</span>
+            </div>
+
+            <!-- Drop Zone Cartera -->
+            <div id="drop-zone-cartera" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer">
+              <input type="file" id="file-cartera-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleCarteraUpload(event)">
+              <i class="fa-solid fa-arrow-up-from-bracket text-2xl text-blue-500 mb-2"></i>
+              <p class="text-xs font-bold text-slate-800">Haz clic o arrastra aquí tu archivo de Cartera</p>
+              <p class="text-[11px] text-slate-400 mt-1">Soporta: mora.csv, .xlsx, .xls</p>
+            </div>
           </div>
 
-          <!-- Drop zone -->
-          <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-8 hover:border-blue-500 hover:bg-blue-50/30 transition-all cursor-pointer flex flex-col items-center justify-center">
-            <input type="file" id="file-input" accept=".csv, .xlsx, .xls" class="hidden" onchange="handleFileUpload(event)">
-            <i class="fa-solid fa-arrow-up-from-bracket text-3xl text-slate-400 mb-3"></i>
-            <p class="text-sm font-medium text-slate-700">Haz clic para seleccionar o arrastra tu archivo aquí</p>
-            <p class="text-xs text-slate-400 mt-1">Formatos admitidos: CSV, Excel (.xlsx)</p>
-          </div>
-
-          <!-- Acceso Rapido con mora.csv ya en servidor -->
-          <div class="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-center gap-3">
-            <span class="text-xs text-slate-500">¿Quieres probar de inmediato con el archivo de ejemplo?</span>
-            <button onclick="loadSampleFile()" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-lg shadow-sm transition-colors">
-              <i class="fa-solid fa-bolt"></i> Cargar "mora.csv" de prueba (47.083 filas)
-            </button>
+          <div id="status-cartera-box" class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+            <span id="cartera-filename-label">Sin archivo de cartera cargado</span>
+            <span id="cartera-count-label" class="font-mono font-bold text-slate-700">0 cuotas</span>
           </div>
         </div>
+
+        <!-- Tarjeta 2: Base de Clientes y Contactos -->
+        <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-col justify-between">
+          <div>
+            <div class="flex items-center justify-between mb-4">
+              <div class="flex items-center gap-3">
+                <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-2xl">
+                  <i class="fa-solid fa-address-book"></i>
+                </div>
+                <div>
+                  <h3 class="text-base font-bold text-slate-900">2. Base de Clientes y Contactos</h3>
+                  <p class="text-xs text-slate-500">Teléfonos, Tipo de Campaña, Programa y Correos</p>
+                </div>
+              </div>
+              <span id="badge-contacts" class="text-xs font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Pendiente</span>
+            </div>
+
+            <!-- Drop Zone Contactos -->
+            <div id="drop-zone-contacts" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
+              <input type="file" id="file-contacts-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleContactsUpload(event)">
+              <i class="fa-solid fa-phone text-2xl text-emerald-500 mb-2"></i>
+              <p class="text-xs font-bold text-slate-800">Haz clic o arrastra la Base de Clientes / Contactos</p>
+              <p class="text-[11px] text-slate-400 mt-1">Soporta: Excel (.xlsx, .xls) o CSV (calamine ultra rápido)</p>
+            </div>
+          </div>
+
+          <div id="status-contacts-box" class="mt-4 pt-3 border-t border-slate-100 text-xs text-slate-500 flex items-center justify-between">
+            <span id="contacts-filename-label">Sin base de contactos cargada</span>
+            <span id="contacts-count-label" class="font-mono font-bold text-slate-700">0 clientes</span>
+          </div>
+        </div>
+
       </div>
 
-      <!-- Resumen del Archivo Activo -->
-      <div id="file-summary-card" class="hidden bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-        <h3 class="text-base font-bold text-slate-900 mb-4 flex items-center gap-2">
-          <i class="fa-solid fa-circle-check text-emerald-500"></i> Resumen del Archivo Activo
-        </h3>
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div class="text-xs text-slate-500 font-medium">Total Registros (Cuotas)</div>
-            <div id="meta-rows" class="text-xl font-bold text-slate-900 mt-1">-</div>
+      <!-- Barra de Acceso Rápido y Carga de Archivos de Prueba -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-bolt"></i>
           </div>
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div class="text-xs text-slate-500 font-medium">Clientes Únicos</div>
-            <div id="meta-clients" class="text-xl font-bold text-slate-900 mt-1">-</div>
-          </div>
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div class="text-xs text-slate-500 font-medium">Mora Detectada</div>
-            <div id="meta-mora-range" class="text-xl font-bold text-slate-900 mt-1">-</div>
-          </div>
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div class="text-xs text-slate-500 font-medium">Monto Total Cartera</div>
-            <div id="meta-total-amount" class="text-xl font-bold text-blue-600 mt-1">-</div>
+          <div>
+            <div class="text-xs font-bold text-slate-800">¿Quieres probar de inmediato con los archivos del servidor?</div>
+            <div class="text-[11px] text-slate-500">Carga automática de <code>mora.csv</code> (47k cuotas) + <code>Base de Contactos</code> (194k clientes con teléfonos y campañas).</div>
           </div>
         </div>
-        <div class="mt-6 flex justify-end">
-          <button onclick="switchTab('tab-segment')" class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
+        <button onclick="loadSampleFiles()" id="btn-load-samples" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer shrink-0">
+          <i class="fa-solid fa-play text-amber-400"></i> Cargar Archivos de Prueba Locales
+        </button>
+      </div>
+
+      <!-- Resumen Unificado del Archivo Activo -->
+      <div id="file-summary-card" class="hidden bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center text-lg shadow-xs">
+              <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Cartera Vinculada y Enriquecida</h3>
+              <p class="text-xs text-slate-500" id="summary-subtitle">Información unificada de cuotas, montos, teléfonos y campañas.</p>
+            </div>
+          </div>
+          <button onclick="switchTab('tab-segment')" class="inline-flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer self-start sm:self-auto">
             Configurar Desglose de Cartera <i class="fa-solid fa-arrow-right"></i>
           </button>
         </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="text-[11px] text-slate-500 font-medium">Cuotas Vencidas</div>
+            <div id="meta-rows" class="text-lg font-bold text-slate-900 mt-1">-</div>
+          </div>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="text-[11px] text-slate-500 font-medium">Clientes Únicos</div>
+            <div id="meta-clients" class="text-lg font-bold text-slate-900 mt-1">-</div>
+          </div>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="text-[11px] text-slate-500 font-medium">Rango de Mora</div>
+            <div id="meta-mora-range" class="text-lg font-bold text-slate-900 mt-1">-</div>
+          </div>
+          <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+            <div class="text-[11px] text-slate-500 font-medium">Monto Total Cartera</div>
+            <div id="meta-total-amount" class="text-lg font-bold text-blue-600 mt-1">-</div>
+          </div>
+          <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100">
+            <div class="text-[11px] text-emerald-700 font-medium">Con Teléfono (WhatsApp)</div>
+            <div id="meta-tel-clients" class="text-lg font-bold text-emerald-700 mt-1">-</div>
+            <div id="meta-tel-pct" class="text-[10px] text-emerald-600 font-semibold mt-0.5">0% cobertura</div>
+          </div>
+          <div class="bg-amber-50/60 p-3.5 rounded-xl border border-amber-100">
+            <div class="text-[11px] text-amber-700 font-medium">Monto Contactable</div>
+            <div id="meta-contactable-amount" class="text-lg font-bold text-amber-700 mt-1">-</div>
+            <div id="meta-contactable-pct" class="text-[10px] text-amber-600 font-semibold mt-0.5">0% deuda</div>
+          </div>
+        </div>
       </div>
+
     </div>
 
     <!-- ============================================== -->
@@ -196,16 +266,17 @@
     <div id="tab-segment" class="hidden space-y-6">
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div class="border-b border-slate-100 pb-4 mb-6">
-          <h2 class="text-lg font-bold text-slate-900">Definir Criterios de Reestructuración / Desglose</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Indica los rangos de días vencidos, campañas y estatus que deseas extraer.</p>
+          <h2 class="text-lg font-bold text-slate-900">Definir Criterios de Reestructuración y Segmentación</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Filtra por los tramos oficiales de mora, tipo de campaña de clientes o estatus.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <!-- Columna 1: Días de Mora -->
+          
+          <!-- Columna 1: Días de Mora y Agrupación -->
           <div class="space-y-4">
             <label class="block text-sm font-semibold text-slate-800 flex items-center justify-between">
               <span><i class="fa-regular fa-calendar-days text-blue-600 mr-1.5"></i> Rango de Días de Mora</span>
-              <span id="range-badge" class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">1 - 60 días</span>
+              <span id="range-badge" class="text-xs font-normal text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">1 - 999 días</span>
             </label>
 
             <div class="grid grid-cols-2 gap-3">
@@ -215,7 +286,7 @@
               </div>
               <div>
                 <label class="text-xs text-slate-500">Máximo (Días)</label>
-                <input type="number" id="input-max-dias" value="60" min="0" max="999" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <input type="number" id="input-max-dias" value="999" min="0" max="999" class="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
               </div>
             </div>
 
@@ -223,101 +294,136 @@
             <div>
               <span class="text-xs font-semibold text-slate-700 block mb-2">Tramos Estratégicos de Cobranza:</span>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                <button type="button" onclick="setMoraRange(1, 30, '1 - 30 días • Preventiva')" class="p-2 text-left rounded-lg border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-900 transition-all">
+                <button type="button" onclick="setMoraRange(1, 30, '1 - 30 días • Preventiva')" class="p-2 text-left rounded-lg border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-900 transition-all cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
                     <span>1 a 30 días</span>
                     <span class="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">29.8%</span>
                   </div>
                   <div class="text-[11px] text-emerald-700 mt-0.5">Preventiva / temprana</div>
                 </button>
-                <button type="button" onclick="setMoraRange(31, 60, '31 - 60 días • Administrativa')" class="p-2 text-left rounded-lg border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-900 transition-all">
+                <button type="button" onclick="setMoraRange(31, 60, '31 - 60 días • Administrativa')" class="p-2 text-left rounded-lg border border-blue-200 bg-blue-50/60 hover:bg-blue-100 text-blue-900 transition-all cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
                     <span>31 a 60 días</span>
                     <span class="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-semibold">13.5%</span>
                   </div>
                   <div class="text-[11px] text-blue-700 mt-0.5">Cobranza administrativa</div>
                 </button>
-                <button type="button" onclick="setMoraRange(61, 90, '61 - 90 días • Reestructuración')" class="p-2 text-left rounded-lg border border-amber-200 bg-amber-50/60 hover:bg-amber-100 text-amber-900 transition-all">
+                <button type="button" onclick="setMoraRange(61, 90, '61 - 90 días • Reestructuración')" class="p-2 text-left rounded-lg border border-amber-200 bg-amber-50/60 hover:bg-amber-100 text-amber-900 transition-all cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
                     <span>61 a 90 días</span>
                     <span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-semibold">10.6%</span>
                   </div>
                   <div class="text-[11px] text-amber-700 mt-0.5">Reestructuración / negociación</div>
                 </button>
-                <button type="button" onclick="setMoraRange(91, 180, '91 - 180 días • Pre-jurídica')" class="p-2 text-left rounded-lg border border-orange-200 bg-orange-50/60 hover:bg-orange-100 text-orange-900 transition-all">
+                <button type="button" onclick="setMoraRange(91, 180, '91 - 180 días • Pre-jurídica')" class="p-2 text-left rounded-lg border border-orange-200 bg-orange-50/60 hover:bg-orange-100 text-orange-900 transition-all cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
                     <span>91 a 180 días</span>
                     <span class="text-[10px] bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded font-semibold">35.0%</span>
                   </div>
-                  <div class="text-[11px] text-orange-700 mt-0.5">Pre-jurídica (Tramo mayoritario)</div>
+                  <div class="text-[11px] text-orange-700 mt-0.5">Pre-jurídica (Mayor monto)</div>
                 </button>
-                <button type="button" onclick="setMoraRange(181, 999, '181+ días • Castigo / Pesada')" class="p-2 text-left rounded-lg border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-900 transition-all">
+                <button type="button" onclick="setMoraRange(181, 999, '181+ días • Castigo / Pesada')" class="p-2 text-left rounded-lg border border-rose-200 bg-rose-50/60 hover:bg-rose-100 text-rose-900 transition-all cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
                     <span>181+ días</span>
                     <span class="text-[10px] bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded font-semibold">11.2%</span>
                   </div>
                   <div class="text-[11px] text-rose-700 mt-0.5">Castigo / cartera pesada</div>
                 </button>
-                <button type="button" onclick="setMoraRange(1, 999, '1 a 305 días • Toda la Cartera')" class="p-2 text-left rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-all flex flex-col justify-center">
+                <button type="button" onclick="setMoraRange(1, 999, '1 a 999 días • Toda la Cartera')" class="p-2 text-left rounded-lg border border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 transition-all flex flex-col justify-center cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
                     <span>Toda la Cartera</span>
                     <span class="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-semibold">100%</span>
                   </div>
-                  <div class="text-[11px] text-slate-500 mt-0.5">1 a 305 días completos</div>
+                  <div class="text-[11px] text-slate-500 mt-0.5">Todos los tramos</div>
                 </button>
               </div>
             </div>
 
+            <!-- Selector de Agrupación -->
             <div class="pt-2">
               <label class="block text-xs font-semibold text-slate-700 mb-1.5">Agrupar Reporte Por:</label>
               <select id="select-group-by" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
-                <option value="Programa" selected>Campaña / Programa</option>
+                <option value="Tipo_Campana" selected>Tipo de Campaña (Base de Contactos)</option>
+                <option value="Programa">Programa / Plan</option>
+                <option value="Tramo_Mora">Tramo Oficial de Mora</option>
                 <option value="Tipo">Estatus / Tipo de Deuda</option>
-                <option value="Canal">Canal</option>
+                <option value="Canal">Canal de Venta</option>
               </select>
             </div>
-          </div>
 
-          <!-- Columna 2: Campañas / Programa -->
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <label class="text-sm font-semibold text-slate-800">
-                <i class="fa-solid fa-bullhorn text-indigo-600 mr-1.5"></i> Campañas (`Programa`)
+            <!-- Filtro solo con teléfono -->
+            <div class="pt-2">
+              <label class="flex items-center gap-2 p-2.5 rounded-xl border border-emerald-200 bg-emerald-50/50 cursor-pointer">
+                <input type="checkbox" id="check-only-phone" class="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500">
+                <span class="text-xs font-medium text-emerald-900">Solo registros con teléfono verificado (WhatsApp)</span>
               </label>
-              <div class="space-x-2 text-xs">
-                <button type="button" onclick="toggleAllCheckboxes('program-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
-                <span class="text-slate-300">|</span>
-                <button type="button" onclick="toggleAllCheckboxes('program-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
-              </div>
-            </div>
-            <div id="programas-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2 text-xs">
-              <span class="text-slate-400">Carga un archivo para ver las campañas.</span>
             </div>
           </div>
 
-          <!-- Columna 3: Tipos / Estatus -->
+          <!-- Columna 2: Tipo de Campaña (Cruce Contactos) -->
           <div class="space-y-3">
             <div class="flex items-center justify-between">
               <label class="text-sm font-semibold text-slate-800">
-                <i class="fa-solid fa-tags text-emerald-600 mr-1.5"></i> Tipo de Deuda (`Tipo`)
+                <i class="fa-solid fa-bullhorn text-indigo-600 mr-1.5"></i> Tipo de Campaña
               </label>
               <div class="space-x-2 text-xs">
-                <button type="button" onclick="toggleAllCheckboxes('tipo-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
+                <button type="button" onclick="toggleAllCheckboxes('campana-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
                 <span class="text-slate-300">|</span>
-                <button type="button" onclick="toggleAllCheckboxes('tipo-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
+                <button type="button" onclick="toggleAllCheckboxes('campana-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
               </div>
             </div>
-            <div id="tipos-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2 text-xs">
-              <span class="text-slate-400">Carga un archivo para ver los tipos.</span>
+            
+            <input type="text" id="filter-campana-search" placeholder="Buscar campaña..." oninput="filterCheckboxList('campana-checkbox', this.value)" class="w-full px-2.5 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-500">
+
+            <div id="campanas-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-56 overflow-y-auto space-y-2 text-xs">
+              <span class="text-slate-400">Carga la base de contactos para ver las campañas.</span>
             </div>
           </div>
+
+          <!-- Columna 3: Programas y Tipos -->
+          <div class="space-y-4">
+            <!-- Programa -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-semibold text-slate-800">
+                  <i class="fa-solid fa-layer-group text-blue-600 mr-1"></i> Programa / Plan
+                </label>
+                <div class="space-x-2 text-[11px]">
+                  <button type="button" onclick="toggleAllCheckboxes('program-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
+                  <span class="text-slate-300">|</span>
+                  <button type="button" onclick="toggleAllCheckboxes('program-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
+                </div>
+              </div>
+              <div id="programas-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-32 overflow-y-auto space-y-2 text-xs">
+                <span class="text-slate-400">Carga un archivo para ver programas.</span>
+              </div>
+            </div>
+
+            <!-- Tipos / Estatus -->
+            <div class="space-y-2">
+              <div class="flex items-center justify-between">
+                <label class="text-xs font-semibold text-slate-800">
+                  <i class="fa-solid fa-tags text-emerald-600 mr-1"></i> Tipo de Deuda / Estatus
+                </label>
+                <div class="space-x-2 text-[11px]">
+                  <button type="button" onclick="toggleAllCheckboxes('tipo-checkbox', true)" class="text-blue-600 hover:underline">Todos</button>
+                  <span class="text-slate-300">|</span>
+                  <button type="button" onclick="toggleAllCheckboxes('tipo-checkbox', false)" class="text-slate-500 hover:underline">Ninguno</button>
+                </div>
+              </div>
+              <div id="tipos-list" class="bg-slate-50 border border-slate-200 rounded-xl p-3 max-h-32 overflow-y-auto space-y-2 text-xs">
+                <span class="text-slate-400">Carga un archivo para ver tipos.</span>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <div class="mt-8 pt-4 border-t border-slate-100 flex justify-between items-center">
-          <button onclick="switchTab('tab-upload')" class="text-sm text-slate-500 hover:text-slate-700">
+          <button onclick="switchTab('tab-upload')" class="text-sm text-slate-500 hover:text-slate-700 cursor-pointer">
             <i class="fa-solid fa-arrow-left mr-1"></i> Volver a carga
           </button>
-          <button onclick="processFilters()" id="btn-process" class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all">
+          <button onclick="processFilters()" id="btn-process" class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer">
             <i class="fa-solid fa-bolt"></i> Generar Cartera y Ver Métricas
           </button>
         </div>
@@ -333,19 +439,19 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
           <h2 class="text-lg font-bold text-slate-900" id="results-title">Resultados de Cartera Desglosada</h2>
-          <p class="text-xs text-slate-500" id="results-subtitle">Filtro aplicado: 1 a 60 días de mora</p>
+          <p class="text-xs text-slate-500" id="results-subtitle">Filtro aplicado: Toda la cartera</p>
         </div>
         <div class="flex items-center gap-3">
-          <a href="/api/download/excel" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
-            <i class="fa-solid fa-file-excel"></i> Descargar Excel (Misma Estructura)
+          <a href="/api/download/excel" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors">
+            <i class="fa-solid fa-file-excel"></i> Descargar Excel Enriquecido
           </a>
-          <a href="/api/download/pdf" target="_blank" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-xl shadow-sm transition-colors">
-            <i class="fa-solid fa-file-pdf"></i> Descargar Reporte PDF
+          <a href="/api/download/pdf" target="_blank" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors">
+            <i class="fa-solid fa-file-pdf"></i> Reporte PDF Ejecutivo
           </a>
         </div>
       </div>
 
-      <!-- Tarjetas de Métricas Ejecutivas (KPIs) -->
+      <!-- Tarjetas de Métricas Ejecutivas (KPIs Financieros + Contactabilidad) -->
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
@@ -371,23 +477,23 @@
 
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">
-            <i class="fa-solid fa-receipt"></i>
+            <i class="fa-brands fa-whatsapp text-emerald-500"></i>
           </div>
           <div>
-            <div class="text-xs font-medium text-slate-500">Tarifa Pendiente</div>
-            <div id="kpi-tarifa" class="text-xl font-bold text-slate-900 mt-0.5">$0.00</div>
-            <div class="text-[11px] text-slate-400">Servicio recurrente</div>
+            <div class="text-xs font-medium text-slate-500">Con Teléfono (WhatsApp)</div>
+            <div id="kpi-con-telefono" class="text-xl font-bold text-slate-900 mt-0.5">0</div>
+            <div class="text-[11px] text-emerald-600 font-semibold" id="kpi-pct-telefono">0% cobertura</div>
           </div>
         </div>
 
         <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
           <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
-            <i class="fa-solid fa-clock-rotate-left"></i>
+            <i class="fa-solid fa-hand-holding-dollar"></i>
           </div>
           <div>
-            <div class="text-xs font-medium text-slate-500">Cuotas + Recargo Mora</div>
-            <div id="kpi-cuota-mora" class="text-xl font-bold text-slate-900 mt-0.5">$0.00</div>
-            <div class="text-[11px] text-slate-400">Capital + Sanciones</div>
+            <div class="text-xs font-medium text-slate-500">Monto Contactable</div>
+            <div id="kpi-monto-contactable" class="text-xl font-bold text-slate-900 mt-0.5">$0.00 USD</div>
+            <div class="text-[11px] text-amber-600 font-semibold" id="kpi-pct-monto">0% deuda recuperable</div>
           </div>
         </div>
       </div>
@@ -411,7 +517,7 @@
               <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
                 <i class="fa-solid fa-table-list text-slate-700"></i> Resumen Agrupado
               </h3>
-              <span class="text-xs text-slate-400" id="grouped-by-label">Agrupado por Campaña</span>
+              <span class="text-xs text-slate-400" id="grouped-by-label">Agrupado por: Tipo de Campaña</span>
             </div>
             <div class="overflow-x-auto max-h-64">
               <table class="w-full text-left text-xs text-slate-600">
@@ -438,7 +544,7 @@
         <div class="flex items-center justify-between">
           <div>
             <h3 class="text-sm font-bold text-slate-900">Vista Previa del Detalle (Primeras 100 filas)</h3>
-            <p class="text-xs text-slate-400">Estructura idéntica al archivo original `mora.csv`</p>
+            <p class="text-xs text-slate-400">Datos enriquecidos con Cédula, Nombre, Días Mora, Tramo, Teléfonos, Campaña y WhatsApp.</p>
           </div>
           <span id="preview-tag" class="text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">0 registros</span>
         </div>
@@ -456,138 +562,79 @@
     </div>
 
     <!-- ============================================== -->
-    <!-- TAB 4: CRUCE DE CONTACTOS (CALL CENTER)        -->
+    <!-- TAB 4: GESTIÓN CALL CENTER / WHATSAPP          -->
     <!-- ============================================== -->
     <div id="tab-contacts" class="hidden space-y-6">
       
-      <!-- Panel de Control y Carga de Contactos -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
+      <!-- Panel de Control Call Center -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Enriquecimiento de Cartera</span>
-              <span id="contacts-status-badge" class="text-xs text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full font-medium border border-amber-200">Sin base de contactos cargada</span>
+              <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Marcador y WhatsApp</span>
+              <span id="callcenter-status-badge" class="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-medium border border-emerald-200">Base sincronizada</span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900 mt-1">Cruce Dinámico de Contactos para Call Center y WhatsApp</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Sube cualquier archivo nuevo de teléfonos/correos exportado de tu CRM para enriquecer la cartera filtrada.</p>
+            <h2 class="text-xl font-bold text-slate-900 mt-1">Gestión Consolidada por Deudor (Marcación y Chat)</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Vista agrupada a nivel de cliente con deuda total consolidada, teléfonos directos y enlace inmediato a WhatsApp.</p>
           </div>
-          <div class="flex items-center gap-2">
-            <button onclick="loadSampleContacts()" id="btn-load-contacts-sample" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors">
-              <i class="fa-solid fa-bolt text-amber-500"></i> Probar archivo ejemplo local
-            </button>
+          <div class="flex items-center gap-3">
+            <a href="/api/contacts/download/excel" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer">
+              <i class="fa-solid fa-file-excel text-sm"></i> Exportar a Marcador / Excel
+            </a>
           </div>
         </div>
 
-        <!-- Zona de Carga Dinámica de Contactos -->
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
-          <div class="lg:col-span-2">
-            <div id="contacts-drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
-              <input type="file" id="contacts-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleContactsUpload(event)">
-              <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-xl mb-3">
-                <i class="fa-solid fa-address-book"></i>
-              </div>
-              <p class="text-sm font-bold text-slate-800">Haz clic aquí para seleccionar o arrastra tu archivo de contactos</p>
-              <p class="text-xs text-slate-500 mt-1">Soporta Excel (.xlsx, .xls) o CSV de cualquier tamaño (Motor ultra rápido)</p>
-              <p class="text-[11px] text-slate-400 mt-2">Detección automática de: Cédula, Teléfono 1, Teléfono 2, Teléfono 3 y Correo</p>
-            </div>
+        <!-- KPIs de Deudores Contactables -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100">
+            <div class="text-xs text-slate-500 font-medium">Deudores en Tramo</div>
+            <div id="cc-kpi-total" class="text-xl font-bold text-slate-900 mt-1">0</div>
           </div>
-          <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 p-5 rounded-xl space-y-3">
-            <div class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-circle-check text-blue-600"></i> Cruce en Tiempo Real
-            </div>
-            <p class="text-[11px] text-blue-800 leading-relaxed">
-              El motor cruza al instante las cédulas de los deudores con los números telefónicos y formatea los teléfonos para marcación directa y WhatsApp.
-            </p>
-            <button onclick="executeCrossMatch()" id="btn-execute-match" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
-              <i class="fa-solid fa-shuffle"></i> Ejecutar Cruce con Cartera Filtrada
-            </button>
+          <div class="bg-emerald-50/60 p-4 rounded-xl border border-emerald-100">
+            <div class="text-xs text-emerald-700 font-medium">Con Teléfono Verificado</div>
+            <div id="cc-kpi-tel" class="text-xl font-bold text-emerald-700 mt-1">0</div>
+            <div id="cc-kpi-tel-pct" class="text-[10px] text-emerald-600 font-semibold mt-0.5">0% cobertura</div>
+          </div>
+          <div class="bg-blue-50/60 p-4 rounded-xl border border-blue-100">
+            <div class="text-xs text-blue-700 font-medium">Con Correo Electrónico</div>
+            <div id="cc-kpi-mail" class="text-xl font-bold text-blue-700 mt-1">0</div>
+          </div>
+          <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-100">
+            <div class="text-xs text-amber-700 font-medium">Monto Contactable</div>
+            <div id="cc-kpi-monto" class="text-xl font-bold text-amber-700 mt-1">$0.00 USD</div>
+            <div id="cc-kpi-monto-pct" class="text-[10px] text-amber-600 font-semibold mt-0.5">0% del dinero</div>
           </div>
         </div>
       </div>
 
-      <!-- Resultados del Cruce (Oculto hasta ejecutar) -->
-      <div id="contacts-results-panel" class="hidden space-y-6">
-        
-        <!-- Tarjetas KPIs de Contactabilidad -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-users"></i>
-            </div>
-            <div>
-              <div class="text-xs font-medium text-slate-500">Deudores en Cartera</div>
-              <div id="match-kpi-total" class="text-2xl font-bold text-slate-900 mt-0.5">0</div>
-              <div class="text-[11px] text-slate-400">Total en tramo actual</div>
-            </div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-phone-volume"></i>
-            </div>
-            <div>
-              <div class="text-xs font-medium text-slate-500">Con Teléfono (WhatsApp)</div>
-              <div id="match-kpi-tel" class="text-2xl font-bold text-emerald-600 mt-0.5">0</div>
-              <div class="text-[11px] text-emerald-600 font-semibold" id="match-kpi-tel-pct">0% de cobertura</div>
-            </div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-envelope"></i>
-            </div>
-            <div>
-              <div class="text-xs font-medium text-slate-500">Con Correo Electrónico</div>
-              <div id="match-kpi-mail" class="text-2xl font-bold text-indigo-600 mt-0.5">0</div>
-              <div class="text-[11px] text-slate-400">Listos para email blast</div>
-            </div>
-          </div>
-
-          <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center text-xl shrink-0">
-              <i class="fa-solid fa-hand-holding-dollar"></i>
-            </div>
-            <div>
-              <div class="text-xs font-medium text-slate-500">Monto Contactable</div>
-              <div id="match-kpi-monto" class="text-xl font-bold text-slate-900 mt-0.5">$0.00 USD</div>
-              <div class="text-[11px] text-amber-600 font-semibold" id="match-kpi-monto-pct">0% del dinero adeudado</div>
-            </div>
-          </div>
+      <!-- Tabla de Deudores con Enlace Directo a WhatsApp -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-900">Listado de Clientes con Mayor Deuda y Enlace de Marcación</h3>
+          <span class="text-xs text-slate-400">Clic en WhatsApp abre chat directo con el cliente</span>
         </div>
-
-        <!-- Barra de Acciones y Descarga de Excel de Call Center -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <h3 class="text-base font-bold text-slate-900">Listado Enriquecido para Gestión de Cobranzas</h3>
-            <p class="text-xs text-slate-500" id="match-subtitle">Mostrando vista previa de clientes listos para marcación y WhatsApp.</p>
-          </div>
-          <a href="/api/contacts/download/excel" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors">
-            <i class="fa-solid fa-file-excel text-sm"></i> Descargar Excel para Call Center y WhatsApp
-          </a>
-        </div>
-
-        <!-- Tabla de Vista Previa de Clientes con Teléfonos -->
-        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-left text-xs">
-              <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] border-b border-slate-200">
-                <tr>
-                  <th class="py-3 px-3">Cédula</th>
-                  <th class="py-3 px-3">Nombre Deudor</th>
-                  <th class="py-3 px-3 text-right">Deuda Total</th>
-                  <th class="py-3 px-3 text-center">Cuotas</th>
-                  <th class="py-3 px-3 text-center">Máx Días</th>
-                  <th class="py-3 px-3">Teléfono 1 (WhatsApp)</th>
-                  <th class="py-3 px-3">Teléfono 2</th>
-                  <th class="py-3 px-3">Correo Electrónico</th>
-                  <th class="py-3 px-3">Campaña</th>
-                </tr>
-              </thead>
-              <tbody id="contacts-match-tbody" class="divide-y divide-slate-100">
-                <!-- Filas dinamicas -->
-              </tbody>
-            </table>
-          </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-3">Cédula</th>
+                <th class="py-3 px-3">Nombre Deudor</th>
+                <th class="py-3 px-3 text-right">Deuda Total</th>
+                <th class="py-3 px-3 text-center">Cuotas</th>
+                <th class="py-3 px-3 text-center">Máx Días</th>
+                <th class="py-3 px-3">Tramo Mora</th>
+                <th class="py-3 px-3">Tipo de Campaña</th>
+                <th class="py-3 px-3">Teléfono 1 (WhatsApp)</th>
+                <th class="py-3 px-3">Teléfono 2</th>
+                <th class="py-3 px-3">Correo</th>
+              </tr>
+            </thead>
+            <tbody id="callcenter-tbody" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="10" class="p-6 text-center text-slate-400">Carga la cartera para visualizar los deudores y sus teléfonos.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -600,7 +647,6 @@
     let appMetadata = null;
     let chartInstance = null;
 
-    // Tabs Switcher
     function switchTab(tabId) {
       ['tab-upload', 'tab-segment', 'tab-results', 'tab-contacts'].forEach(id => {
         document.getElementById(id).classList.add('hidden');
@@ -611,38 +657,79 @@
       
       document.getElementById(tabId).classList.remove('hidden');
       document.getElementById('nav-' + tabId.replace('tab-', '')).classList.add('tab-active');
+
+      if (tabId === 'tab-contacts') {
+        loadCallCenterData();
+      }
     }
 
-    // Al cargar la pagina
     window.addEventListener('DOMContentLoaded', async () => {
-      // Verificar si hay archivo de cartera cargado
       try {
         const res = await fetch('/api/status');
         const data = await res.json();
-        if (data.loaded) {
-          populateMetadata(data.metadata, data.filename, data.totals);
+        if (data.loaded || data.contacts_loaded) {
+          updateUIState(data);
         }
       } catch (err) {
         console.error("Error al obtener status:", err);
       }
-
-      // Verificar si hay base de contactos cargada
-      checkContactsStatus();
     });
 
-    // Cargar archivo mora.csv de prueba
-    async function loadSampleFile() {
-      const btn = event.currentTarget;
+    function updateUIState(data) {
+      const meta = data.metadata || {};
+      const totals = data.totals || {};
+
+      // Badges
+      const carteraBadge = document.getElementById('badge-cartera');
+      const contactsBadge = document.getElementById('badge-contacts');
+
+      if (data.loaded) {
+        carteraBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200';
+        carteraBadge.textContent = 'Cargado';
+        document.getElementById('cartera-filename-label').textContent = data.cartera_filename || 'Cartera activa';
+        document.getElementById('cartera-count-label').textContent = `${Number(meta.total_rows || 0).toLocaleString()} cuotas`;
+      }
+
+      if (data.contacts_loaded) {
+        contactsBadge.className = 'text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+        contactsBadge.textContent = 'Cargado';
+        document.getElementById('contacts-filename-label').textContent = data.contacts_filename || 'Base de contactos activa';
+        document.getElementById('contacts-count-label').textContent = `${Number(totals.total_con_telefono || 0).toLocaleString()} con teléfono`;
+      }
+
+      const topBadge = document.getElementById('file-status-badge');
+      if (data.loaded && data.contacts_loaded) {
+        topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
+        topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera + Contactos vinculados (${Number(meta.total_rows).toLocaleString()} cuotas)</span>`;
+      } else if (data.loaded) {
+        topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200';
+        topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500"></span><span>Cartera activa (${Number(meta.total_rows).toLocaleString()} cuotas)</span>`;
+      }
+
+      if (data.loaded) {
+        populateMetadata(meta, totals);
+      }
+    }
+
+    async function loadSampleFiles() {
+      const btn = document.getElementById('btn-load-samples');
       const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando 47.083 filas...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando y cruzando archivos...`;
       btn.disabled = true;
 
       try {
         const res = await fetch('/api/load-sample', { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
-          populateMetadata(data.metadata, 'mora.csv (Archivo Base)', data.totals);
-          alert('¡Archivo cargado con éxito! Se cargaron 47.083 filas.');
+          updateUIState({
+            loaded: true,
+            contacts_loaded: true,
+            cartera_filename: 'mora.csv (Archivo Principal)',
+            contacts_filename: 'Base de Datos Correos y Teléfonos...xlsx',
+            metadata: data.metadata,
+            totals: data.totals
+          });
+          alert('¡Archivos de prueba cargados y cruzados con éxito! 47.083 cuotas enriquecidas.');
           switchTab('tab-segment');
         } else {
           alert('Error: ' + data.detail);
@@ -655,73 +742,127 @@
       }
     }
 
-    // Subir archivo manual
-    async function handleFileUpload(e) {
+    async function handleCarteraUpload(e) {
       const file = e.target.files[0];
       if (!file) return;
 
-      const dropZone = document.getElementById('drop-zone');
+      const dropZone = document.getElementById('drop-zone-cartera');
       const originalDropZone = dropZone.innerHTML;
-      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-
       dropZone.innerHTML = `
-        <div class="py-4 text-center">
-          <i class="fa-solid fa-circle-notch fa-spin text-4xl text-blue-600 mb-3"></i>
-          <p class="text-sm font-semibold text-slate-800">Subiendo y procesando ${file.name} (${sizeMB} MB)...</p>
-          <p class="text-xs text-slate-500 mt-1">Analizando hojas de cálculo y calculando métricas...</p>
+        <div class="py-2 text-center">
+          <i class="fa-solid fa-circle-notch fa-spin text-2xl text-blue-600 mb-2"></i>
+          <p class="text-xs font-semibold text-slate-800">Procesando ${file.name}...</p>
         </div>
       `;
-      dropZone.style.pointerEvents = 'none';
 
       const formData = new FormData();
       formData.append('file', file);
 
       try {
-        const res = await fetch('/api/upload', {
-          method: 'POST',
-          body: formData
-        });
+        const res = await fetch('/api/upload', { method: 'POST', body: formData });
         const data = await res.json();
         if (res.ok) {
-          populateMetadata(data.metadata, data.message || file.name, data.totals);
-          switchTab('tab-segment');
+          updateUIState({
+            loaded: true,
+            contacts_loaded: (data.metadata && data.metadata.has_contacts),
+            cartera_filename: file.name,
+            contacts_filename: data.metadata ? data.metadata.contacts_filename : '',
+            metadata: data.metadata,
+            totals: data.totals
+          });
+          alert('¡Archivo de cartera cargado con éxito!');
         } else {
-          alert('Error al procesar: ' + (typeof data.detail === 'object' ? JSON.stringify(data.detail) : data.detail));
+          alert('Error: ' + data.detail);
         }
       } catch (err) {
         alert('Error al subir: ' + err.message);
       } finally {
         dropZone.innerHTML = originalDropZone;
-        dropZone.style.pointerEvents = 'auto';
-        document.getElementById('file-input').value = '';
+        document.getElementById('file-cartera-input').value = '';
       }
     }
 
-    // Poblar metadata y campos de seleccion
-    function populateMetadata(meta, filename, totals) {
+    async function handleContactsUpload(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const dropZone = document.getElementById('drop-zone-contacts');
+      const originalDropZone = dropZone.innerHTML;
+      dropZone.innerHTML = `
+        <div class="py-2 text-center">
+          <i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-600 mb-2"></i>
+          <p class="text-xs font-semibold text-slate-800">Indexando contactos en ${file.name}...</p>
+        </div>
+      `;
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/contacts/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        if (res.ok) {
+          updateUIState({
+            loaded: true,
+            contacts_loaded: true,
+            cartera_filename: data.metadata ? data.metadata.cartera_filename : '',
+            contacts_filename: file.name,
+            metadata: data.metadata,
+            totals: data.totals
+          });
+          alert(`¡Base de contactos cargada y cruzada con éxito! ${Number(data.total_contacts).toLocaleString()} clientes indexados.`);
+        } else {
+          alert('Error: ' + data.detail);
+        }
+      } catch (err) {
+        alert('Error al subir contactos: ' + err.message);
+      } finally {
+        dropZone.innerHTML = originalDropZone;
+        document.getElementById('file-contacts-input').value = '';
+      }
+    }
+
+    function populateMetadata(meta, totals) {
       appMetadata = meta;
 
-      // Actualizar Header Badge
-      const badge = document.getElementById('file-status-badge');
-      badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
-      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>${filename}</span>`;
-
-      // Card resumen
       document.getElementById('file-summary-card').classList.remove('hidden');
-      document.getElementById('meta-rows').textContent = Number(meta.total_rows).toLocaleString();
-      document.getElementById('meta-clients').textContent = Number(meta.total_clientes).toLocaleString();
-      document.getElementById('meta-mora-range').textContent = `${meta.min_dias} a ${meta.max_dias} días`;
-      document.getElementById('meta-total-amount').textContent = `$${Number(totals.monto_total).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('meta-rows').textContent = Number(meta.total_rows || 0).toLocaleString();
+      document.getElementById('meta-clients').textContent = Number(meta.total_clientes || 0).toLocaleString();
+      document.getElementById('meta-mora-range').textContent = `${meta.min_dias || 0} a ${meta.max_dias || 0} días`;
+      document.getElementById('meta-total-amount').textContent = `$${Number(totals.monto_total || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('meta-tel-clients').textContent = Number(totals.total_con_telefono || 0).toLocaleString();
+      document.getElementById('meta-tel-pct').textContent = `${totals.pct_con_telefono || 0}% de cobertura`;
+      document.getElementById('meta-contactable-amount').textContent = `$${Number(totals.monto_contactable || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('meta-contactable-pct').textContent = `${totals.pct_monto_contactable || 0}% de cartera`;
 
-      // Poblar Programas (Campañas)
+      // Poblar Tipo de Campaña
+      const campanaContainer = document.getElementById('campanas-list');
+      campanaContainer.innerHTML = '';
+      const campanas = meta.tipos_campana || [];
+      if (campanas.length === 0) {
+        campanaContainer.innerHTML = '<span class="text-slate-400">Sin campañas en los contactos.</span>';
+      } else {
+        campanas.forEach(c => {
+          const div = document.createElement('div');
+          div.className = 'flex items-center gap-2 campana-item';
+          div.dataset.name = c.toLowerCase();
+          div.innerHTML = `
+            <input type="checkbox" id="camp-${c}" value="${c}" checked class="campana-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+            <label for="camp-${c}" class="text-slate-700 cursor-pointer select-none truncate" title="${c}">${c}</label>
+          `;
+          campanaContainer.appendChild(div);
+        });
+      }
+
+      // Poblar Programas
       const progContainer = document.getElementById('programas-list');
       progContainer.innerHTML = '';
-      meta.programas.forEach(p => {
+      (meta.programas || []).forEach(p => {
         const div = document.createElement('div');
         div.className = 'flex items-center gap-2';
         div.innerHTML = `
           <input type="checkbox" id="prog-${p}" value="${p}" checked class="program-checkbox rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-          <label for="prog-${p}" class="text-slate-700 cursor-pointer select-none">${p}</label>
+          <label for="prog-${p}" class="text-slate-700 cursor-pointer select-none truncate" title="${p}">${p}</label>
         `;
         progContainer.appendChild(div);
       });
@@ -729,7 +870,7 @@
       // Poblar Tipos
       const tiposContainer = document.getElementById('tipos-list');
       tiposContainer.innerHTML = '';
-      meta.tipos.forEach(t => {
+      (meta.tipos || []).forEach(t => {
         const div = document.createElement('div');
         div.className = 'flex items-center gap-2';
         div.innerHTML = `
@@ -746,31 +887,74 @@
       document.getElementById('range-badge').textContent = customLabel || `${min} - ${max} días`;
     }
 
-    document.getElementById('input-min-dias').addEventListener('input', updateBadge);
-    document.getElementById('input-max-dias').addEventListener('input', updateBadge);
-
-    function updateBadge() {
+    document.getElementById('input-min-dias').addEventListener('input', () => {
       const min = document.getElementById('input-min-dias').value;
       const max = document.getElementById('input-max-dias').value;
       document.getElementById('range-badge').textContent = `${min} - ${max} días`;
-    }
+    });
+
+    document.getElementById('input-max-dias').addEventListener('input', () => {
+      const min = document.getElementById('input-min-dias').value;
+      const max = document.getElementById('input-max-dias').value;
+      document.getElementById('range-badge').textContent = `${min} - ${max} días`;
+    });
 
     function toggleAllCheckboxes(className, state) {
       document.querySelectorAll('.' + className).forEach(cb => cb.checked = state);
     }
+
+    function filterCheckboxList(className, query) {
+      const q = query.toLowerCase().trim();
+      document.querySelectorAll('.campana-item').forEach(item => {
+        if (!q || item.dataset.name.includes(q)) {
+          item.style.display = 'flex';
+        } else {
+          item.style.display = 'none';
+        }
+      });
+    }
+
+    // Drag and drop events
+    const dropCartera = document.getElementById('drop-zone-cartera');
+    dropCartera.addEventListener('click', () => document.getElementById('file-cartera-input').click());
+    dropCartera.addEventListener('dragover', (e) => { e.preventDefault(); dropCartera.classList.add('border-blue-500', 'bg-blue-50/50'); });
+    dropCartera.addEventListener('dragleave', () => dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50'));
+    dropCartera.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropCartera.classList.remove('border-blue-500', 'bg-blue-50/50');
+      if (e.dataTransfer.files.length) {
+        document.getElementById('file-cartera-input').files = e.dataTransfer.files;
+        handleCarteraUpload({ target: { files: e.dataTransfer.files } });
+      }
+    });
+
+    const dropContacts = document.getElementById('drop-zone-contacts');
+    dropContacts.addEventListener('click', () => document.getElementById('file-contacts-input').click());
+    dropContacts.addEventListener('dragover', (e) => { e.preventDefault(); dropContacts.classList.add('border-emerald-500', 'bg-emerald-50/50'); });
+    dropContacts.addEventListener('dragleave', () => dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50'));
+    dropContacts.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropContacts.classList.remove('border-emerald-500', 'bg-emerald-50/50');
+      if (e.dataTransfer.files.length) {
+        document.getElementById('file-contacts-input').files = e.dataTransfer.files;
+        handleContactsUpload({ target: { files: e.dataTransfer.files } });
+      }
+    });
 
     // Procesar filtros
     async function processFilters() {
       const minDias = parseInt(document.getElementById('input-min-dias').value) || 0;
       const maxDias = parseInt(document.getElementById('input-max-dias').value) || 999;
       const groupBy = document.getElementById('select-group-by').value;
+      const onlyPhone = document.getElementById('check-only-phone').checked;
 
+      const campanas = Array.from(document.querySelectorAll('.campana-checkbox:checked')).map(cb => cb.value);
       const programas = Array.from(document.querySelectorAll('.program-checkbox:checked')).map(cb => cb.value);
       const tipos = Array.from(document.querySelectorAll('.tipo-checkbox:checked')).map(cb => cb.value);
 
       const btn = document.getElementById('btn-process');
       const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Procesando segmentación...`;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Segmentando cartera...`;
       btn.disabled = true;
 
       try {
@@ -780,8 +964,10 @@
           body: JSON.stringify({
             min_dias: minDias,
             max_dias: maxDias,
+            tipos_campana: campanas,
             programas: programas,
             tipos: tipos,
+            only_with_phone: onlyPhone,
             group_by: groupBy
           })
         });
@@ -801,20 +987,19 @@
       }
     }
 
-    // Renderizar resultados en Tab 3
     function renderResults(data, minDias, maxDias) {
       const k = data.kpis;
 
-      // Subtitulos
-      document.getElementById('results-subtitle').textContent = `Filtro aplicado: ${minDias} a ${maxDias} días de mora | ${data.total_filtered.toLocaleString()} registros coincidentes`;
+      document.getElementById('results-subtitle').textContent = `Filtro: ${minDias} a ${maxDias} días de mora | ${data.total_filtered.toLocaleString()} cuotas coincidentes`;
       
-      // KPIs
       document.getElementById('kpi-clientes').textContent = Number(k.total_clientes).toLocaleString();
-      document.getElementById('kpi-cuotas').textContent = `${Number(k.total_cuotas).toLocaleString()} cuotas / ${Number(k.total_creditos).toLocaleString()} créditos`;
+      document.getElementById('kpi-cuotas').textContent = `${Number(k.total_cuotas).toLocaleString()} cuotas en mora`;
       document.getElementById('kpi-monto-total').textContent = `$${Number(k.monto_total).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
       document.getElementById('kpi-promedio').textContent = `Promedio: $${Number(k.promedio_cliente).toLocaleString('en-US', {minimumFractionDigits: 2})} / cliente`;
-      document.getElementById('kpi-tarifa').textContent = `$${Number(k.pendiente_tarifa).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-      document.getElementById('kpi-cuota-mora').textContent = `$${Number(k.pendiente_cuota + k.pendiente_mora).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+      document.getElementById('kpi-con-telefono').textContent = Number(k.total_con_telefono).toLocaleString();
+      document.getElementById('kpi-pct-telefono').textContent = `${k.pct_con_telefono}% de cobertura`;
+      document.getElementById('kpi-monto-contactable').textContent = `$${Number(k.monto_contactable).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('kpi-pct-monto').textContent = `${k.pct_monto_contactable}% de la deuda`;
 
       // Tabla Agrupada
       document.getElementById('grouped-by-label').textContent = `Agrupado por: ${data.group_by_used}`;
@@ -831,21 +1016,18 @@
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50 transition-colors';
         tr.innerHTML = `
-          <td class="py-2 px-3 font-medium text-slate-800">${row.grupo}</td>
-          <td class="py-2 px-3 text-right font-mono">${row.clientes.toLocaleString()}</td>
-          <td class="py-2 px-3 text-right font-mono">${row.cuotas.toLocaleString()}</td>
-          <td class="py-2 px-3 text-right font-bold text-slate-900">$${row.total_monto.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
-          <td class="py-2 px-3 text-right">
+          <td class="py-2.5 px-3 font-medium text-slate-800">${row.grupo}</td>
+          <td class="py-2.5 px-3 text-right font-mono">${row.clientes.toLocaleString()}</td>
+          <td class="py-2.5 px-3 text-right font-mono">${row.cuotas.toLocaleString()}</td>
+          <td class="py-2.5 px-3 text-right font-bold text-slate-900">$${row.total_monto.toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
+          <td class="py-2.5 px-3 text-right">
             <span class="inline-block px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700">${row.porcentaje}%</span>
           </td>
         `;
         tbody.appendChild(tr);
       });
 
-      // Renderizar Chart.js
-      renderChart(chartLabels.slice(0, 6), chartValues.slice(0, 6));
-
-      // Vista Previa de Tabla de Detalle
+      renderChart(chartLabels.slice(0, 8), chartValues.slice(0, 8));
       renderPreviewTable(data.preview, data.total_filtered);
     }
 
@@ -860,7 +1042,7 @@
         data: {
           labels: labels,
           datasets: [{
-            label: 'Monto Total Vencido (USD)',
+            label: 'Monto Vencido (USD)',
             data: values,
             backgroundColor: '#2563eb',
             borderRadius: 6
@@ -884,189 +1066,103 @@
     }
 
     function renderPreviewTable(rows, totalFiltered) {
-      document.getElementById('preview-tag').textContent = `Mostrando ${rows.length} de ${Number(totalFiltered).toLocaleString()} registros`;
+      document.getElementById('preview-tag').textContent = `Mostrando ${rows.length} de ${Number(totalFiltered).toLocaleString()} cuotas`;
 
       const thead = document.getElementById('preview-thead');
       const tbody = document.getElementById('preview-tbody');
       thead.innerHTML = '';
       tbody.innerHTML = '';
 
-      if (rows.length === 0) {
+      if (!rows || rows.length === 0) {
         tbody.innerHTML = `<tr><td colspan="10" class="p-4 text-center text-slate-400">No hay registros con los filtros seleccionados</td></tr>`;
         return;
       }
 
-      // Headers
+      const displayCols = [
+        { key: 'Cedula Cliente', label: 'Cédula' },
+        { key: 'Nombre Cliente', label: 'Nombre Cliente' },
+        { key: 'Dias de Mora', label: 'Días' },
+        { key: 'Tramo_Mora', label: 'Tramo Mora' },
+        { key: 'Pendiente Tarifa', label: 'Tarifa ($)' },
+        { key: 'Pendiente Cuota', label: 'Cuota ($)' },
+        { key: 'Pendiente Mora', label: 'Mora ($)' },
+        { key: 'Total', label: 'Total ($)' },
+        { key: 'Tipo_Campana', label: 'Tipo de Campaña' },
+        { key: 'Programa', label: 'Programa' },
+        { key: 'Telefono_1', label: 'Teléfono 1' },
+        { key: 'Correo', label: 'Correo' }
+      ];
+
       const trHead = document.createElement('tr');
-      const keys = Object.keys(rows[0]);
-      keys.forEach(k => {
+      displayCols.forEach(col => {
         const th = document.createElement('th');
         th.className = 'py-2 px-3';
-        th.textContent = k;
+        th.textContent = col.label;
         trHead.appendChild(th);
       });
       thead.appendChild(trHead);
 
-      // Rows
       rows.forEach(r => {
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-blue-50/40 transition-colors';
-        keys.forEach(k => {
+
+        displayCols.forEach(col => {
           const td = document.createElement('td');
-          td.className = 'py-1.5 px-3 border-b border-slate-100 font-mono text-[10px]';
-          td.textContent = r[k];
+          td.className = 'py-1.5 px-3 border-b border-slate-100 text-[10px]';
+
+          let val = r[col.key] !== undefined ? r[col.key] : '';
+          
+          if (col.key === 'Telefono_1' && r.wa_link) {
+            td.innerHTML = `<a href="${r.wa_link}" target="_blank" class="inline-flex items-center gap-1 font-mono text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded hover:bg-emerald-100 font-semibold"><i class="fa-brands fa-whatsapp text-emerald-600"></i> ${val}</a>`;
+          } else if (['Pendiente Tarifa', 'Pendiente Cuota', 'Pendiente Mora', 'Total'].includes(col.key)) {
+            td.className += ' font-mono text-right';
+            td.textContent = '$' + Number(val || 0).toFixed(2);
+          } else if (col.key === 'Dias de Mora') {
+            td.className += ' font-mono text-center font-bold text-slate-800';
+            td.textContent = val;
+          } else {
+            td.textContent = val;
+          }
           tr.appendChild(td);
         });
         tbody.appendChild(tr);
       });
     }
 
-    // Drag and drop events para cartera
-    const dropZone = document.getElementById('drop-zone');
-    dropZone.addEventListener('click', () => document.getElementById('file-input').click());
-    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('border-blue-500', 'bg-blue-50'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('border-blue-500', 'bg-blue-50'));
-    dropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropZone.classList.remove('border-blue-500', 'bg-blue-50');
-      if (e.dataTransfer.files.length) {
-        document.getElementById('file-input').files = e.dataTransfer.files;
-        handleFileUpload({ target: { files: e.dataTransfer.files } });
-      }
-    });
-
-    // Drag and drop events para contactos
-    const contactsDropZone = document.getElementById('contacts-drop-zone');
-    contactsDropZone.addEventListener('click', () => document.getElementById('contacts-file-input').click());
-    contactsDropZone.addEventListener('dragover', (e) => { e.preventDefault(); contactsDropZone.classList.add('border-emerald-500', 'bg-emerald-50'); });
-    contactsDropZone.addEventListener('dragleave', () => contactsDropZone.classList.remove('border-emerald-500', 'bg-emerald-50'));
-    contactsDropZone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      contactsDropZone.classList.remove('border-emerald-500', 'bg-emerald-50');
-      if (e.dataTransfer.files.length) {
-        document.getElementById('contacts-file-input').files = e.dataTransfer.files;
-        handleContactsUpload({ target: { files: e.dataTransfer.files } });
-      }
-    });
-
-    // Contactos State y Funciones
-    let contactsLoaded = false;
-
-    async function checkContactsStatus() {
-      try {
-        const res = await fetch('/api/contacts/status');
-        const data = await res.json();
-        if (data.loaded) {
-          contactsLoaded = true;
-          updateContactsBadge(data.filename, data.total_contacts);
-        }
-      } catch (err) {
-        console.error("Error al verificar estado de contactos:", err);
-      }
-    }
-
-    function updateContactsBadge(filename, total) {
-      const badge = document.getElementById('contacts-status-badge');
-      badge.className = 'text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-200';
-      badge.innerHTML = `<i class="fa-solid fa-check text-emerald-600 mr-1"></i> Base activa: ${Number(total).toLocaleString()} clientes`;
-    }
-
-    async function loadSampleContacts() {
-      const btn = document.getElementById('btn-load-contacts-sample');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando base maestra...`;
-      btn.disabled = true;
-
-      try {
-        const res = await fetch('/api/contacts/load-sample', { method: 'POST' });
-        const data = await res.json();
-        if (res.ok) {
-          contactsLoaded = true;
-          updateContactsBadge(data.filename, data.total_contacts);
-          alert(`¡Base de contactos cargada con éxito! Se indexaron ${Number(data.total_contacts).toLocaleString()} clientes.`);
-        } else {
-          alert('Error: ' + data.detail);
-        }
-      } catch (err) {
-        alert('Error en conexión: ' + err.message);
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
-      }
-    }
-
-    async function handleContactsUpload(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const dropZone = document.getElementById('contacts-drop-zone');
-      const originalHtml = dropZone.innerHTML;
-      dropZone.innerHTML = `
-        <div class="py-2 text-center">
-          <i class="fa-solid fa-circle-notch fa-spin text-2xl text-emerald-600 mb-2"></i>
-          <p class="text-xs font-semibold text-slate-800">Cargando e indexando ${file.name}...</p>
-        </div>
-      `;
-
-      const formData = new FormData();
-      formData.append('file', file);
-
-      try {
-        const res = await fetch('/api/contacts/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        if (res.ok) {
-          contactsLoaded = true;
-          updateContactsBadge(file.name, data.total_contacts);
-          alert(`¡Contactos cargados con éxito! ${Number(data.total_contacts).toLocaleString()} clientes disponibles.`);
-        } else {
-          alert('Error: ' + data.detail);
-        }
-      } catch (err) {
-        alert('Error al subir contactos: ' + err.message);
-      } finally {
-        dropZone.innerHTML = originalHtml;
-        document.getElementById('contacts-file-input').value = '';
-      }
-    }
-
-    async function executeCrossMatch() {
-      const btn = document.getElementById('btn-execute-match');
-      const originalText = btn.innerHTML;
-      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cruzando cédulas con cartera...`;
-      btn.disabled = true;
+    // Tab 4 Call Center
+    async function loadCallCenterData() {
+      const tbody = document.getElementById('callcenter-tbody');
+      tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Cargando deudores y números telefónicos...</td></tr>`;
 
       try {
         const res = await fetch('/api/contacts/cross-match', { method: 'POST' });
         const data = await res.json();
         if (res.ok) {
-          renderCrossMatchResults(data);
+          renderCallCenterView(data);
         } else {
-          alert('Error al realizar cruce: ' + data.detail);
+          tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-rose-500">${data.detail}</td></tr>`;
         }
       } catch (err) {
-        alert('Error de conexión: ' + err.message);
-      } finally {
-        btn.innerHTML = originalText;
-        btn.disabled = false;
+        tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-rose-500">Error al cargar: ${err.message}</td></tr>`;
       }
     }
 
-    function renderCrossMatchResults(data) {
-      const panel = document.getElementById('contacts-results-panel');
-      panel.classList.remove('hidden');
+    function renderCallCenterView(data) {
+      const k = data.kpis || {};
+      document.getElementById('cc-kpi-total').textContent = Number(k.total_deudores || 0).toLocaleString();
+      document.getElementById('cc-kpi-tel').textContent = Number(k.total_con_telefono || 0).toLocaleString();
+      document.getElementById('cc-kpi-tel-pct').textContent = `${k.porcentaje_cobertura || 0}% de cobertura`;
+      document.getElementById('cc-kpi-mail').textContent = Number(k.total_con_correo || 0).toLocaleString();
+      document.getElementById('cc-kpi-monto').textContent = `$${Number(k.monto_contactable || 0).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
+      document.getElementById('cc-kpi-monto-pct').textContent = `${k.porcentaje_monto_contactable || 0}% del monto adeudado`;
 
-      const k = data.kpis;
-      document.getElementById('match-kpi-total').textContent = Number(k.total_deudores).toLocaleString();
-      document.getElementById('match-kpi-tel').textContent = Number(k.total_con_telefono).toLocaleString();
-      document.getElementById('match-kpi-tel-pct').textContent = `${k.porcentaje_cobertura}% de cobertura`;
-      document.getElementById('match-kpi-mail').textContent = Number(k.total_con_correo).toLocaleString();
-      document.getElementById('match-kpi-monto').textContent = `$${Number(k.monto_contactable).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
-      document.getElementById('match-kpi-monto-pct').textContent = `${k.porcentaje_monto_contactable}% del total adeudado`;
-
-      document.getElementById('match-subtitle').textContent = `Se cruzaron ${Number(k.total_deudores).toLocaleString()} deudores. ${Number(k.total_con_contacto).toLocaleString()} clientes tienen datos de contacto directos (${k.porcentaje_cobertura}%).`;
-
-      const tbody = document.getElementById('contacts-match-tbody');
+      const tbody = document.getElementById('callcenter-tbody');
       tbody.innerHTML = '';
+
+      if (!data.preview || data.preview.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="10" class="p-6 text-center text-slate-400">No hay deudores en el tramo actual.</td></tr>`;
+        return;
+      }
 
       data.preview.forEach(r => {
         const tr = document.createElement('tr');
@@ -1079,26 +1175,24 @@
           : (r.telefono_1 ? `<span class="font-mono text-slate-700">${r.telefono_1}</span>` : `<span class="text-slate-300">-</span>`);
 
         const tel2Html = r.telefono_2 ? `<span class="font-mono text-slate-600">${r.telefono_2}</span>` : `<span class="text-slate-300">-</span>`;
-        const mailHtml = r.correo ? `<span class="font-mono text-[11px] text-blue-600">${r.correo}</span>` : `<span class="text-slate-300">-</span>`;
+        const mailHtml = r.correo ? `<span class="font-mono text-[11px] text-blue-600 truncate max-w-[150px] inline-block" title="${r.correo}">${r.correo}</span>` : `<span class="text-slate-300">-</span>`;
 
         tr.innerHTML = `
           <td class="py-2.5 px-3 font-mono font-bold text-slate-800">${r.cedula}</td>
           <td class="py-2.5 px-3 font-medium text-slate-900">${r.nombre}</td>
           <td class="py-2.5 px-3 text-right font-bold text-emerald-600 font-mono">$${Number(r.monto_total).toLocaleString('en-US', {minimumFractionDigits: 2})}</td>
           <td class="py-2.5 px-3 text-center font-mono">${r.cuotas}</td>
-          <td class="py-2.5 px-3 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">${r.dias_mora}d</span></td>
+          <td class="py-2.5 px-3 text-center font-mono font-bold text-slate-700">${r.dias_mora}d</td>
+          <td class="py-2.5 px-3"><span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">${r.tramo_mora}</span></td>
+          <td class="py-2.5 px-3 text-slate-600 font-medium">${r.tipo_campana}</td>
           <td class="py-2.5 px-3">${tel1Html}</td>
           <td class="py-2.5 px-3">${tel2Html}</td>
           <td class="py-2.5 px-3">${mailHtml}</td>
-          <td class="py-2.5 px-3 text-slate-500">${r.programa}</td>
         `;
         tbody.appendChild(tr);
       });
-
-      panel.scrollIntoView({ behavior: 'smooth' });
     }
 
-    // Modal Guía Visual
     function toggleGuideModal(show) {
       const modal = document.getElementById('guide-modal');
       if (show) {
@@ -1117,7 +1211,6 @@
   <div id="guide-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-150">
       
-      <!-- Modal Header -->
       <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center text-base shadow-xs">
@@ -1125,42 +1218,41 @@
           </div>
           <div>
             <h3 class="text-base font-bold text-slate-900">Guía Visual de Operación</h3>
-            <p class="text-xs text-slate-500">Manual paso a paso para el Motor de Reestructuración de Cartera</p>
+            <p class="text-xs text-slate-500">Manual integral de CobranzApp: Cartera, Cruce de Contactos y WhatsApp</p>
           </div>
         </div>
-        <button onclick="toggleGuideModal(false)" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors">
+        <button onclick="toggleGuideModal(false)" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer">
           <i class="fa-solid fa-xmark text-lg"></i>
         </button>
       </div>
 
-      <!-- Modal Body -->
       <div class="p-6 overflow-y-auto space-y-6 text-sm text-slate-600">
         
-        <!-- Bloque 1: Carga y formato -->
+        <!-- Bloque 1 -->
         <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2">
           <div class="flex items-center gap-2 font-bold text-slate-900">
             <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">1</span>
-            <h4>¿Cómo cargar tu archivo de cartera?</h4>
+            <h4>Carga Inicial y Cruce Automático de Información</h4>
           </div>
           <p class="text-xs text-slate-600 leading-relaxed">
-            Arrastra tu archivo <strong class="text-slate-800">mora.csv</strong> o tu hoja de cálculo <strong class="text-slate-800">Excel (.xlsx o .xls)</strong> a la zona punteada. El motor detecta automáticamente la codificación, puntos y comas decimales, y mapea de forma inteligente las columnas clave:
+            Puedes cargar tanto el archivo principal de cartera (<strong class="text-slate-800">mora.csv o Excel</strong>) como la <strong class="text-slate-800">Base de Clientes y Contactos</strong> en la pestaña 1. El motor realiza un cruce instantáneo vinculando la cédula del deudor con sus <strong class="text-slate-800">teléfonos, correo y Tipo de Campaña</strong>.
           </p>
           <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 text-[11px]">
             <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
               <span class="font-bold text-slate-800 block">Días de Mora</span>
-              <span class="text-slate-500 text-[10px]">Antigüedad cuota</span>
+              <span class="text-slate-500 text-[10px]">Tramo automático</span>
             </div>
             <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
-              <span class="font-bold text-slate-800 block">Cédula y Nombre</span>
-              <span class="text-slate-500 text-[10px]">Identidad deudor</span>
+              <span class="font-bold text-slate-800 block">Tipo de Campaña</span>
+              <span class="text-slate-500 text-[10px]">Segmento comercial</span>
+            </div>
+            <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
+              <span class="font-bold text-slate-800 block">Teléfonos 1, 2 y 3</span>
+              <span class="text-slate-500 text-[10px]">WhatsApp directo</span>
             </div>
             <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
               <span class="font-bold text-slate-800 block">Tarifa + Cuota</span>
-              <span class="text-slate-500 text-[10px]">Deuda neta capital</span>
-            </div>
-            <div class="bg-white p-2 rounded-lg border border-slate-200 text-center">
-              <span class="font-bold text-slate-800 block">Pendiente Mora</span>
-              <span class="text-slate-500 text-[10px]">Recargo sanción ($4)</span>
+              <span class="text-slate-500 text-[10px]">Capital adeudado</span>
             </div>
           </div>
         </div>
@@ -1169,11 +1261,8 @@
         <div class="space-y-3">
           <div class="flex items-center gap-2 font-bold text-slate-900">
             <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">2</span>
-            <h4>Estrategia por Tramos Oficiales de Mora</h4>
+            <h4>Los 5 Tramos Estratégicos de Cobranza</h4>
           </div>
-          <p class="text-xs text-slate-600">
-            En la pestaña <strong class="text-slate-800">"2. Configurar Desglose"</strong>, puedes hacer clic directo en cualquiera de los tramos para filtrar la base al instante:
-          </p>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
             <div class="p-3 rounded-xl border border-emerald-200 bg-emerald-50/50">
@@ -1181,7 +1270,7 @@
                 <span>1 a 30 días • Preventiva</span>
                 <span class="text-[10px] bg-emerald-200 text-emerald-800 px-1.5 py-0.5 rounded font-semibold">29.8%</span>
               </div>
-              <p class="text-[11px] text-emerald-800 mt-1">Recordatorio preventivo vía WhatsApp/SMS antes del corte definitivo del servicio.</p>
+              <p class="text-[11px] text-emerald-800 mt-1">Recordatorio preventivo de pago antes del corte comercial.</p>
             </div>
 
             <div class="p-3 rounded-xl border border-blue-200 bg-blue-50/50">
@@ -1189,7 +1278,7 @@
                 <span>31 a 60 días • Administrativa</span>
                 <span class="text-[10px] bg-blue-200 text-blue-800 px-1.5 py-0.5 rounded font-semibold">13.5%</span>
               </div>
-              <p class="text-[11px] text-blue-800 mt-1">Gestión telefónica directa. Compromisos de pago a corto plazo para evitar suspensión prolongada.</p>
+              <p class="text-[11px] text-blue-800 mt-1">Gestión telefónica directa para reactivación de servicio.</p>
             </div>
 
             <div class="p-3 rounded-xl border border-amber-200 bg-amber-50/50">
@@ -1197,7 +1286,7 @@
                 <span>61 a 90 días • Reestructuración</span>
                 <span class="text-[10px] bg-amber-200 text-amber-800 px-1.5 py-0.5 rounded font-semibold">10.6%</span>
               </div>
-              <p class="text-[11px] text-amber-800 mt-1">Ofertas de refinanciamiento en 2 o 3 partes para rescatar al cliente antes de que la deuda sea impagable.</p>
+              <p class="text-[11px] text-amber-800 mt-1">Convenios de pago fraccionado para evitar la pérdida del cliente.</p>
             </div>
 
             <div class="p-3 rounded-xl border border-orange-200 bg-orange-50/50">
@@ -1205,7 +1294,7 @@
                 <span>91 a 180 días • Pre-jurídica</span>
                 <span class="text-[10px] bg-orange-200 text-orange-800 px-1.5 py-0.5 rounded font-semibold">35.0% (Mayor)</span>
               </div>
-              <p class="text-[11px] text-orange-800 mt-1">Concentra el 35% del dinero. Negociación agresiva con posible condonación del recargo de mora.</p>
+              <p class="text-[11px] text-orange-800 mt-1">Tramo mayoritario en dinero. Exoneración de mora y acuerdos formales.</p>
             </div>
 
             <div class="p-3 rounded-xl border border-rose-200 bg-rose-50/50 sm:col-span-2">
@@ -1213,38 +1302,37 @@
                 <span>181+ días • Castigo / Cartera Pesada</span>
                 <span class="text-[10px] bg-rose-200 text-rose-800 px-1.5 py-0.5 rounded font-semibold">11.2%</span>
               </div>
-              <p class="text-[11px] text-rose-800 mt-1">Recuperación de equipos, acuerdos de liquidación final con descuento o derivación a cobranza externa/judicial.</p>
+              <p class="text-[11px] text-rose-800 mt-1">Recuperación de equipos ONT, acuerdos de finiquito o cobranza judicial.</p>
             </div>
           </div>
         </div>
 
-        <!-- Bloque 3: Reportes y Exportación -->
+        <!-- Bloque 3: Call Center y Exportación -->
         <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2">
           <div class="flex items-center gap-2 font-bold text-slate-900">
             <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center">3</span>
-            <h4>Descarga de Reportes Ejecutivos y Operativos</h4>
+            <h4>Call Center y Descargas</h4>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
             <div class="bg-white p-3 rounded-xl border border-slate-200">
               <div class="font-bold text-emerald-700 flex items-center gap-1.5 mb-1">
-                <i class="fa-solid fa-file-excel"></i> Descargar Excel Filtrado
+                <i class="fa-solid fa-file-excel"></i> Excel Enriquecido y Call Center
               </div>
-              <p class="text-[11px] text-slate-500">Mantiene la estructura original con todas las columnas de identificación, cuotas y fechas, listo para cargarlo a un dialer o repartir por gestor.</p>
+              <p class="text-[11px] text-slate-500">Exporta las bases con teléfonos formateados, Tipo de Campaña y enlaces para discadores automáticos.</p>
             </div>
             <div class="bg-white p-3 rounded-xl border border-slate-200">
               <div class="font-bold text-rose-700 flex items-center gap-1.5 mb-1">
                 <i class="fa-solid fa-file-pdf"></i> Reporte PDF Ejecutivo
               </div>
-              <p class="text-[11px] text-slate-500">Documento formal listo para imprimir o enviar a gerencia con el resumen financiero, gráficos y distribución porcentual por Campaña.</p>
+              <p class="text-[11px] text-slate-500">Documento listo para gerencia con los subtotales financieros y de contactabilidad.</p>
             </div>
           </div>
         </div>
 
       </div>
 
-      <!-- Modal Footer -->
       <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50/50 flex justify-end">
-        <button onclick="toggleGuideModal(false)" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors">
+        <button onclick="toggleGuideModal(false)" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors cursor-pointer">
           Entendido, cerrar guía
         </button>
       </div>
