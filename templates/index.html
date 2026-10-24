@@ -466,34 +466,37 @@
           <div>
             <div class="flex items-center gap-2">
               <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Enriquecimiento de Cartera</span>
-              <span id="contacts-status-badge" class="text-xs text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full font-medium border border-amber-200">Sin base de contactos activa</span>
+              <span id="contacts-status-badge" class="text-xs text-amber-700 bg-amber-50 px-2.5 py-0.5 rounded-full font-medium border border-amber-200">Sin base de contactos cargada</span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900 mt-1">Cruce Inteligente de Contactos para Call Center y WhatsApp</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Cruza la cartera con la base maestra de suscriptores para obtener hasta 3 teléfonos y correos por cada deudor.</p>
+            <h2 class="text-xl font-bold text-slate-900 mt-1">Cruce Dinámico de Contactos para Call Center y WhatsApp</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Sube cualquier archivo nuevo de teléfonos/correos exportado de tu CRM para enriquecer la cartera filtrada.</p>
           </div>
           <div class="flex items-center gap-2">
-            <button onclick="loadSampleContacts()" id="btn-load-contacts-sample" class="inline-flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-colors">
-              <i class="fa-solid fa-bolt text-amber-400"></i> Cargar Base Maestra (194.042 clientes)
+            <button onclick="loadSampleContacts()" id="btn-load-contacts-sample" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200 transition-colors">
+              <i class="fa-solid fa-bolt text-amber-500"></i> Probar archivo ejemplo local
             </button>
           </div>
         </div>
 
-        <!-- Zona de Carga Alternativa / Drag & Drop -->
+        <!-- Zona de Carga Dinámica de Contactos -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-center">
           <div class="lg:col-span-2">
-            <div id="contacts-drop-zone" class="border-2 border-dashed border-slate-300 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
+            <div id="contacts-drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-8 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer">
               <input type="file" id="contacts-file-input" accept=".xlsx, .xls, .csv" class="hidden" onchange="handleContactsUpload(event)">
-              <i class="fa-solid fa-address-book text-3xl text-slate-400 mb-2"></i>
-              <p class="text-xs font-semibold text-slate-700">O sube un archivo nuevo de contactos (.xlsx, .csv)</p>
-              <p class="text-[11px] text-slate-400 mt-0.5">Detecta columnas: Cédula, Teléfono 1, Teléfono 2, Teléfono 3 y Correo</p>
+              <div class="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto text-xl mb-3">
+                <i class="fa-solid fa-address-book"></i>
+              </div>
+              <p class="text-sm font-bold text-slate-800">Haz clic aquí para seleccionar o arrastra tu archivo de contactos</p>
+              <p class="text-xs text-slate-500 mt-1">Soporta Excel (.xlsx, .xls) o CSV de cualquier tamaño (Motor ultra rápido)</p>
+              <p class="text-[11px] text-slate-400 mt-2">Detección automática de: Cédula, Teléfono 1, Teléfono 2, Teléfono 3 y Correo</p>
             </div>
           </div>
           <div class="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 p-5 rounded-xl space-y-3">
             <div class="text-xs font-bold text-blue-900 flex items-center gap-1.5">
-              <i class="fa-solid fa-circle-check text-blue-600"></i> Cobertura Comprobada
+              <i class="fa-solid fa-circle-check text-blue-600"></i> Cruce en Tiempo Real
             </div>
             <p class="text-[11px] text-blue-800 leading-relaxed">
-              La base maestra tiene una <b>tasa de éxito del 99.4%</b> sobre la cartera de mora: 11.742 deudores cuentan con teléfono o correo verificados.
+              El motor cruza al instante las cédulas de los deudores con los números telefónicos y formatea los teléfonos para marcación directa y WhatsApp.
             </p>
             <button onclick="executeCrossMatch()" id="btn-execute-match" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all flex items-center justify-center gap-2">
               <i class="fa-solid fa-shuffle"></i> Ejecutar Cruce con Cartera Filtrada

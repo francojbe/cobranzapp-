@@ -432,8 +432,8 @@ async def upload_file(file: UploadFile = File(...)):
                 
         # 2. Es un archivo Excel (.xls o .xlsx)
         elif filename_lower.endswith((".xls", ".xlsx")):
-            # Intentar primero con el motor correspondiente, con fallback al alternativo
-            engines = ["openpyxl", "xlrd"] if filename_lower.endswith(".xlsx") else ["xlrd", "openpyxl"]
+            # Motores en orden de velocidad: calamine (Rust 10x más rápido), openpyxl, xlrd
+            engines = ["calamine", "openpyxl", "xlrd"]
             xl = None
             for eng in engines:
                 try:
@@ -777,15 +777,14 @@ def download_pdf():
 
 @app.get("/api/contacts/status")
 def get_contacts_status():
-    pkl_path = os.path.join(os.path.dirname(__file__), "contacts.pkl.gz")
     excel_path = os.path.join(os.path.dirname(__file__), "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx")
-    sample_available = os.path.exists(pkl_path) or os.path.exists(excel_path)
+    sample_available = os.path.exists(excel_path)
     
     if DATA_STORE["df_contacts"] is None:
         return {
             "loaded": False,
             "sample_available": sample_available,
-            "sample_name": "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx (194.042 clientes)"
+            "sample_name": "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx"
         }
     
     return {
@@ -797,19 +796,20 @@ def get_contacts_status():
 
 @app.post("/api/contacts/load-sample")
 def load_sample_contacts():
-    pkl_path = os.path.join(os.path.dirname(__file__), "contacts.pkl.gz")
     excel_path = os.path.join(os.path.dirname(__file__), "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx")
-    
-    if os.path.exists(pkl_path):
-        df = pd.read_pickle(pkl_path)
-    elif os.path.exists(excel_path):
-        df = pd.read_excel(excel_path, sheet_name="Data de Clientes")
-    else:
-        raise HTTPException(status_code=404, detail="Archivo de contactos no encontrado en el servidor.")
+    if not os.path.exists(excel_path):
+        raise HTTPException(status_code=404, detail="Archivo de contactos de ejemplo no encontrado en el servidor.")
         
+    for eng in ["calamine", "openpyxl", "xlrd"]:
+        try:
+            df = pd.read_excel(excel_path, engine=eng)
+            break
+        except Exception:
+            continue
+            
     df = standardize_contacts_dataframe(df)
     DATA_STORE["df_contacts"] = df
-    DATA_STORE["contacts_filename"] = "Base Maestra de Contactos (194.042 clientes)"
+    DATA_STORE["contacts_filename"] = "Base de Contactos (Ejemplo Servidor)"
     
     return {
         "message": "Base de contactos cargada exitosamente.",
@@ -824,27 +824,40 @@ async def upload_contacts(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
         
     filename_lower = file.filename.lower()
+    df = None
     try:
         if filename_lower.endswith(".csv"):
-            try:
-                df = pd.read_csv(io.BytesIO(contents), encoding="utf-8-sig")
-            except Exception:
-                df = pd.read_csv(io.BytesIO(contents), encoding="latin1")
+            for enc in ["utf-8-sig", "utf-8", "latin1"]:
+                for sep in [None, ",", ";", "\t"]:
+                    try:
+                        temp_df = pd.read_csv(io.BytesIO(contents), encoding=enc, sep=sep, engine="python")
+                        if len(temp_df.columns) > 1:
+                            df = temp_df
+                            break
+                    except Exception:
+                        continue
+                if df is not None:
+                    break
         elif filename_lower.endswith((".xlsx", ".xls")):
-            engine = "openpyxl" if filename_lower.endswith(".xlsx") else "xlrd"
-            try:
-                df = pd.read_excel(io.BytesIO(contents), engine=engine)
-            except Exception:
-                df = pd.read_excel(io.BytesIO(contents))
+            # Motores en orden de rendimiento (calamine lee 200k filas en segundos)
+            for eng in ["calamine", "openpyxl", "xlrd"]:
+                try:
+                    df = pd.read_excel(io.BytesIO(contents), engine=eng)
+                    break
+                except Exception:
+                    continue
         else:
-            raise HTTPException(status_code=400, detail="Formato no soportado. Usa .xlsx o .csv")
+            raise HTTPException(status_code=400, detail="Formato no soportado. Usa .xlsx, .xls o .csv")
+            
+        if df is None:
+            raise HTTPException(status_code=400, detail="No se pudo interpretar el archivo de contactos. Verifica que no esté dañado.")
             
         df = standardize_contacts_dataframe(df)
         DATA_STORE["df_contacts"] = df
         DATA_STORE["contacts_filename"] = file.filename
         
         return {
-            "message": f"Base de contactos cargada: {len(df):,} clientes disponibles.",
+            "message": f"Base de contactos cargada: {len(df):,} clientes listos para cruce.",
             "total_contacts": len(df),
             "filename": file.filename
         }
