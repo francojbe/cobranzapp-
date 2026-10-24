@@ -4,29 +4,25 @@ FROM python:3.12-slim
 # Evitar escritura de archivos .pyc y habilitar logs en tiempo real
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=8000
+    PORT=80
 
 # Directorio de trabajo
 WORKDIR /app
 
-# Instalar dependencias del sistema mínimas necesarias
+# Instalar dependencias mínimas del sistema
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copiar e instalar dependencias de Python
+# Instalar dependencias de Python
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el código de la aplicación y recursos
+# Copiar el código y los archivos necesarios
 COPY . .
 
-# Puerto expuesto para Easypanel / Docker
-EXPOSE 8000
+# Exponer puertos 80 y 8000 para máxima compatibilidad con Easypanel
+EXPOSE 80 8000
 
-# Healthcheck para que Easypanel valide el estado del contenedor
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Comando de inicio del servidor en 0.0.0.0
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+# Arrancar uvicorn escuchando en 0.0.0.0 y usando la variable PORT (por defecto 80)
+CMD ["sh", "-c", "uvicorn app:app --host 0.0.0.0 --port ${PORT:-80}"]
