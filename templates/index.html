@@ -597,7 +597,105 @@
 
       </div>
 
-      <!-- Vista Previa de la Cartera Detallada -->
+      <!-- Sección: Desglose por Tramos y Categorías (Matriz de Campañas) -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+        
+        <!-- Header de la Matriz con Buscador y Botones de Descarga -->
+        <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                Análisis Matricial
+              </span>
+              <span class="text-xs font-semibold text-slate-500" id="matrix-campaigns-count">0 campañas analizadas</span>
+            </div>
+            <h3 class="text-lg font-bold text-slate-900 mt-1">Desglose por Tramos y Categorías</h3>
+            <p class="text-xs text-slate-500">Distribución de capital adeudado (USD) y número de clientes en los 5 tramos oficiales por cada campaña comercial.</p>
+          </div>
+
+          <!-- Barra de Acciones: Buscador de Campaña + Botones Exportar -->
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Buscador en tiempo real de la tabla -->
+            <div class="relative">
+              <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
+              <input 
+                type="text" 
+                id="matrix-search-input" 
+                placeholder="Buscar campaña..." 
+                oninput="filterMatrixTable(this.value)" 
+                class="text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-44 sm:w-52"
+              >
+            </div>
+
+            <!-- Botón Descargar Excel Matriz -->
+            <a href="/api/campanas-tramos/download/excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar matriz en formato Excel">
+              <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Matriz
+            </a>
+
+            <!-- Botón Descargar PDF Matriz -->
+            <a href="/api/campanas-tramos/download/pdf" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar matriz en reporte PDF apaisado">
+              <i class="fa-solid fa-file-pdf text-rose-600"></i> PDF Matriz
+            </a>
+          </div>
+        </div>
+
+        <!-- Contenedor con Scroll Horizontal y Columna 'Campaña' Sticky -->
+        <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs max-h-[560px] relative">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <!-- Encabezados agrupados por tramo -->
+            <thead class="sticky top-0 z-20 shadow-xs">
+              <!-- Nivel 1: Nombres de los Tramos -->
+              <tr class="text-[10px] uppercase font-bold tracking-wider text-slate-700 border-b border-slate-200">
+                <th class="py-2.5 px-3.5 bg-slate-100 sticky left-0 z-30 border-r border-slate-200 min-w-[200px]" rowspan="2">
+                  Campaña Comercial
+                </th>
+                <th class="py-2 px-3 text-center bg-emerald-50/90 text-emerald-900 border-r border-emerald-200" colspan="2">
+                  1 a 30 días <span class="text-[9px] font-normal opacity-80">(Preventiva)</span>
+                </th>
+                <th class="py-2 px-3 text-center bg-blue-50/90 text-blue-900 border-r border-blue-200" colspan="2">
+                  31 a 60 días <span class="text-[9px] font-normal opacity-80">(Administrativa)</span>
+                </th>
+                <th class="py-2 px-3 text-center bg-amber-50/90 text-amber-900 border-r border-amber-200" colspan="2">
+                  61 a 90 días <span class="text-[9px] font-normal opacity-80">(Negociación)</span>
+                </th>
+                <th class="py-2 px-3 text-center bg-orange-50/90 text-orange-900 border-r border-orange-200" colspan="2">
+                  91 a 180 días <span class="text-[9px] font-normal opacity-80">(Pre-jurídica)</span>
+                </th>
+                <th class="py-2 px-3 text-center bg-rose-50/90 text-rose-900 border-r border-rose-200" colspan="2">
+                  181+ días <span class="text-[9px] font-normal opacity-80">(Castigo)</span>
+                </th>
+                <th class="py-2 px-3 text-center bg-slate-900 text-white" colspan="3">
+                  Total Cartera Activa
+                </th>
+              </tr>
+              <!-- Nivel 2: Subcolumnas Monto y Clientes -->
+              <tr class="text-[10px] uppercase font-semibold text-slate-600 bg-slate-50 border-b border-slate-200">
+                <th class="py-1.5 px-2.5 text-right font-mono bg-emerald-50/40 border-r border-emerald-100">Monto ($)</th>
+                <th class="py-1.5 px-2 text-right font-mono bg-emerald-50/40 border-r border-slate-200">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-blue-50/40 border-r border-blue-100">Monto ($)</th>
+                <th class="py-1.5 px-2 text-right font-mono bg-blue-50/40 border-r border-slate-200">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-amber-50/40 border-r border-amber-100">Monto ($)</th>
+                <th class="py-1.5 px-2 text-right font-mono bg-amber-50/40 border-r border-slate-200">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-orange-50/40 border-r border-orange-100">Monto ($)</th>
+                <th class="py-1.5 px-2 text-right font-mono bg-orange-50/40 border-r border-slate-200">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-rose-50/40 border-r border-rose-100">Monto ($)</th>
+                <th class="py-1.5 px-2 text-right font-mono bg-rose-50/40 border-r border-slate-200">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Monto ($)</th>
+                <th class="py-1.5 px-2 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-blue-300">% Cart</th>
+              </tr>
+            </thead>
+            <!-- Cuerpo de datos -->
+            <tbody id="matrix-campaigns-tbody" class="divide-y divide-slate-100 font-mono text-[11px]">
+              <!-- Filas dinámicas por campaña -->
+            </tbody>
+            <!-- Fila Total Consolidada -->
+            <tfoot id="matrix-campaigns-tfoot" class="sticky bottom-0 z-20 border-t-2 border-slate-300 bg-slate-100 text-slate-900 font-mono font-bold text-xs shadow-md">
+              <!-- Totales consolidado por tramos -->
+            </tfoot>
+          </table>
+        </div>
+      </div>
       <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div class="flex items-center justify-between">
           <div>
@@ -772,6 +870,11 @@
       if (globalSummary) {
         renderGlobalTramosScorecard(globalSummary);
       }
+
+      const matrixData = data.matriz_campanas_tramos || (data.metadata && data.metadata.matriz_campanas_tramos);
+      if (matrixData) {
+        renderCampanasMatrix(matrixData);
+      }
     }
 
     async function loadSampleFiles() {
@@ -791,7 +894,8 @@
             contacts_filename: 'Base de Datos Correos y Teléfonos...xlsx',
             metadata: data.metadata,
             totals: data.totals,
-            resumen_global_tramos: data.resumen_global_tramos
+            resumen_global_tramos: data.resumen_global_tramos,
+            matriz_campanas_tramos: data.matriz_campanas_tramos
           });
           alert('¡Archivos de prueba cargados y cruzados con éxito! 47.083 cuotas enriquecidas.');
           switchTab('tab-segment');
@@ -832,7 +936,8 @@
             contacts_filename: data.metadata ? data.metadata.contacts_filename : '',
             metadata: data.metadata,
             totals: data.totals,
-            resumen_global_tramos: data.resumen_global_tramos
+            resumen_global_tramos: data.resumen_global_tramos,
+            matriz_campanas_tramos: data.matriz_campanas_tramos
           });
           alert('¡Archivo de cartera cargado con éxito!');
         } else {
@@ -874,7 +979,8 @@
             contacts_filename: file.name,
             metadata: data.metadata,
             totals: data.totals,
-            resumen_global_tramos: data.resumen_global_tramos
+            resumen_global_tramos: data.resumen_global_tramos,
+            matriz_campanas_tramos: data.matriz_campanas_tramos
           });
           alert(`¡Base de contactos cargada y cruzada con éxito! ${Number(data.total_contacts).toLocaleString()} clientes indexados.`);
         } else {
@@ -1074,6 +1180,12 @@
         renderGlobalTramosScorecard(globalSummary);
       }
 
+      // Renderizar el Desglose por Tramos y Categorías (Matriz de Campañas)
+      const matrixData = data.matriz_campanas_tramos || (data.metadata && data.metadata.matriz_campanas_tramos);
+      if (matrixData) {
+        renderCampanasMatrix(matrixData);
+      }
+
       renderPreviewTable(data.preview, data.total_filtered);
     }
 
@@ -1163,6 +1275,99 @@
 
       // 5. Renderizar Gráfico
       renderChart(chartLabels, chartValues, chartColors);
+    }
+
+    function filterMatrixTable(query) {
+      const q = (query || '').toLowerCase().trim();
+      const rows = document.querySelectorAll('#matrix-campaigns-tbody tr');
+      rows.forEach(tr => {
+        const name = (tr.dataset.campana || '').toLowerCase();
+        if (!q || name.includes(q)) {
+          tr.style.display = '';
+        } else {
+          tr.style.display = 'none';
+        }
+      });
+    }
+
+    function renderCampanasMatrix(matrixData) {
+      if (!matrixData || !matrixData.matrix) return;
+
+      const countElem = document.getElementById('matrix-campaigns-count');
+      if (countElem) {
+        countElem.textContent = `${matrixData.matrix.length} campañas analizadas`;
+      }
+
+      const tbody = document.getElementById('matrix-campaigns-tbody');
+      const tfoot = document.getElementById('matrix-campaigns-tfoot');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      const tramoIds = ['1-30', '31-60', '61-90', '91-180', '181+'];
+
+      function fmtMonto(val) {
+        const n = Number(val || 0);
+        if (n === 0) return '<span class="text-slate-300 font-normal">-</span>';
+        return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function fmtCant(val) {
+        const n = Number(val || 0);
+        if (n === 0) return '<span class="text-slate-300 font-normal">-</span>';
+        return n.toLocaleString();
+      }
+
+      matrixData.matrix.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors border-b border-slate-100 group';
+        tr.dataset.campana = r.campana;
+
+        let tramosHtml = '';
+        tramoIds.forEach(tId => {
+          const t = r.tramos[tId] || { monto: 0, clientes: 0 };
+          tramosHtml += `
+            <td class="py-2 px-2.5 text-right font-mono border-r border-slate-100/70 text-slate-800">${fmtMonto(t.monto)}</td>
+            <td class="py-2 px-2 text-right font-mono border-r border-slate-200 text-slate-600">${fmtCant(t.clientes)}</td>
+          `;
+        });
+
+        tr.innerHTML = `
+          <td class="py-2 px-3.5 font-bold text-slate-800 sticky left-0 bg-white group-hover:bg-slate-50 border-r border-slate-200 shadow-2xs">
+            <span class="truncate max-w-[210px] inline-block align-middle" title="${r.campana}">${r.campana}</span>
+          </td>
+          ${tramosHtml}
+          <td class="py-2 px-2.5 text-right font-mono font-bold text-slate-900 bg-slate-50/60 border-r border-slate-100">$${Number(r.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td class="py-2 px-2 text-right font-mono font-bold text-slate-800 bg-slate-50/60 border-r border-slate-100">${Number(r.total_clientes).toLocaleString()}</td>
+          <td class="py-2 px-2.5 text-right font-mono font-semibold text-blue-700 bg-slate-50/60">${Number(r.porcentaje).toFixed(2)}%</td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Fila TOTAL CONSOLIDADO en tfoot
+      if (tfoot) {
+        const totTramos = matrixData.totals_by_tramo || {};
+        let footTramosHtml = '';
+        tramoIds.forEach(tId => {
+          const t = totTramos[tId] || { monto: 0, clientes: 0 };
+          footTramosHtml += `
+            <td class="py-2.5 px-2.5 text-right font-mono text-xs border-r border-slate-200 text-slate-900">$${Number(t.monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-2.5 px-2 text-right font-mono text-xs border-r border-slate-300 text-slate-800">${Number(t.clientes).toLocaleString()}</td>
+          `;
+        });
+
+        tfoot.innerHTML = `
+          <tr class="bg-slate-100 border-t-2 border-slate-300 text-slate-900 font-bold text-xs">
+            <td class="py-2.5 px-3.5 sticky left-0 bg-slate-100 border-r border-slate-300 text-slate-900 uppercase tracking-wider text-[11px]">
+              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> TOTAL CONSOLIDADO
+            </td>
+            ${footTramosHtml}
+            <td class="py-2.5 px-2.5 text-right font-mono text-xs text-emerald-700 font-black border-r border-slate-200">$${Number(matrixData.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-2.5 px-2 text-right font-mono text-xs text-slate-900 font-bold border-r border-slate-200">${Number(matrixData.total_clientes).toLocaleString()}</td>
+            <td class="py-2.5 px-2.5 text-right font-mono text-xs text-blue-700 font-black">100.00%</td>
+          </tr>
+        `;
+      }
     }
 
     function renderChart(labels, values, colorsList) {

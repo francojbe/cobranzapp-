@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -686,6 +686,148 @@ def calculate_global_tramos_summary(df: pd.DataFrame):
         "tramos": tramos
     }
 
+def normalize_campaign_name(name: str) -> str:
+    """Normaliza y unifica los nombres de campaña con variaciones regionales en macro-familias."""
+    s = str(name).strip() if name is not None else ""
+    s_lower = s.lower()
+    
+    if not s or s_lower in ["nan", "none", "", "sin campaña", "sin campana asignada"]:
+        return "Sin Campaña Asignada"
+        
+    if "pre aprob" in s_lower or "pre-aprob" in s_lower or "preaprob" in s_lower:
+        return "Pre-aprobados"
+    if "web no fibex" in s_lower:
+        return "Web no Fibex"
+    if "vuelve a casa" in s_lower:
+        return "Vuelve a Casa"
+    if "nuevo" in s_lower:
+        return "Nuevos"
+    if "referid" in s_lower:
+        return "Referidos"
+    if "invitad" in s_lower:
+        return "Invitados"
+    if "asesor" in s_lower:
+        return "Asesores de Seguros"
+    if "empleados aragua" in s_lower:
+        return "Empleados Aragua"
+    if "emplead" in s_lower:
+        return "Empleados"
+    if "aliados club fibex" in s_lower or "club fibex" in s_lower:
+        return "Aliados Club Fibex"
+    if "aliados integral" in s_lower or "aliados" in s_lower:
+        return "Aliados Integrales"
+    if "barrido" in s_lower:
+        return "Barridos de Zona - Caracas"
+    if "clientes web" in s_lower or "web fibex" in s_lower:
+        return "Web Fibex"
+    if "internacional" in s_lower:
+        return "Trabajadores La Internacional"
+    if "warrior" in s_lower:
+        return "Inv. Warrior Tegnologi"
+    if "triple j" in s_lower:
+        return "Triple J"
+    if "turicopy" in s_lower:
+        return "TuriCopy"
+    if "piloto" in s_lower:
+        return "Piloto"
+    if "fiber hogar" in s_lower:
+        return "Fiber Hogar Telecom"
+    if "inter i" in s_lower:
+        return "Inter IVU"
+    if "vip" in s_lower:
+        return "VIP"
+    if "proveed" in s_lower:
+        return "Proveedores"
+    if "agencia" in s_lower:
+        return "Agencia"
+    if "jac" in s_lower:
+        return "Financiadora JAC"
+    if "cobraca" in s_lower:
+        return "Grupo Cobraca"
+    if "gonzalez" in s_lower:
+        return "Grupo Gonzalez Castillo"
+    if "avila" in s_lower:
+        return "Cartera Avila Pay"
+        
+    return s
+
+def calculate_campanas_tramos_matrix(df: pd.DataFrame):
+    """Calcula la matriz bidimensional de Campañas vs 5 Tramos Oficiales de Mora."""
+    if df is None or df.empty:
+        return {
+            "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
+            "total_cartera_usd": 0.0,
+            "total_clientes": 0,
+            "total_cuotas": 0,
+            "matrix": [],
+            "totals_by_tramo": {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG}
+        }
+        
+    df = df.copy()
+    if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+        df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    elif "Total" in df.columns:
+        df["_Tot"] = df["Total"]
+    else:
+        df["_Tot"] = 0.0
+
+    total_cartera = float(df["_Tot"].sum())
+    total_clientes_global = int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else len(df)
+    total_cuotas_global = len(df)
+    
+    col_campana = "Tipo_Campana" if "Tipo_Campana" in df.columns else "Programa"
+    df["_Macro_Campana"] = df[col_campana].apply(normalize_campaign_name)
+
+    matrix = []
+    totals_by_tramo = {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG}
+
+    # Totales globales por tramo
+    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+        sub_t = df[df["Tramo_Mora"] == t_cfg["grupo"]]
+        totals_by_tramo[t_cfg["id"]]["monto"] = round(float(sub_t["_Tot"].sum()), 2)
+        totals_by_tramo[t_cfg["id"]]["cuotas"] = len(sub_t)
+        totals_by_tramo[t_cfg["id"]]["clientes"] = int(sub_t["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t.columns else len(sub_t)
+
+    # Detalle por campaña
+    for camp, grp in df.groupby("_Macro_Campana"):
+        camp_tot = float(grp["_Tot"].sum())
+        camp_cl = int(grp["Cedula Cliente"].nunique()) if "Cedula Cliente" in grp.columns else len(grp)
+        camp_cuotas = len(grp)
+        
+        tramos_dict = {}
+        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+            sub = grp[grp["Tramo_Mora"] == t_cfg["grupo"]]
+            m = float(sub["_Tot"].sum())
+            cl = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else len(sub)
+            cu = len(sub)
+            tramos_dict[t_cfg["id"]] = {
+                "monto": round(m, 2),
+                "clientes": cl,
+                "cuotas": cu
+            }
+            
+        pct = round(camp_tot / total_cartera * 100, 2) if total_cartera > 0 else 0.0
+        matrix.append({
+            "campana": camp,
+            "total_monto": round(camp_tot, 2),
+            "total_clientes": camp_cl,
+            "total_cuotas": camp_cuotas,
+            "porcentaje": pct,
+            "tramos": tramos_dict
+        })
+
+    # Ordenar por deuda descendente (las campañas más críticas primero)
+    matrix.sort(key=lambda x: x["total_monto"], reverse=True)
+
+    return {
+        "cutoff_date": get_cutoff_date(df),
+        "total_cartera_usd": round(total_cartera, 2),
+        "total_clientes": total_clientes_global,
+        "total_cuotas": total_cuotas_global,
+        "matrix": matrix,
+        "totals_by_tramo": totals_by_tramo
+    }
+
 def get_metadata(df: pd.DataFrame):
     if df is None or df.empty:
         return {
@@ -754,6 +896,7 @@ def get_status():
     meta = get_metadata(active_df)
     totals = calculate_totals(active_df)
     resumen_global = calculate_global_tramos_summary(active_df)
+    matriz_campanas = calculate_campanas_tramos_matrix(active_df)
     
     return {
         "loaded": cartera_loaded,
@@ -763,6 +906,7 @@ def get_status():
         "metadata": meta,
         "totals": totals,
         "resumen_global_tramos": resumen_global,
+        "matriz_campanas_tramos": matriz_campanas,
         "sample_available": sample_available,
         "contacts_sample_available": contacts_sample_available
     }
@@ -801,11 +945,13 @@ def load_sample():
     
     active_df = DATA_STORE["df_original"]
     resumen_global = calculate_global_tramos_summary(active_df)
+    matriz_campanas = calculate_campanas_tramos_matrix(active_df)
     return {
         "message": f"Cartera cargada exitosamente: {len(df_cartera):,} cuotas{contacts_msg}",
         "metadata": get_metadata(active_df),
         "totals": calculate_totals(active_df),
-        "resumen_global_tramos": resumen_global
+        "resumen_global_tramos": resumen_global,
+        "matriz_campanas_tramos": matriz_campanas
     }
 
 @app.post("/api/upload")
@@ -827,11 +973,13 @@ async def upload_cartera(file: UploadFile = File(...)):
         
         active_df = DATA_STORE["df_original"]
         resumen_global = calculate_global_tramos_summary(active_df)
+        matriz_campanas = calculate_campanas_tramos_matrix(active_df)
         return {
             "message": f"Archivo de cartera '{file.filename}' procesado con éxito.",
             "metadata": get_metadata(active_df),
             "totals": calculate_totals(active_df),
-            "resumen_global_tramos": resumen_global
+            "resumen_global_tramos": resumen_global,
+            "matriz_campanas_tramos": matriz_campanas
         }
     except HTTPException:
         raise
@@ -859,6 +1007,7 @@ async def upload_contacts(file: UploadFile = File(...)):
         totals = calculate_totals(active_df) if active_df is not None else {}
         meta = get_metadata(active_df) if active_df is not None else {}
         resumen_global = calculate_global_tramos_summary(active_df) if active_df is not None else {}
+        matriz_campanas = calculate_campanas_tramos_matrix(active_df) if active_df is not None else {}
         
         return {
             "message": f"Base de contactos '{file.filename}' cargada: {len(df):,} clientes indexados.",
@@ -866,7 +1015,8 @@ async def upload_contacts(file: UploadFile = File(...)):
             "filename": file.filename,
             "metadata": meta,
             "totals": totals,
-            "resumen_global_tramos": resumen_global
+            "resumen_global_tramos": resumen_global,
+            "matriz_campanas_tramos": matriz_campanas
         }
     except HTTPException:
         raise
@@ -883,6 +1033,7 @@ def process_data(req: FilterRequest):
     
     # 1. Resumen Global Fijo por Tramos (Invariable ante cualquier filtro)
     resumen_global = calculate_global_tramos_summary(df_master)
+    matriz_campanas = calculate_campanas_tramos_matrix(df_master)
     
     # 2. Aplicar filtros a la cartera para la vista operativa detallada
     df = df_master.copy()
@@ -926,6 +1077,7 @@ def process_data(req: FilterRequest):
     return {
         "kpis": kpis,
         "resumen_global_tramos": resumen_global,
+        "matriz_campanas_tramos": matriz_campanas,
         "agrupacion": resumen_global["tramos"],
         "group_by_used": "Tramo Oficial de Mora",
         "preview_count": len(preview),
@@ -1513,6 +1665,395 @@ def download_tramos_pdf():
     buf.seek(0)
     
     filename = f"resumen_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/campanas-tramos/download/excel")
+def download_campanas_tramos_excel():
+    """Descarga la Matriz Completa de Campañas vs 5 Tramos Oficiales en Excel con formato corporativo."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
+
+    matrix_data = calculate_campanas_tramos_matrix(active_df)
+    cutoff = matrix_data.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = matrix_data.get("total_cartera_usd", 0.0)
+
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Desglose Tramos y Campañas"
+    ws.views.sheetView[0].showGridLines = True
+
+    font_title = Font(name="Calibri", size=14, bold=True, color="0F172A")
+    font_subtitle = Font(name="Calibri", size=10, italic=True, color="64748B")
+    font_group_hdr = Font(name="Calibri", size=10, bold=True, color="FFFFFF")
+    font_sub_hdr = Font(name="Calibri", size=9, bold=True, color="334155")
+    font_data = Font(name="Calibri", size=10, color="1E293B")
+    font_data_bold = Font(name="Calibri", size=10, bold=True, color="0F172A")
+    font_total = Font(name="Calibri", size=10, bold=True, color="0F172A")
+
+    fill_tramo_hdrs = [
+        PatternFill(start_color="065F46", end_color="065F46", fill_type="solid"), # 1-30d
+        PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid"), # 31-60d
+        PatternFill(start_color="92400E", end_color="92400E", fill_type="solid"), # 61-90d
+        PatternFill(start_color="9A3412", end_color="9A3412", fill_type="solid"), # 91-180d
+        PatternFill(start_color="991B1B", end_color="991B1B", fill_type="solid"), # 181+d
+        PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")  # Total
+    ]
+    fill_sub_hdr = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    fill_alt = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    fill_total = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    total_border = Border(
+        left=Side(style='thin', color='94A3B8'),
+        right=Side(style='thin', color='94A3B8'),
+        top=Side(style='medium', color='0F172A'),
+        bottom=Side(style='double', color='0F172A')
+    )
+
+    ws["A1"] = "COBRANZAPP - DESGLOSE POR TRAMOS Y CATEGORÍAS (CAMPAÑAS)"
+    ws["A1"].font = font_title
+    ws["A2"] = f"Fecha de corte: al {cutoff} | Cartera Activa Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws["A2"].font = font_subtitle
+
+    # Fila 4: Nivel 1 de Encabezados
+    ws.merge_cells("A4:A5")
+    ws["A4"] = "Campaña Comercial"
+    ws["A4"].font = font_group_hdr
+    ws["A4"].fill = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["A4"].border = thin_border
+
+    tramo_spans = [
+        ("B4:C4", "B", "C", "1 a 30 días (Preventiva)", fill_tramo_hdrs[0]),
+        ("D4:E4", "D", "E", "31 a 60 días (Administrativa)", fill_tramo_hdrs[1]),
+        ("F4:G4", "F", "G", "61 a 90 días (Negociación)", fill_tramo_hdrs[2]),
+        ("H4:I4", "H", "I", "91 a 180 días (Pre-jurídica)", fill_tramo_hdrs[3]),
+        ("J4:K4", "J", "K", "181+ días (Castigo)", fill_tramo_hdrs[4]),
+        ("L4:N4", "L", "N", "Total Cartera Consolidada", fill_tramo_hdrs[5]),
+    ]
+
+    for span, col_start, col_end, title, fill in tramo_spans:
+        ws.merge_cells(span)
+        cell = ws[f"{col_start}4"]
+        cell.value = title
+        cell.font = font_group_hdr
+        cell.fill = fill
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+
+    # Fila 5: Nivel 2 de Encabezados
+    sub_headers = [
+        ("B5", "Monto (USD)", "right"), ("C5", "Clientes", "right"),
+        ("D5", "Monto (USD)", "right"), ("E5", "Clientes", "right"),
+        ("F5", "Monto (USD)", "right"), ("G5", "Clientes", "right"),
+        ("H5", "Monto (USD)", "right"), ("I5", "Clientes", "right"),
+        ("J5", "Monto (USD)", "right"), ("K5", "Clientes", "right"),
+        ("L5", "Total Monto ($)", "right"), ("M5", "Total Clientes", "right"),
+        ("N5", "% Cartera", "right")
+    ]
+    for cell_id, text, align in sub_headers:
+        c = ws[cell_id]
+        c.value = text
+        c.font = font_sub_hdr
+        c.fill = fill_sub_hdr
+        c.alignment = Alignment(horizontal=align, vertical="center")
+        c.border = thin_border
+
+    ws.row_dimensions[4].height = 22
+    ws.row_dimensions[5].height = 20
+
+    curr_row = 6
+    for idx, row in enumerate(matrix_data.get("matrix", [])):
+        r = curr_row + idx
+        ws.row_dimensions[r].height = 19
+        
+        c_camp = ws.cell(row=r, column=1, value=row["campana"])
+        c_camp.font = font_data_bold
+        c_camp.alignment = Alignment(horizontal="left", vertical="center")
+
+        col_idx = 2
+        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+            t_data = row["tramos"].get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
+            cm = ws.cell(row=r, column=col_idx, value=t_data["monto"])
+            cc = ws.cell(row=r, column=col_idx + 1, value=t_data["clientes"])
+
+            cm.font = font_data
+            cc.font = font_data
+            cm.alignment = Alignment(horizontal="right", vertical="center")
+            cc.alignment = Alignment(horizontal="right", vertical="center")
+            cm.number_format = '$#,##0.00' if t_data["monto"] > 0 else '"-"'
+            cc.number_format = '#,##0' if t_data["clientes"] > 0 else '"-"'
+            col_idx += 2
+
+        c_tot_m = ws.cell(row=r, column=12, value=row["total_monto"])
+        c_tot_c = ws.cell(row=r, column=13, value=row["total_clientes"])
+        c_tot_p = ws.cell(row=r, column=14, value=row["porcentaje"] / 100.0)
+
+        c_tot_m.font = font_data_bold
+        c_tot_c.font = font_data_bold
+        c_tot_p.font = font_data_bold
+
+        c_tot_m.alignment = Alignment(horizontal="right", vertical="center")
+        c_tot_c.alignment = Alignment(horizontal="right", vertical="center")
+        c_tot_p.alignment = Alignment(horizontal="right", vertical="center")
+
+        c_tot_m.number_format = '$#,##0.00'
+        c_tot_c.number_format = '#,##0'
+        c_tot_p.number_format = '0.00%'
+
+        row_fill = fill_alt if idx % 2 == 1 else None
+        for c_i in range(1, 15):
+            cell = ws.cell(row=r, column=c_i)
+            cell.border = thin_border
+            if row_fill:
+                cell.fill = row_fill
+
+    # Fila TOTAL CONSOLIDADO
+    tot_row = curr_row + len(matrix_data.get("matrix", []))
+    ws.row_dimensions[tot_row].height = 24
+
+    tc_camp = ws.cell(row=tot_row, column=1, value="TOTAL CONSOLIDADO")
+    tc_camp.font = font_total
+    tc_camp.alignment = Alignment(horizontal="left", vertical="center")
+
+    totals_tramos = matrix_data.get("totals_by_tramo", {})
+    col_idx = 2
+    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+        t_data = totals_tramos.get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
+        cm = ws.cell(row=tot_row, column=col_idx, value=t_data["monto"])
+        cc = ws.cell(row=tot_row, column=col_idx + 1, value=t_data["clientes"])
+
+        cm.font = font_total
+        cc.font = font_total
+        cm.alignment = Alignment(horizontal="right", vertical="center")
+        cc.alignment = Alignment(horizontal="right", vertical="center")
+        cm.number_format = '$#,##0.00'
+        cc.number_format = '#,##0'
+        col_idx += 2
+
+    tc_tot_m = ws.cell(row=tot_row, column=12, value=total_usd)
+    tc_tot_c = ws.cell(row=tot_row, column=13, value=matrix_data.get("total_clientes", 0))
+    tc_tot_p = ws.cell(row=tot_row, column=14, value=1.0)
+
+    for c in [tc_tot_m, tc_tot_c, tc_tot_p]:
+        c.font = font_total
+        c.alignment = Alignment(horizontal="right", vertical="center")
+
+    tc_tot_m.number_format = '$#,##0.00'
+    tc_tot_c.number_format = '#,##0'
+    tc_tot_p.number_format = '0.00%'
+
+    for c_i in range(1, 15):
+        cell = ws.cell(row=tot_row, column=c_i)
+        cell.fill = fill_total
+        cell.border = total_border
+
+    widths = {
+        1: 32, 2: 15, 3: 11, 4: 15, 5: 11, 6: 15, 7: 11,
+        8: 15, 9: 11, 10: 15, 11: 11, 12: 17, 13: 13, 14: 12
+    }
+    for col_idx, width in widths.items():
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"desglose_campanas_tramos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/campanas-tramos/download/pdf")
+def download_campanas_tramos_pdf():
+    """Genera reporte ejecutivo en PDF en formato apaisado (Landscape) con la Matriz de Campañas vs 5 Tramos."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
+
+    matrix_data = calculate_campanas_tramos_matrix(active_df)
+    cutoff = matrix_data.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = matrix_data.get("total_cartera_usd", 0.0)
+    total_clientes = matrix_data.get("total_clientes", 0)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=landscape(letter),
+        leftMargin=20,
+        rightMargin=20,
+        topMargin=20,
+        bottomMargin=20
+    )
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'MatTitle',
+        parent=styles['Heading1'],
+        fontSize=15,
+        leading=18,
+        textColor=colors.HexColor("#0f172a"),
+        fontName="Helvetica-Bold",
+        spaceAfter=2
+    )
+    subtitle_style = ParagraphStyle(
+        'MatSubtitle',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#64748b"),
+        spaceAfter=10
+    )
+    hdr_group = ParagraphStyle(
+        'HdrGroup',
+        parent=styles['Normal'],
+        fontSize=7.5,
+        leading=9,
+        textColor=colors.white,
+        fontName="Helvetica-Bold",
+        alignment=1
+    )
+    hdr_sub = ParagraphStyle(
+        'HdrSub',
+        parent=styles['Normal'],
+        fontSize=7,
+        leading=8,
+        textColor=colors.HexColor("#334155"),
+        fontName="Helvetica-Bold",
+        alignment=2
+    )
+    cell_camp = ParagraphStyle(
+        'CellCamp',
+        parent=styles['Normal'],
+        fontSize=7.5,
+        leading=9,
+        textColor=colors.HexColor("#0f172a"),
+        fontName="Helvetica-Bold"
+    )
+    cell_val = ParagraphStyle(
+        'CellVal',
+        parent=styles['Normal'],
+        fontSize=7,
+        leading=8.5,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=2
+    )
+    cell_tot = ParagraphStyle(
+        'CellTot',
+        parent=styles['Normal'],
+        fontSize=7,
+        leading=8.5,
+        textColor=colors.HexColor("#0f172a"),
+        fontName="Helvetica-Bold",
+        alignment=2
+    )
+
+    story = []
+    story.append(Paragraph("COBRANZAPP | DESGLOSE POR TRAMOS Y CATEGORÍAS (CAMPAÑAS)", title_style))
+    story.append(Paragraph(
+        f"<b>Fecha de corte:</b> al {cutoff} &nbsp;|&nbsp; "
+        f"<b>Cartera Activa Total:</b> ${total_usd:,.2f} USD &nbsp;|&nbsp; "
+        f"<b>Clientes Únicos:</b> {total_clientes:,} &nbsp;|&nbsp; "
+        f"<b>Emisión:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}",
+        subtitle_style
+    ))
+
+    table_data = [
+        [
+            Paragraph("<b>Campaña Comercial</b>", hdr_group),
+            Paragraph("<b>1 a 30 días</b>", hdr_group), "",
+            Paragraph("<b>31 a 60 días</b>", hdr_group), "",
+            Paragraph("<b>61 a 90 días</b>", hdr_group), "",
+            Paragraph("<b>91 a 180 días</b>", hdr_group), "",
+            Paragraph("<b>181+ días</b>", hdr_group), "",
+            Paragraph("<b>Total Cartera</b>", hdr_group), "", ""
+        ],
+        [
+            "",
+            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("% Cart", hdr_sub)
+        ]
+    ]
+
+    for row in matrix_data.get("matrix", []):
+        row_cells = [Paragraph(html.escape(row["campana"]), cell_camp)]
+        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+            t_data = row["tramos"].get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
+            m_str = f"${t_data['monto']:,.2f}" if t_data["monto"] > 0 else "-"
+            c_str = f"{t_data['clientes']:,}" if t_data["clientes"] > 0 else "-"
+            row_cells.append(Paragraph(m_str, cell_val))
+            row_cells.append(Paragraph(c_str, cell_val))
+        row_cells.append(Paragraph(f"${row['total_monto']:,.2f}", cell_tot))
+        row_cells.append(Paragraph(f"{row['total_clientes']:,}", cell_tot))
+        row_cells.append(Paragraph(f"{row['porcentaje']:.2f}%", cell_tot))
+        table_data.append(row_cells)
+
+    totals_tramos = matrix_data.get("totals_by_tramo", {})
+    total_row_cells = [Paragraph("<b>TOTAL CONSOLIDADO</b>", cell_camp)]
+    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+        t_data = totals_tramos.get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
+        total_row_cells.append(Paragraph(f"<b>${t_data['monto']:,.2f}</b>", cell_tot))
+        total_row_cells.append(Paragraph(f"<b>{t_data['clientes']:,}</b>", cell_tot))
+    total_row_cells.append(Paragraph(f"<b>${total_usd:,.2f}</b>", cell_tot))
+    total_row_cells.append(Paragraph(f"<b>{total_clientes:,}</b>", cell_tot))
+    total_row_cells.append(Paragraph("<b>100.0%</b>", cell_tot))
+    table_data.append(total_row_cells)
+
+    col_widths = [140, 48, 28, 48, 28, 48, 28, 52, 28, 48, 28, 56, 32, 38]
+    t_mat = Table(table_data, colWidths=col_widths, repeatRows=2)
+    t_mat.setStyle(TableStyle([
+        ('SPAN', (0,0), (0,1)),
+        ('SPAN', (1,0), (2,0)),
+        ('SPAN', (3,0), (4,0)),
+        ('SPAN', (5,0), (6,0)),
+        ('SPAN', (7,0), (8,0)),
+        ('SPAN', (9,0), (10,0)),
+        ('SPAN', (11,0), (13,0)),
+
+        ('BACKGROUND', (0,0), (0,1), colors.HexColor("#0f172a")),
+        ('BACKGROUND', (1,0), (2,0), colors.HexColor("#065f46")),
+        ('BACKGROUND', (3,0), (4,0), colors.HexColor("#1e40af")),
+        ('BACKGROUND', (5,0), (6,0), colors.HexColor("#92400e")),
+        ('BACKGROUND', (7,0), (8,0), colors.HexColor("#9a3412")),
+        ('BACKGROUND', (9,0), (10,0), colors.HexColor("#991b1b")),
+        ('BACKGROUND', (11,0), (13,0), colors.HexColor("#0f172a")),
+        ('BACKGROUND', (1,1), (-1,1), colors.HexColor("#f1f5f9")),
+
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,2), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
+
+        ('TOPPADDING', (0,0), (-1,-1), 3),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+        ('LEFTPADDING', (0,0), (-1,-1), 3),
+        ('RIGHTPADDING', (0,0), (-1,-1), 3),
+    ]))
+    story.append(t_mat)
+
+    doc.build(story)
+    buf.seek(0)
+
+    filename = f"desglose_campanas_tramos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",
