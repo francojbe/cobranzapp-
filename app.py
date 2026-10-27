@@ -2,6 +2,7 @@ import html
 import io
 import os
 import re
+import sqlite3
 import unicodedata
 from typing import List, Optional
 from datetime import datetime
@@ -386,19 +387,19 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Estandariza columnas, teléfonos, campaña y cédula del archivo de contactos."""
+    """Estandariza columnas, teléfonos, campaña y cédula del archivo de contactos o campañas."""
     col_map = {}
     for c in df.columns:
         norm = clean_col(str(c))
-        if any(re.match(p, norm) for p in [r"^cedula.*", r"^dni$", r"^identificacion$", r"^etiquetasdefila$"]):
+        if any(re.match(p, norm) for p in [r"^cedula.*", r"^dni$", r"^identificacion$", r"^etiquetasdefila$", r"^clienteci$", r"^ci$"]):
             col_map[c] = "Cedula"
-        elif any(re.match(p, norm) for p in [r"^telefono1$", r"^tel1$", r"^telf1$", r"^celular1$", r"^celular$", r"^telefono$"]):
+        elif any(re.match(p, norm) for p in [r"^telefono1$", r"^tel1$", r"^telf1$", r"^celular1$", r"^celular$", r"^telefono$", r".*telefonomovil.*", r".*telefonoppal.*"]):
             col_map[c] = "Telefono_1"
         elif any(re.match(p, norm) for p in [r"^telefono2$", r"^tel2$", r"^telf2$", r"^celular2$"]):
             col_map[c] = "Telefono_2"
         elif any(re.match(p, norm) for p in [r"^telefono3$", r"^tel3$", r"^telf3$", r"^celular3$"]):
             col_map[c] = "Telefono_3"
-        elif any(re.match(p, norm) for p in [r"^correo.*", r"^email.*", r"^mail$"]):
+        elif any(re.match(p, norm) for p in [r"^correo.*", r"^email.*", r"^mail$", r".*correoppal.*"]):
             col_map[c] = "Correo"
         elif any(re.match(p, norm) for p in [r"^nombre.*", r"^cliente$"]):
             col_map[c] = "Nombre_Contacto"
@@ -406,10 +407,15 @@ def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             col_map[c] = "Tipo_Campana"
         elif any(re.match(p, norm) for p in [r"^programa.*", r"^plan.*"]):
             col_map[c] = "Programa_Contacto"
+        elif any(re.match(p, norm) for p in [r"^canal.*"]):
+            col_map[c] = "Canal_Contacto"
 
     df = df.rename(columns=col_map)
     if "Cedula" not in df.columns:
-        raise HTTPException(status_code=400, detail="El archivo de contactos debe contener una columna de Cédula o Identificación.")
+        raise HTTPException(status_code=400, detail="El archivo de contactos o campañas debe contener una columna de Cédula (ej. 'Cedula' o 'cliente_ci').")
+
+    df["Cedula"] = df["Cedula"].fillna("").astype(str).str.strip().str.upper()
+    df = df[~df["Cedula"].isin(["", "NAN", "NULL", "NONE"])].copy()
 
     for col in ["Telefono_1", "Telefono_2", "Telefono_3"]:
         if col in df.columns:
@@ -417,33 +423,36 @@ def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         else:
             df[col] = ""
 
-    for col in ["Correo", "Nombre_Contacto", "Tipo_Campana", "Programa_Contacto"]:
+    for col in ["Correo", "Nombre_Contacto", "Tipo_Campana", "Programa_Contacto", "Canal_Contacto"]:
         if col in df.columns:
             df[col] = df[col].fillna("").astype(str).str.strip()
+            df[col] = df[col].replace({"nan": "", "NULL": "", "None": "", "NAN": ""})
         else:
             df[col] = ""
 
-    df["Cedula"] = df["Cedula"].fillna("").astype(str).str.strip().str.upper()
     df["Cedula_Key"] = df["Cedula"]
     return df.drop_duplicates(subset=["Cedula_Key"])
 
 def detect_file_type(df: pd.DataFrame) -> str:
-    """Detecta inteligentemente si un DataFrame corresponde a Cartera ('cartera') o a Contactos ('contacts')."""
+    """Detecta inteligentemente si un DataFrame corresponde a Cartera ('cartera') o a Contactos/Campañas ('contacts')."""
     cleaned_cols = [clean_col(str(c)) for c in df.columns]
     
-    # Indicadores de Cartera / Mora
+    # Indicadores exclusivos de Cartera / Mora (montos de tarifas, cuotas y mora)
     has_dias = any(any(re.match(p, c) for p in TARGET_PATTERNS["Dias de Mora"]) for c in cleaned_cols)
+    has_tarifa = any(any(re.match(p, c) for p in TARGET_PATTERNS["Pendiente Tarifa"]) for c in cleaned_cols)
     has_cuota = any(any(re.match(p, c) for p in TARGET_PATTERNS["Pendiente Cuota"]) for c in cleaned_cols)
     has_mora = any(any(re.match(p, c) for p in TARGET_PATTERNS["Pendiente Mora"]) for c in cleaned_cols)
+    has_debt_amounts = has_tarifa or has_cuota or has_mora
     
-    # Indicadores de Contactos / Telefonos
-    has_phone = any(any(re.match(p, c) for p in [r"^telefono.*", r"^tel\d?$", r"^celular.*", r"^telf.*"]) for c in cleaned_cols)
-    has_email = any(any(re.match(p, c) for p in [r"^correo.*", r"^email.*", r"^mail$"]) for c in cleaned_cols)
+    # Indicadores de Contactos o Campañas
+    has_phone = any(any(re.match(p, c) for p in [r"^telefono.*", r"^tel\d?$", r"^celular.*", r"^telf.*", r".*telefonomovil.*"]) for c in cleaned_cols)
+    has_email = any(any(re.match(p, c) for p in [r"^correo.*", r"^email.*", r"^mail$", r".*correoppal.*"]) for c in cleaned_cols)
     has_campana = any(any(re.match(p, c) for p in [r"^tipodecampana.*", r"^campana.*", r"^tipocampana.*"]) for c in cleaned_cols)
+    has_cliente_ci = any(c == "clienteci" for c in cleaned_cols)
     
-    if has_dias or (has_cuota and has_mora):
+    if has_debt_amounts or (has_dias and not has_campana and not has_phone and not has_cliente_ci):
         return "cartera"
-    elif has_phone or has_email or has_campana:
+    elif has_phone or has_email or has_campana or has_cliente_ci:
         return "contacts"
     return "unknown"
 
@@ -473,8 +482,125 @@ DATA_STORE = {
     "cartera_activa_manual": None # Monto manual de cartera activa para cálculo de % mora
 }
 
-DEFAULT_MORA_PATH = os.path.join(os.path.dirname(__file__), "mora.csv")
-DEFAULT_CONTACTS_PATH = os.path.join(os.path.dirname(__file__), "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx")
+BASE_DIR = os.path.dirname(__file__)
+DEFAULT_MORA_PATH = os.path.join(BASE_DIR, "mora.csv")
+DEFAULT_CONTACTS_PATH = os.path.join(BASE_DIR, "Base de contactos.csv")
+DEFAULT_CAMPANAS_PATH = os.path.join(BASE_DIR, "campañas.xlsx")
+DB_PATH = os.path.join(BASE_DIR, "cobranzapp.db")
+
+# -------------------------------------------------------------
+# BASE DE DATOS MAESTRA SQLITE (CONTACTOS + CAMPAÑAS)
+# -------------------------------------------------------------
+
+def ensure_db_table():
+    """Garantiza que exista la tabla master_clientes en SQLite."""
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS master_clientes (
+            cedula_key TEXT PRIMARY KEY,
+            nombre TEXT DEFAULT '',
+            telefono_1 TEXT DEFAULT '',
+            telefono_2 TEXT DEFAULT '',
+            telefono_3 TEXT DEFAULT '',
+            correo TEXT DEFAULT '',
+            tipo_campana TEXT DEFAULT '',
+            programa TEXT DEFAULT '',
+            canal TEXT DEFAULT '',
+            updated_at TEXT DEFAULT ''
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+def load_contacts_from_db() -> pd.DataFrame:
+    """Lee la tabla master_clientes de SQLite a memoria y actualiza DATA_STORE."""
+    ensure_db_table()
+    conn = sqlite3.connect(DB_PATH)
+    df_db = pd.read_sql_query("""
+        SELECT
+            cedula_key AS Cedula_Key,
+            cedula_key AS Cedula,
+            nombre AS Nombre_Contacto,
+            telefono_1 AS Telefono_1,
+            telefono_2 AS Telefono_2,
+            telefono_3 AS Telefono_3,
+            correo AS Correo,
+            tipo_campana AS Tipo_Campana,
+            programa AS Programa_Contacto,
+            canal AS Canal_Contacto
+        FROM master_clientes
+    """, conn)
+    conn.close()
+    if not df_db.empty:
+        DATA_STORE["df_contacts_raw"] = df_db
+        if not DATA_STORE["contacts_filename"]:
+            DATA_STORE["contacts_filename"] = f"Base de Datos Activa ({len(df_db):,} clientes)"
+    return df_db
+
+def upsert_contacts_to_db(df: pd.DataFrame) -> dict:
+    """Inserta clientes nuevos o actualiza campos no vacíos en la base de datos SQLite sin perder información previa."""
+    ensure_db_table()
+    conn = sqlite3.connect(DB_PATH)
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM master_clientes")
+    count_before = cur.fetchone()[0]
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    rows = []
+    for _, r in df.iterrows():
+        ced = str(r.get("Cedula_Key", "")).strip().upper()
+        if not ced or ced in ("NAN", "NULL", "NONE"):
+            continue
+        rows.append((
+            ced,
+            str(r.get("Nombre_Contacto", "")).strip(),
+            str(r.get("Telefono_1", "")).strip(),
+            str(r.get("Telefono_2", "")).strip(),
+            str(r.get("Telefono_3", "")).strip(),
+            str(r.get("Correo", "")).strip(),
+            str(r.get("Tipo_Campana", "")).strip(),
+            str(r.get("Programa_Contacto", "")).strip(),
+            str(r.get("Canal_Contacto", "")).strip(),
+            now_str
+        ))
+
+    cur.executemany("""
+        INSERT INTO master_clientes (
+            cedula_key, nombre, telefono_1, telefono_2, telefono_3,
+            correo, tipo_campana, programa, canal, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(cedula_key) DO UPDATE SET
+            nombre = CASE WHEN excluded.nombre != '' THEN excluded.nombre ELSE master_clientes.nombre END,
+            telefono_1 = CASE WHEN excluded.telefono_1 != '' THEN excluded.telefono_1 ELSE master_clientes.telefono_1 END,
+            telefono_2 = CASE WHEN excluded.telefono_2 != '' THEN excluded.telefono_2 ELSE master_clientes.telefono_2 END,
+            telefono_3 = CASE WHEN excluded.telefono_3 != '' THEN excluded.telefono_3 ELSE master_clientes.telefono_3 END,
+            correo = CASE WHEN excluded.correo != '' THEN excluded.correo ELSE master_clientes.correo END,
+            tipo_campana = CASE WHEN excluded.tipo_campana != '' AND excluded.tipo_campana != 'Sin Campaña Asignada' THEN excluded.tipo_campana ELSE master_clientes.tipo_campana END,
+            programa = CASE WHEN excluded.programa != '' THEN excluded.programa ELSE master_clientes.programa END,
+            canal = CASE WHEN excluded.canal != '' THEN excluded.canal ELSE master_clientes.canal END,
+            updated_at = excluded.updated_at
+    """, rows)
+    conn.commit()
+
+    cur.execute("SELECT COUNT(*) FROM master_clientes")
+    count_after = cur.fetchone()[0]
+    conn.close()
+
+    # Refrescar DATA_STORE desde la base de datos actualizada
+    load_contacts_from_db()
+
+    return {
+        "processed": len(rows),
+        "added": max(0, count_after - count_before),
+        "total_in_db": count_after
+    }
+
+# Cargar automáticamente la base de datos maestra al iniciar el servidor
+try:
+    load_contacts_from_db()
+except Exception as _db_err:
+    print("Aviso al iniciar base de datos SQLite:", _db_err)
 
 def enrich_and_merge_datasets():
     """Cruza y unifica la cartera con la base de contactos de forma instantanea."""
@@ -963,7 +1089,7 @@ def get_status():
 
 @app.post("/api/load-sample")
 def load_sample():
-    """Carga los archivos de ejemplo del servidor (mora.csv y contactos) unificandolos al instante."""
+    """Carga el archivo de mora de ejemplo y lo cruza instantáneamente con la Base de Datos Maestra SQLite."""
     if not os.path.exists(DEFAULT_MORA_PATH):
         raise HTTPException(status_code=404, detail="Archivo mora.csv no encontrado en el servidor.")
     
@@ -977,18 +1103,13 @@ def load_sample():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo leer mora.csv: {e}")
 
-    # 2. Cargar Contactos si existe
-    contacts_msg = ""
-    if os.path.exists(DEFAULT_CONTACTS_PATH):
-        try:
-            contacts_bytes = safe_read_bytes(DEFAULT_CONTACTS_PATH)
-            df_contacts = parse_bytes_to_dataframe(contacts_bytes, "Base de Datos Correos y Teléfonos al 06-08 (2).xlsx")
-            df_contacts = standardize_contacts_dataframe(df_contacts)
-            DATA_STORE["df_contacts_raw"] = df_contacts
-            DATA_STORE["contacts_filename"] = "Base de Contactos y Campañas (Ejemplo)"
-            contacts_msg = f" + {len(df_contacts):,} contactos unificados."
-        except Exception as e:
-            print("Aviso: No se pudo cargar archivo de contactos de ejemplo:", e)
+    # 2. Asegurar que la Base de Datos Maestra esté cargada en memoria
+    if DATA_STORE["df_contacts_raw"] is None or DATA_STORE["df_contacts_raw"].empty:
+        load_contacts_from_db()
+
+    total_db_contacts = len(DATA_STORE["df_contacts_raw"]) if DATA_STORE["df_contacts_raw"] is not None else 0
+    DATA_STORE["contacts_filename"] = f"Base de Datos Activa ({total_db_contacts:,} clientes)"
+    contacts_msg = f" + {total_db_contacts:,} clientes en Base de Datos."
 
     # 3. Unificar y Enriquecer
     enrich_and_merge_datasets()
@@ -1006,7 +1127,7 @@ def load_sample():
 
 @app.post("/api/upload")
 async def upload_cartera(file: UploadFile = File(...)):
-    """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos, se auto-enruta inteligentemente."""
+    """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos o campañas, actualiza la Base de Datos SQLite."""
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
@@ -1015,11 +1136,11 @@ async def upload_cartera(file: UploadFile = File(...)):
         raw_df = parse_bytes_to_dataframe(contents, file.filename)
         detected = detect_file_type(raw_df)
         
-        # Auto-enrutamiento inteligente: si el usuario subió la base de contactos en la opción de cartera
+        # Auto-enrutamiento inteligente: si el usuario subió un archivo de contactos o campañas
         if detected == "contacts":
             df_contacts = standardize_contacts_dataframe(raw_df)
-            DATA_STORE["df_contacts_raw"] = df_contacts
-            DATA_STORE["contacts_filename"] = file.filename
+            db_stats = upsert_contacts_to_db(df_contacts)
+            DATA_STORE["contacts_filename"] = f"Base de Datos Activa ({db_stats['total_in_db']:,} clientes)"
             
             enrich_and_merge_datasets()
             
@@ -1031,9 +1152,14 @@ async def upload_cartera(file: UploadFile = File(...)):
             
             return {
                 "auto_routed": "contacts",
-                "message": f"Detección inteligente: '{file.filename}' es la Base de Contactos ({len(df_contacts):,} clientes) y fue procesada automáticamente en su sección.",
-                "total_contacts": len(df_contacts),
-                "filename": file.filename,
+                "message": (
+                    f"Base de Datos actualizada con '{file.filename}': "
+                    f"{db_stats['processed']:,} registros procesados ({db_stats['added']:,} clientes nuevos sumados). "
+                    f"Total en BD: {db_stats['total_in_db']:,} clientes."
+                ),
+                "total_contacts": db_stats["total_in_db"],
+                "added_contacts": db_stats["added"],
+                "filename": DATA_STORE["contacts_filename"],
                 "metadata": meta,
                 "totals": totals,
                 "resumen_global_tramos": resumen_global,
@@ -1044,14 +1170,16 @@ async def upload_cartera(file: UploadFile = File(...)):
         DATA_STORE["df_cartera_raw"] = df
         DATA_STORE["cartera_filename"] = file.filename
         
-        # Cruzar con contactos si ya estaban cargados
+        # Asegurar que la Base de Datos esté en memoria y cruzar automáticamente
+        if DATA_STORE["df_contacts_raw"] is None or DATA_STORE["df_contacts_raw"].empty:
+            load_contacts_from_db()
         enrich_and_merge_datasets()
         
         active_df = DATA_STORE["df_original"]
         resumen_global = calculate_global_tramos_summary(active_df)
         matriz_campanas = calculate_campanas_tramos_matrix(active_df)
         return {
-            "message": f"Archivo de cartera '{file.filename}' procesado con éxito.",
+            "message": f"Archivo de cartera '{file.filename}' procesado y cruzado con la Base de Datos con éxito.",
             "metadata": get_metadata(active_df),
             "totals": calculate_totals(active_df),
             "resumen_global_tramos": resumen_global,
@@ -1060,11 +1188,11 @@ async def upload_cartera(file: UploadFile = File(...)):
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Error al procesar archivo de cartera: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error al procesar archivo: {str(e)}")
 
 @app.post("/api/contacts/upload")
 async def upload_contacts(file: UploadFile = File(...)):
-    """Sube la base de contactos y campañas. Si se detecta que es cartera, se auto-enruta inteligentemente."""
+    """Sube un archivo de contactos o campañas para sumar/actualizar la Base de Datos SQLite."""
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
@@ -1079,6 +1207,8 @@ async def upload_contacts(file: UploadFile = File(...)):
             DATA_STORE["df_cartera_raw"] = df
             DATA_STORE["cartera_filename"] = file.filename
             
+            if DATA_STORE["df_contacts_raw"] is None or DATA_STORE["df_contacts_raw"].empty:
+                load_contacts_from_db()
             enrich_and_merge_datasets()
             
             active_df = DATA_STORE["df_original"]
@@ -1086,7 +1216,7 @@ async def upload_contacts(file: UploadFile = File(...)):
             matriz_campanas = calculate_campanas_tramos_matrix(active_df)
             return {
                 "auto_routed": "cartera",
-                "message": f"Detección inteligente: '{file.filename}' es el Archivo de Cartera ({len(df):,} cuotas) y fue procesado automáticamente en su sección.",
+                "message": f"Detección inteligente: '{file.filename}' es el Archivo de Cartera ({len(df):,} cuotas) y fue procesado automáticamente.",
                 "metadata": get_metadata(active_df),
                 "totals": calculate_totals(active_df),
                 "resumen_global_tramos": resumen_global,
@@ -1094,8 +1224,8 @@ async def upload_contacts(file: UploadFile = File(...)):
             }
 
         df = standardize_contacts_dataframe(raw_df)
-        DATA_STORE["df_contacts_raw"] = df
-        DATA_STORE["contacts_filename"] = file.filename
+        db_stats = upsert_contacts_to_db(df)
+        DATA_STORE["contacts_filename"] = f"Base de Datos Activa ({db_stats['total_in_db']:,} clientes)"
         
         # Cruzar inmediatamente con cartera
         enrich_and_merge_datasets()
@@ -1107,9 +1237,14 @@ async def upload_contacts(file: UploadFile = File(...)):
         matriz_campanas = calculate_campanas_tramos_matrix(active_df) if active_df is not None else {}
         
         return {
-            "message": f"Base de contactos '{file.filename}' cargada: {len(df):,} clientes indexados.",
-            "total_contacts": len(df),
-            "filename": file.filename,
+            "message": (
+                f"Base de Datos actualizada con '{file.filename}': "
+                f"{db_stats['processed']:,} registros procesados ({db_stats['added']:,} clientes nuevos sumados). "
+                f"Total en BD: {db_stats['total_in_db']:,} clientes."
+            ),
+            "total_contacts": db_stats["total_in_db"],
+            "added_contacts": db_stats["added"],
+            "filename": DATA_STORE["contacts_filename"],
             "metadata": meta,
             "totals": totals,
             "resumen_global_tramos": resumen_global,
@@ -1122,21 +1257,19 @@ async def upload_contacts(file: UploadFile = File(...)):
 
 @app.post("/api/process")
 def process_data(req: FilterRequest):
-    """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Requiere ambos archivos obligatorios."""
+    """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Solo requiere el archivo de Cartera."""
     has_cartera = DATA_STORE["df_cartera_raw"] is not None
-    has_contacts = DATA_STORE["df_contacts_raw"] is not None
-    
-    if not has_cartera or not has_contacts:
-        missing = []
-        if not has_cartera:
-            missing.append("Archivo de Cartera / Mora (cuotas y saldos)")
-        if not has_contacts:
-            missing.append("Base de Contactos y Clientes (teléfonos y campañas)")
+    if not has_cartera:
         raise HTTPException(
             status_code=400, 
-            detail=f"Falta archivo obligatorio: {', '.join(missing)}. Debes subir ambos archivos para poder procesar la cartera."
+            detail="Falta archivo obligatorio: Archivo de Cartera / Mora (cuotas y saldos). Debes subir el archivo de mora para poder procesar."
         )
     
+    if DATA_STORE["df_contacts_raw"] is None or DATA_STORE["df_contacts_raw"].empty:
+        load_contacts_from_db()
+    if DATA_STORE["df_original"] is None:
+        enrich_and_merge_datasets()
+
     df_master = DATA_STORE["df_original"].copy()
     
     if req.cartera_activa is not None:

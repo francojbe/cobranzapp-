@@ -151,13 +151,13 @@
             </div>
             <div>
               <h3 class="text-lg font-bold text-slate-900 leading-tight">Sube tus archivos</h3>
-              <p class="text-xs text-slate-500 mt-0.5">Carga tus 2 archivos obligatorios para cruzar montos de deuda con teléfonos de WhatsApp y campañas</p>
+              <p class="text-xs text-slate-500 mt-0.5">Sube tu archivo de <strong>Cartera / Mora</strong> para procesar. La <strong>Base de Contactos y Campañas</strong> ya está cargada en la Base de Datos integrada (opcionalmente puedes subir nuevos archivos para sumar más clientes).</p>
             </div>
           </div>
           
           <!-- Botón de Cargar Archivos de Prueba Integrado -->
           <button onclick="loadSampleFiles()" id="btn-load-samples" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer self-start md:self-auto shrink-0">
-            <i class="fa-solid fa-play text-amber-400"></i> Cargar Archivos de Prueba Locales
+            <i class="fa-solid fa-play text-amber-400"></i> Cargar Cartera de Prueba Local
           </button>
         </div>
 
@@ -176,21 +176,21 @@
               
               <div>
                 <p class="text-base sm:text-lg font-bold text-slate-900">Haz clic o arrastra aquí tus archivos</p>
-                <p class="text-xs text-slate-500 mt-1 max-w-md mx-auto leading-relaxed">
-                  Arrastra o selecciona tus 2 archivos obligatorios: <strong>Cartera de Mora</strong> (<code>mora.csv</code>) y <strong>Base de Contactos</strong> (<code>Excel .xlsx</code>). Puedes subirlos juntos o uno a uno.
+                <p class="text-xs text-slate-500 mt-1 max-w-lg mx-auto leading-relaxed">
+                  Sube tu archivo obligatorio de <strong>Cartera de Mora</strong> (<code>mora.csv</code>). Si en el futuro necesitas agregar o actualizar clientes, también puedes arrastrar aquí un archivo de <strong>Contactos o Campañas</strong> (<code>.csv</code> o <code>.xlsx</code>) para sumarlo a la Base de Datos.
                 </p>
               </div>
 
               <!-- Píldoras informativas -->
               <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] text-slate-600">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> 1. Cartera: mora.csv o .xlsx
+                  <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> 1. Cartera (Obligatorio): mora.csv o .xlsx
                 </span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-address-book text-emerald-600"></i> 2. Contactos: .xlsx o .csv
+                  <i class="fa-solid fa-database text-emerald-600"></i> 2. Contactos/Campañas (Opcional - Ya en BD): .xlsx o .csv
                 </span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> Detección automática en memoria
+                  <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> Guardado incremental en Base de Datos
                 </span>
               </div>
             </div>
@@ -226,19 +226,19 @@
             </div>
 
             <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-              <span id="progress-step-indicator" class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Motor Calamine ultrarrápido</span>
+              <span id="progress-step-indicator" class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Motor Calamine + SQLite</span>
               <span id="progress-engine-tag" class="font-mono text-[10px] text-slate-500">Pipeline en memoria activa</span>
             </div>
           </div>
         </div>
 
-        <!-- Checklist de Validación de Ambos Archivos Obligatorios -->
+        <!-- Checklist de Validación de Archivos -->
         <div class="bg-slate-50 border-t border-slate-100 p-5 sm:p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i class="fa-solid fa-list-check text-blue-600"></i> Archivos requeridos para procesar (2 de 2 obligatorios)
+              <i class="fa-solid fa-list-check text-blue-600"></i> Estado de Fuentes de Datos (Cartera Obligatoria + Base de Datos de Contactos)
             </h4>
-            <span id="files-status-summary" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">0 de 2 cargados</span>
+            <span id="files-status-summary" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">Verificando...</span>
           </div>
 
           <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
@@ -252,40 +252,50 @@
                 <div class="truncate">
                   <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-slate-900 truncate" id="cartera-filename-label">1. Archivo de Cartera / Mora</span>
-                    <span id="badge-cartera" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Falta archivo</span>
+                    <span id="badge-cartera" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Obligatorio</span>
                   </div>
                   <div class="text-[11px] text-slate-400 mt-0.5" id="cartera-status-detail">Pendiente de subir (cuotas y días de mora)</div>
                 </div>
               </div>
-              <span id="cartera-count-label" class="text-xs font-mono font-bold text-slate-500 shrink-0 ml-2">0 cuotas</span>
+              <div class="flex items-center gap-2 shrink-0 ml-2">
+                <span id="cartera-count-label" class="text-xs font-mono font-bold text-slate-500">0 cuotas</span>
+                <button type="button" onclick="document.getElementById('file-cartera-input').click()" class="px-2.5 py-1 text-[11px] font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg transition-colors cursor-pointer" title="Subir archivo de Cartera / Mora">
+                  <i class="fa-solid fa-upload mr-1"></i>Subir
+                </button>
+              </div>
             </div>
 
-            <!-- Tarjeta 2: Contactos -->
+            <!-- Tarjeta 2: Contactos (Base de Datos Integrada + Carga Opcional) -->
             <div id="card-status-contacts" class="flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all">
               <div class="flex items-center gap-3 overflow-hidden">
-                <div id="icon-status-contacts" class="w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors">
-                  <i class="fa-solid fa-address-book"></i>
+                <div id="icon-status-contacts" class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-sm shrink-0 transition-colors">
+                  <i class="fa-solid fa-database"></i>
                 </div>
                 <div class="truncate">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-900 truncate" id="contacts-filename-label">2. Base de Clientes y Contactos</span>
-                    <span id="badge-contacts" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Falta archivo</span>
+                    <span class="text-xs font-bold text-slate-900 truncate" id="contacts-filename-label">2. Base de Contactos y Campañas</span>
+                    <span id="badge-contacts" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">✓ En Base de Datos</span>
                   </div>
-                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Pendiente de subir (teléfonos y campañas)</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Precargada en BD local (Opcional: sube archivo para sumar clientes)</div>
                 </div>
               </div>
-              <span id="contacts-count-label" class="text-xs font-mono font-bold text-slate-500 shrink-0 ml-2">0 clientes</span>
+              <div class="flex items-center gap-2 shrink-0 ml-2">
+                <span id="contacts-count-label" class="text-xs font-mono font-bold text-slate-500">0 clientes</span>
+                <button type="button" onclick="document.getElementById('file-contacts-input').click()" class="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer" title="Opcional: Subir archivo de Contactos o Campañas para agregar/actualizar clientes en la Base de Datos">
+                  <i class="fa-solid fa-user-plus mr-1"></i>Sumar a BD
+                </button>
+              </div>
             </div>
 
           </div>
 
-          <!-- Botón de Procesar Archivos con Validación Estricta -->
+          <!-- Botón de Procesar Archivos -->
           <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/60">
             <div class="text-xs text-slate-500 flex items-center gap-1.5" id="process-help-text">
-              <i class="fa-solid fa-circle-info text-blue-500"></i> Se requieren ambos archivos para cruzar montos de deuda con teléfonos de WhatsApp.
+              <i class="fa-solid fa-database text-emerald-600"></i> Base de Contactos y Campañas activa en BD local. Solo necesitas subir el archivo de <strong>Cartera / Mora</strong> para procesar.
             </div>
             <button onclick="handleProcessClick()" id="btn-process-files" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer">
-              <span>Procesar Archivos</span> <i class="fa-solid fa-arrow-right"></i>
+              <span>Procesar Cartera</span> <i class="fa-solid fa-arrow-right"></i>
             </button>
           </div>
 
@@ -1107,37 +1117,23 @@
 
     function handleProcessClick() {
       const hasCartera = Boolean(currentFilesState.cartera_loaded);
-      const hasContacts = Boolean(currentFilesState.contacts_loaded);
 
-      if (!hasCartera && !hasContacts) {
-        showToast('error', 'Faltan Ambos Archivos', 'Debes subir la Cartera de Mora (mora.csv) y la Base de Contactos (.xlsx) para poder procesar.');
-        highlightMissingCard('cartera');
-        highlightMissingCard('contacts');
-        return false;
-      }
-
-      if (!hasCartera && hasContacts) {
-        showToast('error', 'Falta el Archivo de Cartera', 'Falta subir el archivo de Cartera / Mora (mora.csv o .xlsx) con las cuotas y días de mora.');
+      if (!hasCartera) {
+        showToast('error', 'Falta el Archivo de Cartera', 'Debes subir el archivo de Cartera / Mora (mora.csv o .xlsx) para poder procesar y cruzar con la Base de Datos.');
         highlightMissingCard('cartera');
         return false;
       }
 
-      if (hasCartera && !hasContacts) {
-        showToast('error', 'Falta la Base de Contactos', 'Falta subir la Base de Contactos (.xlsx o .csv) para vincular teléfonos de WhatsApp y campañas.');
-        highlightMissingCard('contacts');
-        return false;
-      }
-
-      // Ambos archivos presentes
-      showToast('success', '¡Archivos Verificados!', 'Cartera y Base de Contactos listas. Abriendo desglose y segmentación...');
+      // Cartera presente (y contactos precargados en Base de Datos)
+      showToast('success', '¡Cartera Lista!', 'Cartera cruzada con la Base de Datos de Contactos y Campañas. Abriendo segmentación...');
       switchTab('tab-segment', true);
       return true;
     }
 
     function switchTab(tabId, bypassCheck = false) {
-      // Si el usuario intenta salir de la carga sin ambos archivos, bloquear y avisar
+      // Si el usuario intenta salir de la carga sin el archivo de cartera, bloquear y avisar
       if (tabId !== 'tab-upload' && !bypassCheck) {
-        if (!currentFilesState.cartera_loaded || !currentFilesState.contacts_loaded) {
+        if (!currentFilesState.cartera_loaded) {
           handleProcessClick();
           return;
         }
@@ -1206,23 +1202,23 @@
         }
         if (carteraName) carteraName.textContent = currentFilesState.cartera_filename || 'Cartera de Mora activa';
         if (carteraCount) carteraCount.textContent = `${Number(meta.total_rows || 0).toLocaleString()} cuotas`;
-        if (carteraDetail) carteraDetail.textContent = 'Verificado e indexado en memoria';
+        if (carteraDetail) carteraDetail.textContent = 'Verificado y cruzado con Base de Datos';
         if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
       } else {
         if (carteraBadge) {
           carteraBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
-          carteraBadge.textContent = 'Falta archivo';
+          carteraBadge.textContent = 'Obligatorio';
         }
         if (carteraIcon) {
           carteraIcon.className = 'w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors';
         }
         if (carteraName) carteraName.textContent = '1. Archivo de Cartera / Mora';
         if (carteraCount) carteraCount.textContent = '0 cuotas';
-        if (carteraDetail) carteraDetail.textContent = 'Obligatorio: mora.csv o .xlsx';
+        if (carteraDetail) carteraDetail.textContent = 'Obligatorio: sube mora.csv o .xlsx para procesar';
         if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
       }
 
-      // Elementos de la tarjeta de Contactos
+      // Elementos de la tarjeta de Contactos (Base de Datos Integrada)
       const contactsCard = document.getElementById('card-status-contacts');
       const contactsBadge = document.getElementById('badge-contacts');
       const contactsIcon = document.getElementById('icon-status-contacts');
@@ -1233,80 +1229,77 @@
       if (currentFilesState.contacts_loaded) {
         if (contactsBadge) {
           contactsBadge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
-          contactsBadge.textContent = '✓ Listo';
+          contactsBadge.textContent = '✓ En Base de Datos';
         }
         if (contactsIcon) {
           contactsIcon.className = 'w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 border border-emerald-200 flex items-center justify-center text-sm shrink-0 transition-colors';
         }
-        if (contactsName) contactsName.textContent = currentFilesState.contacts_filename || 'Base de Contactos activa';
+        if (contactsName) contactsName.textContent = currentFilesState.contacts_filename || 'Base de Contactos y Campañas (BD)';
         const totalContactsIdx = Number(data.total_contacts || meta.total_contacts || 0);
         const totalWithPhone = Number(totals.total_con_telefono || 0);
         if (contactsCount) {
           if (currentFilesState.cartera_loaded && totalWithPhone > 0) {
             contactsCount.textContent = `${totalWithPhone.toLocaleString()} con WhatsApp`;
           } else {
-            contactsCount.textContent = `${(totalContactsIdx || totalWithPhone).toLocaleString()} clientes`;
+            contactsCount.textContent = `${(totalContactsIdx || totalWithPhone).toLocaleString()} en BD`;
           }
         }
-        if (contactsDetail) contactsDetail.textContent = 'Indexado y listo para WhatsApp y campañas';
+        if (contactsDetail) contactsDetail.textContent = 'Activa en BD local (Opcional: sube archivo para sumar más)';
         if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
       } else {
         if (contactsBadge) {
-          contactsBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
-          contactsBadge.textContent = 'Falta archivo';
+          contactsBadge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200';
+          contactsBadge.textContent = 'Opcional';
         }
         if (contactsIcon) {
           contactsIcon.className = 'w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors';
         }
-        if (contactsName) contactsName.textContent = '2. Base de Clientes y Contactos';
-        if (contactsCount) contactsCount.textContent = '0 clientes';
-        if (contactsDetail) contactsDetail.textContent = 'Obligatorio: teléfonos y campañas';
+        if (contactsName) contactsName.textContent = '2. Base de Contactos y Campañas';
+        if (contactsCount) contactsCount.textContent = '0 en BD';
+        if (contactsDetail) contactsDetail.textContent = 'Opcional: sube archivo para cargar a la BD';
         if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
       }
 
-      // Resumen del checklist (X de 2 cargados)
+      // Resumen del checklist
       const summaryBadge = document.getElementById('files-status-summary');
       const btnProcess = document.getElementById('btn-process-files');
-      const loadedCount = (currentFilesState.cartera_loaded ? 1 : 0) + (currentFilesState.contacts_loaded ? 1 : 0);
 
       if (summaryBadge) {
-        if (loadedCount === 2) {
+        if (currentFilesState.cartera_loaded) {
           summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5';
-          summaryBadge.innerHTML = `<i class="fa-solid fa-check"></i> 2 de 2 cargados (Listo)`;
-        } else if (loadedCount === 1) {
-          summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1.5';
-          summaryBadge.innerHTML = `<i class="fa-solid fa-circle-exclamation"></i> 1 de 2 cargados (Incompleto)`;
+          summaryBadge.innerHTML = `<i class="fa-solid fa-check"></i> Cartera + BD Listas para Procesar`;
+        } else if (currentFilesState.contacts_loaded) {
+          summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1.5';
+          summaryBadge.innerHTML = `<i class="fa-solid fa-database"></i> BD Activa (Sube Cartera de Mora)`;
         } else {
           summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700';
-          summaryBadge.textContent = '0 de 2 cargados';
+          summaryBadge.textContent = 'Esperando Cartera de Mora';
         }
       }
 
       if (btnProcess) {
-        if (loadedCount === 2) {
+        if (currentFilesState.cartera_loaded) {
           btnProcess.className = 'w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition-all cursor-pointer ring-2 ring-emerald-400/50';
-          btnProcess.innerHTML = `<span>Procesar Archivos</span> <i class="fa-solid fa-arrow-right"></i>`;
+          btnProcess.innerHTML = `<span>Procesar Cartera</span> <i class="fa-solid fa-arrow-right"></i>`;
         } else {
           btnProcess.className = 'w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer';
-          btnProcess.innerHTML = `<span>Procesar Archivos</span> <i class="fa-solid fa-arrow-right"></i>`;
+          btnProcess.innerHTML = `<span>Procesar Cartera</span> <i class="fa-solid fa-arrow-right"></i>`;
         }
       }
 
       // Top badge en cabecera
       const topBadge = document.getElementById('file-status-badge');
       if (topBadge) {
-        if (currentFilesState.cartera_loaded && currentFilesState.contacts_loaded) {
+        if (currentFilesState.cartera_loaded) {
           topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
-          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera + Contactos vinculados (${Number(meta.total_rows || 0).toLocaleString()} cuotas)</span>`;
-        } else if (currentFilesState.cartera_loaded) {
-          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200';
-          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Cartera cargada (Falta Base de Contactos)</span>`;
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera + BD vinculadas (${Number(meta.total_rows || 0).toLocaleString()} cuotas)</span>`;
         } else if (currentFilesState.contacts_loaded) {
-          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200';
-          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-500"></span><span>Contactos cargados (Falta Cartera de Mora)</span>`;
+          const totalContactsIdx = Number(data.total_contacts || meta.total_contacts || 0);
+          topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200';
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500"></span><span>BD Activa (${totalContactsIdx.toLocaleString()} clientes) · Sube Cartera</span>`;
         } else {
           topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200';
-          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Sin archivos cargados</span>`;
+          topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Sin cartera cargada</span>`;
         }
       }
 
@@ -1336,7 +1329,7 @@
       btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando y cruzando...`;
       btn.disabled = true;
 
-      ProgressController.start('Cargando archivos del servidor...', 'Leyendo mora.csv y Base de Contactos del servidor...');
+      ProgressController.start('Cargando cartera de prueba...', 'Leyendo mora.csv y cruzando con la Base de Datos SQLite...');
 
       try {
         const res = await fetch('/api/load-sample', { method: 'POST' });
@@ -1346,14 +1339,14 @@
             loaded: true,
             contacts_loaded: true,
             cartera_filename: 'mora.csv (Cartera Principal)',
-            contacts_filename: 'Base de Contactos y Campañas (Ejemplo)',
+            contacts_filename: 'Base de Datos SQLite (Contactos + Campañas)',
             metadata: data.metadata,
             totals: data.totals,
             resumen_global_tramos: data.resumen_global_tramos,
             matriz_campanas_tramos: data.matriz_campanas_tramos
           });
-          ProgressController.complete('¡Cartera y contactos sincronizados!', () => {
-            showToast('success', '¡Carga Completada con Éxito!', '47.083 cuotas de cartera y 194.042 contactos vinculados al instante.');
+          ProgressController.complete('¡Cartera y Base de Datos sincronizadas!', () => {
+            showToast('success', '¡Carga Completada con Éxito!', `${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas de cartera cruzadas con ${Number(data.metadata?.total_contacts || 0).toLocaleString()} clientes en Base de Datos.`);
             switchTab('tab-segment', true);
           });
         } else {
@@ -1401,7 +1394,7 @@
       if (loadDiv) loadDiv.classList.remove('hidden');
       if (loadText) loadText.textContent = `Procesando ${file.name}...`;
 
-      ProgressController.start(`Subiendo: ${file.name}`, 'Analizando estructura del archivo con motor Calamine...');
+      ProgressController.start(`Subiendo: ${file.name}`, 'Analizando estructura del archivo y sincronizando con Base de Datos...');
 
       const formData = new FormData();
       formData.append('file', file);
@@ -1415,18 +1408,20 @@
               loaded: currentFilesState.cartera_loaded,
               contacts_loaded: true,
               cartera_filename: currentFilesState.cartera_filename,
-              contacts_filename: file.name,
+              contacts_filename: `BD Actualizada (+ ${file.name})`,
               total_contacts: data.total_contacts,
               metadata: data.metadata,
               totals: data.totals,
               resumen_global_tramos: data.resumen_global_tramos,
               matriz_campanas_tramos: data.matriz_campanas_tramos
             });
-            ProgressController.complete('¡Base de contactos unificada!', () => {
+            ProgressController.complete('¡Base de Datos actualizada!', () => {
+              const nuevos = Number(data.added_contacts || data.nuevos_agregados || 0);
+              const extraMsg = nuevos > 0 ? ` (${nuevos.toLocaleString()} nuevos agregados)` : '';
               if (currentFilesState.cartera_loaded) {
-                showToast('success', '¡Ambos Archivos Listos!', `Base de Contactos indexada (${Number(data.total_contacts).toLocaleString()} clientes). Ya puedes hacer clic en 'Procesar Archivos'.`);
+                showToast('success', '¡Base de Datos Actualizada!', `Total en BD: ${Number(data.total_contacts).toLocaleString()} clientes${extraMsg}. Ya puedes hacer clic en 'Procesar Cartera'.`);
               } else {
-                showToast('info', 'Base de Contactos Cargada', `Se indexaron ${Number(data.total_contacts).toLocaleString()} contactos. Recuerda que aún falta subir la Cartera de Mora (mora.csv) para poder procesar.`);
+                showToast('success', '¡Base de Datos Actualizada!', `Total en BD: ${Number(data.total_contacts).toLocaleString()} clientes${extraMsg}. Sube tu archivo de Cartera (mora.csv) cuando quieras procesar.`);
               }
             });
           } else {
@@ -1440,12 +1435,8 @@
               resumen_global_tramos: data.resumen_global_tramos,
               matriz_campanas_tramos: data.matriz_campanas_tramos
             });
-            ProgressController.complete('¡Cartera procesada con éxito!', () => {
-              if (currentFilesState.contacts_loaded) {
-                showToast('success', '¡Ambos Archivos Listos!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas). Ya puedes hacer clic en 'Procesar Archivos'.`);
-              } else {
-                showToast('info', 'Cartera de Mora Cargada', `Se procesaron ${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas. Recuerda que aún falta subir la Base de Contactos (.xlsx) para poder procesar.`);
-              }
+            ProgressController.complete('¡Cartera procesada y cruzada con BD!', () => {
+              showToast('success', '¡Cartera Lista para Procesar!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas) y cruzada automáticamente con la Base de Datos de Contactos y Campañas.`);
             });
           }
         } else {
