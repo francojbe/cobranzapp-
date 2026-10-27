@@ -601,10 +601,10 @@
           <div class="flex flex-wrap items-center gap-3">
             <!-- Botones de Descarga del Indicador -->
             <div class="flex items-center gap-2">
-              <a href="/api/tramos/download/excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar Resumen de Tramos en formato Excel">
+              <a id="btn-download-tramos-excel" href="/api/tramos/download/excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar Resumen de Tramos en formato Excel">
                 <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Tramos
               </a>
-              <a href="/api/tramos/download/pdf" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar Reporte PDF de Tramos">
+              <a id="btn-download-tramos-pdf" href="/api/tramos/download/pdf" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar Reporte PDF de Tramos">
                 <i class="fa-solid fa-file-pdf text-rose-600"></i> PDF Tramos
               </a>
             </div>
@@ -617,6 +617,28 @@
               <div>
                 <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Tarifa Pendiente Total</div>
                 <div id="banner-cartera-activa" class="text-xl font-black font-mono tracking-tight text-white">$0 USD</div>
+              </div>
+            </div>
+
+            <!-- Card Input Manual: Cartera Activa Total (USD) -->
+            <div class="bg-white border-2 border-dashed border-amber-300 hover:border-amber-400 focus-within:border-amber-500 rounded-2xl px-4 py-2 transition-all shadow-2xs flex items-center gap-3">
+              <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center text-base shrink-0">
+                <i class="fa-solid fa-hand-holding-dollar"></i>
+              </div>
+              <div>
+                <div class="flex items-center gap-1.5">
+                  <label for="input-cartera-activa-manual" class="text-[10px] font-bold uppercase tracking-wider text-slate-600">
+                    Cartera Activa Total (USD)
+                  </label>
+                  <span class="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded" title="Ingresa el monto de cartera activa disponible para calcular los % de morosidad">Manual</span>
+                </div>
+                <div class="flex items-center gap-1 mt-0.5">
+                  <span class="text-sm font-bold text-slate-400 font-mono">$</span>
+                  <input type="text" id="input-cartera-activa-manual" 
+                         class="w-44 text-sm font-black font-mono text-slate-900 bg-transparent border-0 p-0 focus:ring-0 placeholder:text-slate-400 placeholder:font-normal placeholder:text-xs" 
+                         placeholder="Ej: 1,838,713 (Ingresa valor)" 
+                         oninput="handleCarteraActivaManualInput(this.value)" />
+                </div>
               </div>
             </div>
           </div>
@@ -635,7 +657,7 @@
                   <th class="py-3 px-3.5 text-right">Cant. Cuotas</th>
                   <th class="py-3 px-3.5 text-right">Clientes</th>
                   <th class="py-3 px-3.5 text-right">Tarifa (USD)</th>
-                  <th class="py-3 px-3.5 text-right">% Tarifa</th>
+                  <th class="py-3 px-3.5 text-right">% Cartera Activa</th>
                 </tr>
               </thead>
               <tbody id="global-tramos-tbody" class="divide-y divide-slate-100 font-mono">
@@ -1596,7 +1618,8 @@
             programas: programas,
             tipos: tipos,
             only_with_phone: onlyPhone,
-            group_by: "Tramo_Mora"
+            group_by: "Tramo_Mora",
+            cartera_activa: currentCarteraActivaManual
           })
         });
 
@@ -1646,8 +1669,76 @@
       renderPreviewTable(data.preview, data.total_filtered);
     }
 
+    let currentCarteraActivaManual = null;
+    let currentGlobalSummary = null;
+
+    function parseManualNumber(val) {
+      if (!val) return null;
+      let cleaned = String(val).replace(/[\$\s]/g, '');
+      if ((cleaned.match(/\./g) || []).length > 1) {
+        cleaned = cleaned.replace(/\./g, '');
+      } else if ((cleaned.match(/,/g) || []).length > 1) {
+        cleaned = cleaned.replace(/,/g, '');
+      } else if (cleaned.includes('.') && cleaned.includes(',')) {
+        if (cleaned.lastIndexOf('.') > cleaned.lastIndexOf(',')) {
+          cleaned = cleaned.replace(/,/g, '');
+        } else {
+          cleaned = cleaned.replace(/\./g, '').replace(',', '.');
+        }
+      } else if (cleaned.includes(',')) {
+        cleaned = cleaned.replace(',', '.');
+      }
+      const n = parseFloat(cleaned);
+      return isNaN(n) || n <= 0 ? null : n;
+    }
+
+    function handleCarteraActivaManualInput(val) {
+      currentCarteraActivaManual = parseManualNumber(val);
+
+      // Actualizar URLs de descarga de los botones Excel y PDF de Tramos
+      const excelBtn = document.getElementById('btn-download-tramos-excel');
+      const pdfBtn = document.getElementById('btn-download-tramos-pdf');
+      const qParam = currentCarteraActivaManual ? `?cartera_activa=${currentCarteraActivaManual}` : '';
+      if (excelBtn) excelBtn.href = `/api/tramos/download/excel${qParam}`;
+      if (pdfBtn) pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
+
+      // Notificar al backend en segundo plano para persistir en DATA_STORE
+      if (window.carteraActivaDebounce) clearTimeout(window.carteraActivaDebounce);
+      window.carteraActivaDebounce = setTimeout(() => {
+        fetch('/api/tramos/set-cartera-activa', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cartera_activa: currentCarteraActivaManual })
+        }).catch(() => {});
+      }, 400);
+
+      // Re-renderizar la tabla de tramos con los nuevos porcentajes
+      if (currentGlobalSummary) {
+        renderGlobalTramosScorecard(currentGlobalSummary);
+      }
+    }
+
     function renderGlobalTramosScorecard(globalSummary) {
       if (!globalSummary || !globalSummary.tramos || globalSummary.tramos.length === 0) return;
+      currentGlobalSummary = globalSummary;
+
+      // Sincronizar input si vino desde el backend
+      const inputElem = document.getElementById('input-cartera-activa-manual');
+      if (inputElem) {
+        if (currentCarteraActivaManual === null && globalSummary.cartera_activa_usd) {
+          currentCarteraActivaManual = Number(globalSummary.cartera_activa_usd);
+          inputElem.value = currentCarteraActivaManual.toLocaleString('es-CL');
+        } else if (inputElem.value && currentCarteraActivaManual === null) {
+          currentCarteraActivaManual = parseManualNumber(inputElem.value);
+        }
+      }
+
+      // Sincronizar botones de descarga
+      const excelBtn = document.getElementById('btn-download-tramos-excel');
+      const pdfBtn = document.getElementById('btn-download-tramos-pdf');
+      const qParam = currentCarteraActivaManual ? `?cartera_activa=${currentCarteraActivaManual}` : '';
+      if (excelBtn) excelBtn.href = `/api/tramos/download/excel${qParam}`;
+      if (pdfBtn) pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
 
       // 1. Fecha de corte
       const dateElem = document.getElementById('tramos-cutoff-date');
@@ -1655,7 +1746,7 @@
         dateElem.textContent = `al ${globalSummary.cutoff_date}`;
       }
 
-      // 2. Banner Ejecutivo "Cartera activa (USD)" (Diseño idéntico a referencia: Rosa/Fucsia + Amarillo)
+      // 2. Banner Ejecutivo "Tarifa Pendiente Total"
       const bannerElem = document.getElementById('banner-cartera-activa');
       if (bannerElem) {
         const formattedTotal = Number(globalSummary.total_cartera_usd).toLocaleString('es-CL', {
@@ -1680,11 +1771,16 @@
         chartValues.push(t.total_monto);
         chartColors.push(t.color || '#3b82f6');
 
-        // Destaque elegante para el tramo con mayor concentración (ej: 91 a 180 días)
-        const isDominant = t.porcentaje >= 30;
-        const pctBadge = isDominant
-          ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200 shadow-2xs">${Number(t.porcentaje).toFixed(2)}%</span>`
-          : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-700 border border-slate-200">${Number(t.porcentaje).toFixed(2)}%</span>`;
+        let pctBadge = '';
+        if (currentCarteraActivaManual && currentCarteraActivaManual > 0) {
+          const pct = (t.total_monto / currentCarteraActivaManual) * 100;
+          const isHigh = pct >= 8.0;
+          pctBadge = isHigh
+            ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs">${pct.toFixed(2)}%</span>`
+            : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">${pct.toFixed(2)}%</span>`;
+        } else {
+          pctBadge = `<span class="text-slate-400 font-mono text-xs font-normal" title="Ingresa la Cartera Activa Total arriba para calcular el %">-</span>`;
+        }
 
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50/80 transition-colors border-b border-slate-100 cursor-pointer';
@@ -1716,6 +1812,14 @@
 
       // 4. Footer Fila Total Consolidada (Armonizado con la paleta de CobranzApp)
       if (tfoot) {
+        let footerPctDisplay = '';
+        if (currentCarteraActivaManual && currentCarteraActivaManual > 0) {
+          const totPct = (globalSummary.total_cartera_usd / currentCarteraActivaManual) * 100;
+          footerPctDisplay = `<span class="text-blue-700 font-black">${totPct.toFixed(2)}%</span>`;
+        } else {
+          footerPctDisplay = `<span class="text-slate-400 font-normal font-mono text-xs" title="Ingresa la Cartera Activa Total arriba">-</span>`;
+        }
+
         tfoot.innerHTML = `
           <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
             <td class="py-3.5 px-3.5 uppercase tracking-wider text-[11px] text-slate-800">
@@ -1725,7 +1829,9 @@
             <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(globalSummary.total_cuotas).toLocaleString()}</td>
             <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(globalSummary.total_clientes).toLocaleString()}</td>
             <td class="py-3.5 px-3.5 text-right font-mono text-sm text-emerald-700 font-black">$${Number(globalSummary.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-            <td class="py-3.5 px-3.5 text-right text-xs text-blue-700 font-black">100.00%</td>
+            <td class="py-3.5 px-3.5 text-right text-xs">
+              ${footerPctDisplay}
+            </td>
           </tr>
         `;
       }

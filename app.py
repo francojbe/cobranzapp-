@@ -469,7 +469,8 @@ DATA_STORE = {
     "df_original": None,      # Enriquecida y unificada
     "df_filtered": None,      # Filtrada segun criterios
     "filter_info": {},
-    "df_matched": None        # Agregada a nivel deudor para Call Center
+    "df_matched": None,       # Agregada a nivel deudor para Call Center
+    "cartera_activa_manual": None # Monto manual de cartera activa para cálculo de % mora
 }
 
 DEFAULT_MORA_PATH = os.path.join(os.path.dirname(__file__), "mora.csv")
@@ -648,15 +649,17 @@ def get_cutoff_date(df: pd.DataFrame) -> str:
             pass
     return datetime.now().strftime("%d-%m-%Y")
 
-def calculate_global_tramos_summary(df: pd.DataFrame):
+def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
     """Calcula el Resumen Fijo Oficial por Tramos de Mora para la Cartera Total,
-    independientemente de los filtros aplicados en la vista operativa."""
+    calculando los porcentajes respecto a la Cartera Activa Total si ha sido ingresada."""
     if df is None or df.empty:
         return {
             "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
             "total_cartera_usd": 0.0,
             "total_cuotas": 0,
             "total_clientes": 0,
+            "cartera_activa_usd": None,
+            "total_porcentaje": None,
             "tramos": []
         }
 
@@ -676,6 +679,11 @@ def calculate_global_tramos_summary(df: pd.DataFrame):
     total_cuotas = len(df_active)
     total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else total_cuotas
 
+    # Denominador para el cálculo de porcentaje sobre la Cartera Activa Total disponible
+    target_ca = cartera_activa if (cartera_activa is not None and cartera_activa > 0) else DATA_STORE.get("cartera_activa_manual")
+    denom = float(target_ca) if (target_ca is not None and target_ca > 0) else None
+    total_pct = round((total_cartera_usd / denom * 100), 2) if denom else None
+
     tramos = []
     for t_cfg in OFFICIAL_TRAMOS_CONFIG:
         sub = df_active[df_active["Tramo_Mora"] == t_cfg["grupo"]]
@@ -685,7 +693,7 @@ def calculate_global_tramos_summary(df: pd.DataFrame):
         p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
         p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
         monto_grp = round(float(sub["_Tot"].sum()), 2)
-        pct = round((monto_grp / total_cartera_usd * 100), 2) if total_cartera_usd > 0 else 0.0
+        pct = round((monto_grp / denom * 100), 2) if denom else None
 
         tramos.append({
             "id": t_cfg["id"],
@@ -711,6 +719,8 @@ def calculate_global_tramos_summary(df: pd.DataFrame):
         "total_cartera_usd": total_cartera_usd,
         "total_cuotas": total_cuotas,
         "total_clientes": total_clientes,
+        "cartera_activa_usd": denom,
+        "total_porcentaje": total_pct,
         "tramos": tramos
     }
 
@@ -908,6 +918,10 @@ class FilterRequest(BaseModel):
     tipos: Optional[List[str]] = None
     only_with_phone: bool = False
     group_by: str = "Tipo_Campana"
+    cartera_activa: Optional[float] = None
+
+class SetCarteraActivaRequest(BaseModel):
+    cartera_activa: Optional[float] = None
 
 # -------------------------------------------------------------
 # RUTAS DE LA API
@@ -1125,8 +1139,11 @@ def process_data(req: FilterRequest):
     
     df_master = DATA_STORE["df_original"].copy()
     
-    # 1. Resumen Global Fijo por Tramos (Invariable ante cualquier filtro)
-    resumen_global = calculate_global_tramos_summary(df_master)
+    if req.cartera_activa is not None:
+        DATA_STORE["cartera_activa_manual"] = req.cartera_activa
+
+    # 1. Resumen Global Fijo por Tramos (Invariable ante cualquier filtro operativo)
+    resumen_global = calculate_global_tramos_summary(df_master, req.cartera_activa)
     matriz_campanas = calculate_campanas_tramos_matrix(df_master)
     
     # 2. Aplicar filtros a la cartera para la vista operativa detallada
@@ -1178,6 +1195,16 @@ def process_data(req: FilterRequest):
         "total_filtered": len(df),
         "preview": preview
     }
+
+@app.post("/api/tramos/set-cartera-activa")
+def set_cartera_activa_endpoint(req: SetCarteraActivaRequest):
+    """Guarda o actualiza el monto manual de Cartera Activa y recalcula el resumen de tramos."""
+    DATA_STORE["cartera_activa_manual"] = req.cartera_activa
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is not None and not active_df.empty:
+        summary = calculate_global_tramos_summary(active_df, req.cartera_activa)
+        return {"status": "ok", "cartera_activa": req.cartera_activa, "summary": summary}
+    return {"status": "ok", "cartera_activa": req.cartera_activa, "summary": None}
 
 @app.get("/api/download/excel")
 def download_excel():
@@ -1393,15 +1420,19 @@ def download_pdf():
     )
 
 @app.get("/api/tramos/download/excel")
-def download_tramos_excel():
+def download_tramos_excel(cartera_activa: Optional[float] = None):
     """Descarga el Resumen Agrupado por Tramos de Mora en un archivo Excel formal."""
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is None or active_df.empty:
         raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
         
-    global_summary = calculate_global_tramos_summary(active_df)
+    if cartera_activa is not None and cartera_activa > 0:
+        DATA_STORE["cartera_activa_manual"] = cartera_activa
+    manual_ca = cartera_activa or DATA_STORE.get("cartera_activa_manual")
+    global_summary = calculate_global_tramos_summary(active_df, manual_ca)
     cutoff = global_summary.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
     total_usd = global_summary.get("total_cartera_usd", 0.0)
+    total_pct = global_summary.get("total_porcentaje")
     
     import openpyxl
     from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -1424,6 +1455,7 @@ def download_tramos_excel():
     fill_alt = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
     fill_total = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
     fill_banner = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+    fill_ca_label = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
 
     thin_border = Border(
         left=Side(style='thin', color='CBD5E1'),
@@ -1452,21 +1484,30 @@ def download_tramos_excel():
     ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
     ws["A4"].fill = fill_banner
 
-    ws.merge_cells("C4:D4")
     ws["C4"] = total_usd
-    ws["C4"].font = Font(name="Calibri", size=15, bold=True, color="047857")
+    ws["C4"].font = Font(name="Calibri", size=14, bold=True, color="047857")
     ws["C4"].number_format = '$#,##0.00'
     ws["C4"].alignment = Alignment(horizontal="center", vertical="center")
     ws["C4"].fill = fill_banner
 
+    ws["D4"] = "CARTERA ACTIVA (USD):"
+    ws["D4"].font = Font(name="Calibri", size=10, bold=True, color="92400E")
+    ws["D4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["D4"].fill = fill_ca_label
+
     ws.merge_cells("E4:F4")
-    ws["E4"] = f"{global_summary.get('total_cuotas', 0):,} cuotas | {global_summary.get('total_clientes', 0):,} clientes"
-    ws["E4"].font = Font(name="Calibri", size=10, bold=True, color="475569")
+    if manual_ca and manual_ca > 0:
+        ws["E4"] = manual_ca
+        ws["E4"].font = Font(name="Calibri", size=14, bold=True, color="B45309")
+        ws["E4"].number_format = '$#,##0.00'
+    else:
+        ws["E4"] = "No especificada"
+        ws["E4"].font = Font(name="Calibri", size=11, italic=True, color="64748B")
     ws["E4"].alignment = Alignment(horizontal="center", vertical="center")
-    ws["E4"].fill = fill_banner
+    ws["E4"].fill = fill_ca_label
 
     # Encabezados de Tabla en fila 6
-    headers = ["Fase / Categoría", "Rango / Etiqueta", "Cant. Cuotas", "Clientes", "Monto Tarifa (USD)", "% Cartera"]
+    headers = ["Fase / Categoría", "Rango / Etiqueta", "Cant. Cuotas", "Clientes", "Monto Tarifa (USD)", "% Cartera Activa"]
     start_row = 6
     for col_idx, h_text in enumerate(headers, start=1):
         cell = ws.cell(row=start_row, column=col_idx, value=h_text)
@@ -1486,7 +1527,11 @@ def download_tramos_excel():
         c3 = ws.cell(row=r, column=3, value=t["cuotas"])
         c4 = ws.cell(row=r, column=4, value=t["clientes"])
         c5 = ws.cell(row=r, column=5, value=t["total_monto"])
-        c6 = ws.cell(row=r, column=6, value=t["porcentaje"] / 100.0)
+        if t["porcentaje"] is not None:
+            c6 = ws.cell(row=r, column=6, value=t["porcentaje"] / 100.0)
+            c6.number_format = '0.00%'
+        else:
+            c6 = ws.cell(row=r, column=6, value="-")
 
         c1.font = font_data
         c2.font = font_data_bold
@@ -1500,12 +1545,11 @@ def download_tramos_excel():
         c3.alignment = Alignment(horizontal="right", vertical="center")
         c4.alignment = Alignment(horizontal="right", vertical="center")
         c5.alignment = Alignment(horizontal="right", vertical="center")
-        c6.alignment = Alignment(horizontal="right", vertical="center")
+        c6.alignment = Alignment(horizontal="right" if t["porcentaje"] is not None else "center", vertical="center")
 
         c3.number_format = '#,##0'
         c4.number_format = '#,##0'
         c5.number_format = '$#,##0.00'
-        c6.number_format = '0.00%'
 
         row_fill = fill_alt if idx % 2 == 1 else None
         for col_idx in range(1, 7):
@@ -1523,7 +1567,11 @@ def download_tramos_excel():
     tc3 = ws.cell(row=tot_row, column=3, value=global_summary.get("total_cuotas", 0))
     tc4 = ws.cell(row=tot_row, column=4, value=global_summary.get("total_clientes", 0))
     tc5 = ws.cell(row=tot_row, column=5, value=total_usd)
-    tc6 = ws.cell(row=tot_row, column=6, value=1.0)
+    if total_pct is not None:
+        tc6 = ws.cell(row=tot_row, column=6, value=total_pct / 100.0)
+        tc6.number_format = '0.00%'
+    else:
+        tc6 = ws.cell(row=tot_row, column=6, value="-")
 
     for cell in [tc1, tc2, tc3, tc4, tc5, tc6]:
         cell.font = font_total
@@ -1535,12 +1583,11 @@ def download_tramos_excel():
     tc3.alignment = Alignment(horizontal="right", vertical="center")
     tc4.alignment = Alignment(horizontal="right", vertical="center")
     tc5.alignment = Alignment(horizontal="right", vertical="center")
-    tc6.alignment = Alignment(horizontal="right", vertical="center")
+    tc6.alignment = Alignment(horizontal="right" if total_pct is not None else "center", vertical="center")
 
     tc3.number_format = '#,##0'
     tc4.number_format = '#,##0'
     tc5.number_format = '$#,##0.00'
-    tc6.number_format = '0.00%'
 
     # Auto ancho de columnas
     col_widths = {1: 34, 2: 20, 3: 16, 4: 16, 5: 22, 6: 15}
@@ -1559,17 +1606,21 @@ def download_tramos_excel():
     )
 
 @app.get("/api/tramos/download/pdf")
-def download_tramos_pdf():
+def download_tramos_pdf(cartera_activa: Optional[float] = None):
     """Genera un reporte PDF ejecutivo exclusivamente del Resumen Agrupado por Tramos de Mora."""
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is None or active_df.empty:
         raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
         
-    global_summary = calculate_global_tramos_summary(active_df)
+    if cartera_activa is not None and cartera_activa > 0:
+        DATA_STORE["cartera_activa_manual"] = cartera_activa
+    manual_ca = cartera_activa or DATA_STORE.get("cartera_activa_manual")
+    global_summary = calculate_global_tramos_summary(active_df, manual_ca)
     cutoff = global_summary.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
     total_usd = global_summary.get("total_cartera_usd", 0.0)
     total_cuotas = global_summary.get("total_cuotas", 0)
     total_clientes = global_summary.get("total_clientes", 0)
+    total_pct = global_summary.get("total_porcentaje")
     promedio = total_usd / total_clientes if total_clientes > 0 else 0.0
 
     buf = io.BytesIO()
@@ -1661,20 +1712,37 @@ def download_tramos_pdf():
     story.append(Spacer(1, 8))
 
     # Tarjetas ejecutivas superiores
-    kpi_cards = [
-        [
-            Paragraph("TARIFA PENDIENTE TOTAL", banner_label),
-            Paragraph("TOTAL CLIENTES", banner_label),
-            Paragraph("CANTIDAD DE CUOTAS", banner_label),
-            Paragraph("PROMEDIO TARIFA / CTE", banner_label)
-        ],
-        [
-            Paragraph(f"${total_usd:,.2f} USD", banner_val),
-            Paragraph(f"{total_clientes:,}", banner_val),
-            Paragraph(f"{total_cuotas:,}", banner_val),
-            Paragraph(f"${promedio:,.2f} USD", banner_val)
+    if manual_ca and manual_ca > 0:
+        kpi_cards = [
+            [
+                Paragraph("TARIFA PENDIENTE TOTAL", banner_label),
+                Paragraph("CARTERA ACTIVA TOTAL", banner_label),
+                Paragraph("% MORA SOBRE CARTERA", banner_label),
+                Paragraph("TOTAL CLIENTES", banner_label)
+            ],
+            [
+                Paragraph(f"${total_usd:,.2f} USD", banner_val),
+                Paragraph(f"${manual_ca:,.2f} USD", banner_val),
+                Paragraph(f"{total_pct:.2f}%" if total_pct is not None else "-", banner_val),
+                Paragraph(f"{total_clientes:,}", banner_val)
+            ]
         ]
-    ]
+    else:
+        kpi_cards = [
+            [
+                Paragraph("TARIFA PENDIENTE TOTAL", banner_label),
+                Paragraph("CARTERA ACTIVA TOTAL", banner_label),
+                Paragraph("TOTAL CLIENTES", banner_label),
+                Paragraph("CANTIDAD DE CUOTAS", banner_label)
+            ],
+            [
+                Paragraph(f"${total_usd:,.2f} USD", banner_val),
+                Paragraph("No especificada", banner_val),
+                Paragraph(f"{total_clientes:,}", banner_val),
+                Paragraph(f"{total_cuotas:,}", banner_val)
+            ]
+        ]
+
     t_kpis = Table(kpi_cards, colWidths=[135, 135, 135, 135])
     t_kpis.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
@@ -1697,28 +1765,30 @@ def download_tramos_pdf():
             Paragraph("Cant. Cuotas", table_header_right),
             Paragraph("Clientes", table_header_right),
             Paragraph("Monto Tarifa (USD)", table_header_right),
-            Paragraph("% Cartera", table_header_right)
+            Paragraph("% Cartera Activa", table_header_right)
         ]
     ]
 
     for t in global_summary.get("tramos", []):
+        pct_display = f"<b>{t['porcentaje']:.2f}%</b>" if t["porcentaje"] is not None else "-"
         table_rows.append([
             Paragraph(f"<b>{html.escape(t['fase'])}</b>", table_cell),
             Paragraph(html.escape(t["etiqueta"]), table_cell_center),
             Paragraph(f"{t['cuotas']:,}", table_cell_right),
             Paragraph(f"{t['clientes']:,}", table_cell_right),
             Paragraph(f"${t['total_monto']:,.2f}", table_cell_right),
-            Paragraph(f"<b>{t['porcentaje']:.2f}%</b>", table_cell_right)
+            Paragraph(pct_display, table_cell_right if t["porcentaje"] is not None else table_cell_center)
         ])
 
     # Fila Total Consolidada
+    total_pct_display = f"<b>{total_pct:.2f}%</b>" if total_pct is not None else "-"
     table_rows.append([
         Paragraph("<b>TOTAL CARTERA</b>", table_cell),
         Paragraph("<b>Gestión total</b>", table_cell_center),
         Paragraph(f"<b>{total_cuotas:,}</b>", table_cell_right),
         Paragraph(f"<b>{total_clientes:,}</b>", table_cell_right),
         Paragraph(f"<b>${total_usd:,.2f}</b>", table_cell_right),
-        Paragraph("<b>100.00%</b>", table_cell_right)
+        Paragraph(total_pct_display, table_cell_right if total_pct is not None else table_cell_center)
     ])
 
     t_table = Table(table_rows, colWidths=[150, 95, 75, 75, 95, 50])
@@ -1737,9 +1807,10 @@ def download_tramos_pdf():
     tramos_list = global_summary.get("tramos", [])
     max_tramo = max(tramos_list, key=lambda x: x["total_monto"]) if tramos_list else None
     if max_tramo:
+        pct_note = f" ({max_tramo['porcentaje']:.2f}% de la cartera activa total)" if max_tramo.get("porcentaje") is not None else ""
         notes_text = (
             f"<b>Observación Estratégica:</b> El tramo con mayor concentración de cartera es <b>{max_tramo['etiqueta']} ({max_tramo['fase']})</b> "
-            f"con un saldo acumulado de <b>${max_tramo['total_monto']:,.2f} USD</b> ({max_tramo['porcentaje']:.2f}% de la cartera activa total) "
+            f"con un saldo acumulado de <b>${max_tramo['total_monto']:,.2f} USD</b>{pct_note} "
             f"distribuido en {max_tramo['cuotas']:,} cuotas y {max_tramo['clientes']:,} clientes únicos. "
             f"Se sugiere enfocar las acciones intensivas de negociación y cobranza pre-jurídica en este segmento para maximizar la recuperación de liquidez."
         )

@@ -30,3 +30,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 *.tmp
+
+# Private Strategy & Roadmap docs
+ROADMAP_MEJORAS_PRO.md
