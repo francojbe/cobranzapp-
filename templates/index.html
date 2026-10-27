@@ -615,7 +615,7 @@
                 <i class="fa-solid fa-vault"></i>
               </div>
               <div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Cartera Activa Total</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Tarifa Pendiente Total</div>
                 <div id="banner-cartera-activa" class="text-xl font-black font-mono tracking-tight text-white">$0 USD</div>
               </div>
             </div>
@@ -634,8 +634,8 @@
                   <th class="py-3 px-3.5">Rango / Etiqueta</th>
                   <th class="py-3 px-3.5 text-right">Cant. Cuotas</th>
                   <th class="py-3 px-3.5 text-right">Clientes</th>
-                  <th class="py-3 px-3.5 text-right">Monto (USD)</th>
-                  <th class="py-3 px-3.5 text-right">% Cartera</th>
+                  <th class="py-3 px-3.5 text-right">Tarifa (USD)</th>
+                  <th class="py-3 px-3.5 text-right">% Tarifa</th>
                 </tr>
               </thead>
               <tbody id="global-tramos-tbody" class="divide-y divide-slate-100 font-mono">
@@ -651,7 +651,7 @@
           <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between min-h-[260px]">
             <div>
               <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-slate-800">Distribución de Deuda</span>
+                <span class="text-xs font-bold text-slate-800">Distribución de Tarifa</span>
                 <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold border border-blue-200">Tramos Oficiales</span>
               </div>
               <div class="h-48 relative">
@@ -680,7 +680,7 @@
               <span class="text-xs font-semibold text-slate-500" id="matrix-campaigns-count">0 campañas analizadas</span>
             </div>
             <h3 class="text-lg font-bold text-slate-900 mt-1">Desglose por Tramos y Categorías</h3>
-            <p class="text-xs text-slate-500">Distribución de capital adeudado (USD) y número de clientes en los 5 tramos oficiales por cada campaña comercial.</p>
+            <p class="text-xs text-slate-500">Distribución de monto pendiente de tarifa (USD) y número de clientes en los 5 tramos oficiales por cada campaña comercial.</p>
           </div>
 
           <!-- Barra de Acciones: Buscador de Campaña + Botones Exportar -->
@@ -735,24 +735,24 @@
                   181+ días <span class="text-[9px] font-normal opacity-80">(Castigo)</span>
                 </th>
                 <th class="py-2 px-3 text-center bg-slate-900 text-white" colspan="3">
-                  Total Cartera Activa
+                  Total Tarifa Pendiente
                 </th>
               </tr>
               <!-- Nivel 2: Subcolumnas Monto y Clientes -->
               <tr class="text-[10px] uppercase font-semibold text-slate-600 bg-slate-50 border-b border-slate-200">
-                <th class="py-1.5 px-2.5 text-right font-mono bg-emerald-50/40 border-r border-emerald-100">Monto ($)</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-emerald-50/40 border-r border-emerald-100">Tarifa ($)</th>
                 <th class="py-1.5 px-2 text-right font-mono bg-emerald-50/40 border-r border-slate-200">Ctes</th>
-                <th class="py-1.5 px-2.5 text-right font-mono bg-blue-50/40 border-r border-blue-100">Monto ($)</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-blue-50/40 border-r border-blue-100">Tarifa ($)</th>
                 <th class="py-1.5 px-2 text-right font-mono bg-blue-50/40 border-r border-slate-200">Ctes</th>
-                <th class="py-1.5 px-2.5 text-right font-mono bg-amber-50/40 border-r border-amber-100">Monto ($)</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-amber-50/40 border-r border-amber-100">Tarifa ($)</th>
                 <th class="py-1.5 px-2 text-right font-mono bg-amber-50/40 border-r border-slate-200">Ctes</th>
-                <th class="py-1.5 px-2.5 text-right font-mono bg-orange-50/40 border-r border-orange-100">Monto ($)</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-orange-50/40 border-r border-orange-100">Tarifa ($)</th>
                 <th class="py-1.5 px-2 text-right font-mono bg-orange-50/40 border-r border-slate-200">Ctes</th>
-                <th class="py-1.5 px-2.5 text-right font-mono bg-rose-50/40 border-r border-rose-100">Monto ($)</th>
-                <th class="py-1.5 px-2 text-right font-mono bg-rose-50/40 border-r border-slate-200">Ctes</th>
-                <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Monto ($)</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-rose-50/40 border-r border-rose-100">Tarifa ($)</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-rose-50/40 border-r border-slate-200">Ctes</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Tarifa ($)</th>
                 <th class="py-1.5 px-2 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Ctes</th>
-                <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-blue-300">% Cart</th>
+                <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-blue-300">% Tarifa</th>
               </tr>
             </thead>
             <!-- Cuerpo de datos -->
@@ -1719,7 +1719,7 @@
         tfoot.innerHTML = `
           <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
             <td class="py-3.5 px-3.5 uppercase tracking-wider text-[11px] text-slate-800">
-              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> Total Cartera
+              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> Total Tarifa
             </td>
             <td class="py-3.5 px-3.5 text-slate-600 text-xs font-semibold">Gestión total</td>
             <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(globalSummary.total_cuotas).toLocaleString()}</td>
@@ -1816,7 +1816,7 @@
         tfoot.innerHTML = `
           <tr class="bg-slate-100 border-t-2 border-slate-300 text-slate-900 font-bold text-xs">
             <td class="py-2.5 px-3.5 sticky left-0 bg-slate-100 border-r border-slate-300 text-slate-900 uppercase tracking-wider text-[11px]">
-              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> TOTAL CONSOLIDADO
+              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> TOTAL TARIFA CONSOLIDADA
             </td>
             ${footTramosHtml}
             <td class="py-2.5 px-2.5 text-right font-mono text-xs text-emerald-700 font-black border-r border-slate-200">$${Number(matrixData.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
@@ -1838,7 +1838,7 @@
         data: {
           labels: labels,
           datasets: [{
-            label: 'Monto Vencido (USD)',
+            label: 'Tarifa Vencida (USD)',
             data: values,
             backgroundColor: colorsList && colorsList.length ? colorsList : ['#10b981', '#3b82f6', '#f59e0b', '#f97316', '#ef4444'],
             borderRadius: 6

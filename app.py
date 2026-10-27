@@ -661,20 +661,24 @@ def calculate_global_tramos_summary(df: pd.DataFrame):
         }
 
     df = df.copy()
-    if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
-        df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    if "Pendiente Tarifa" in df.columns and df["Pendiente Tarifa"].sum() > 0:
+        df["_Tot"] = df["Pendiente Tarifa"]
     elif "Total" in df.columns:
         df["_Tot"] = df["Total"]
+    elif "Pendiente Cuota" in df.columns and "Pendiente Mora" in df.columns and (df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+        df["_Tot"] = df["Pendiente Cuota"] + df["Pendiente Mora"]
     else:
         df["_Tot"] = 0.0
 
-    total_cartera_usd = round(float(df["_Tot"].sum()), 2)
-    total_cuotas = len(df)
-    total_clientes = int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else total_cuotas
+    df_active = df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
+
+    total_cartera_usd = round(float(df_active["_Tot"].sum()), 2)
+    total_cuotas = len(df_active)
+    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else total_cuotas
 
     tramos = []
     for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        sub = df[df["Tramo_Mora"] == t_cfg["grupo"]]
+        sub = df_active[df_active["Tramo_Mora"] == t_cfg["grupo"]]
         cuotas_cnt = len(sub)
         clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
         p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
@@ -788,32 +792,36 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
         }
         
     df = df.copy()
-    if (df["Pendiente Tarifa"].sum() + df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
-        df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    if "Pendiente Tarifa" in df.columns and df["Pendiente Tarifa"].sum() > 0:
+        df["_Tot"] = df["Pendiente Tarifa"]
     elif "Total" in df.columns:
         df["_Tot"] = df["Total"]
+    elif "Pendiente Cuota" in df.columns and "Pendiente Mora" in df.columns and (df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+        df["_Tot"] = df["Pendiente Cuota"] + df["Pendiente Mora"]
     else:
         df["_Tot"] = 0.0
 
-    total_cartera = float(df["_Tot"].sum())
-    total_clientes_global = int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else len(df)
-    total_cuotas_global = len(df)
+    df_active = df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
+
+    total_cartera = float(df_active["_Tot"].sum())
+    total_clientes_global = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else len(df_active)
+    total_cuotas_global = len(df_active)
     
-    col_campana = "Tipo_Campana" if "Tipo_Campana" in df.columns else "Programa"
-    df["_Macro_Campana"] = df[col_campana].apply(normalize_campaign_name)
+    col_campana = "Tipo_Campana" if "Tipo_Campana" in df_active.columns else "Programa"
+    df_active["_Macro_Campana"] = df_active[col_campana].apply(normalize_campaign_name)
 
     matrix = []
     totals_by_tramo = {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG}
 
     # Totales globales por tramo
     for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        sub_t = df[df["Tramo_Mora"] == t_cfg["grupo"]]
+        sub_t = df_active[df_active["Tramo_Mora"] == t_cfg["grupo"]]
         totals_by_tramo[t_cfg["id"]]["monto"] = round(float(sub_t["_Tot"].sum()), 2)
         totals_by_tramo[t_cfg["id"]]["cuotas"] = len(sub_t)
         totals_by_tramo[t_cfg["id"]]["clientes"] = int(sub_t["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t.columns else len(sub_t)
 
     # Detalle por campaña
-    for camp, grp in df.groupby("_Macro_Campana"):
+    for camp, grp in df_active.groupby("_Macro_Campana"):
         camp_tot = float(grp["_Tot"].sum())
         camp_cl = int(grp["Cedula Cliente"].nunique()) if "Cedula Cliente" in grp.columns else len(grp)
         camp_cuotas = len(grp)
@@ -1434,12 +1442,12 @@ def download_tramos_excel():
     ws["A1"] = "COBRANZAPP - RESUMEN AGRUPADO POR TRAMOS DE MORA"
     ws["A1"].font = font_title
     
-    ws["A2"] = f"Fecha de corte: al {cutoff} | Cartera Activa Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws["A2"] = f"Fecha de corte: al {cutoff} | Tarifa Pendiente Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     ws["A2"].font = font_subtitle
 
     # Banner Ejecutivo
     ws.merge_cells("A4:B4")
-    ws["A4"] = "CARTERA ACTIVA TOTAL (USD)"
+    ws["A4"] = "TARIFA PENDIENTE TOTAL (USD)"
     ws["A4"].font = Font(name="Calibri", size=10, bold=True, color="1E3A8A")
     ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
     ws["A4"].fill = fill_banner
@@ -1458,7 +1466,7 @@ def download_tramos_excel():
     ws["E4"].fill = fill_banner
 
     # Encabezados de Tabla en fila 6
-    headers = ["Fase / Categoría", "Rango / Etiqueta", "Cant. Cuotas", "Clientes", "Monto Total (USD)", "% Cartera"]
+    headers = ["Fase / Categoría", "Rango / Etiqueta", "Cant. Cuotas", "Clientes", "Monto Tarifa (USD)", "% Cartera"]
     start_row = 6
     for col_idx, h_text in enumerate(headers, start=1):
         cell = ws.cell(row=start_row, column=col_idx, value=h_text)
@@ -1655,10 +1663,10 @@ def download_tramos_pdf():
     # Tarjetas ejecutivas superiores
     kpi_cards = [
         [
-            Paragraph("CARTERA ACTIVA TOTAL", banner_label),
+            Paragraph("TARIFA PENDIENTE TOTAL", banner_label),
             Paragraph("TOTAL CLIENTES", banner_label),
             Paragraph("CANTIDAD DE CUOTAS", banner_label),
-            Paragraph("DEUDA PROMEDIO / CTE", banner_label)
+            Paragraph("PROMEDIO TARIFA / CTE", banner_label)
         ],
         [
             Paragraph(f"${total_usd:,.2f} USD", banner_val),
@@ -1678,7 +1686,7 @@ def download_tramos_pdf():
     story.append(t_kpis)
     story.append(Spacer(1, 16))
 
-    story.append(Paragraph("<b>Distribución de Deuda por los 5 Tramos Oficiales de Mora:</b>", styles['Normal']))
+    story.append(Paragraph("<b>Distribución de Tarifa Pendiente por los 5 Tramos Oficiales de Mora:</b>", styles['Normal']))
     story.append(Spacer(1, 6))
 
     # Tabla de Tramos Oficiales
@@ -1688,7 +1696,7 @@ def download_tramos_pdf():
             Paragraph("Rango / Etiqueta", table_header_center),
             Paragraph("Cant. Cuotas", table_header_right),
             Paragraph("Clientes", table_header_right),
-            Paragraph("Monto (USD)", table_header_right),
+            Paragraph("Monto Tarifa (USD)", table_header_right),
             Paragraph("% Cartera", table_header_right)
         ]
     ]
@@ -1812,7 +1820,7 @@ def download_campanas_tramos_excel():
 
     ws["A1"] = "COBRANZAPP - DESGLOSE POR TRAMOS Y CATEGORÍAS (CAMPAÑAS)"
     ws["A1"].font = font_title
-    ws["A2"] = f"Fecha de corte: al {cutoff} | Cartera Activa Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws["A2"] = f"Fecha de corte: al {cutoff} | Tarifa Pendiente Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     ws["A2"].font = font_subtitle
 
     # Fila 4: Nivel 1 de Encabezados
@@ -1829,7 +1837,7 @@ def download_campanas_tramos_excel():
         ("F4:G4", "F", "G", "61 a 90 días (Negociación)", fill_tramo_hdrs[2]),
         ("H4:I4", "H", "I", "91 a 180 días (Pre-jurídica)", fill_tramo_hdrs[3]),
         ("J4:K4", "J", "K", "181+ días (Castigo)", fill_tramo_hdrs[4]),
-        ("L4:N4", "L", "N", "Total Cartera Consolidada", fill_tramo_hdrs[5]),
+        ("L4:N4", "L", "N", "Total Tarifa Consolidada", fill_tramo_hdrs[5]),
     ]
 
     for span, col_start, col_end, title, fill in tramo_spans:
@@ -1842,13 +1850,13 @@ def download_campanas_tramos_excel():
 
     # Fila 5: Nivel 2 de Encabezados
     sub_headers = [
-        ("B5", "Monto (USD)", "right"), ("C5", "Clientes", "right"),
-        ("D5", "Monto (USD)", "right"), ("E5", "Clientes", "right"),
-        ("F5", "Monto (USD)", "right"), ("G5", "Clientes", "right"),
-        ("H5", "Monto (USD)", "right"), ("I5", "Clientes", "right"),
-        ("J5", "Monto (USD)", "right"), ("K5", "Clientes", "right"),
-        ("L5", "Total Monto ($)", "right"), ("M5", "Total Clientes", "right"),
-        ("N5", "% Cartera", "right")
+        ("B5", "Tarifa ($)", "right"), ("C5", "Clientes", "right"),
+        ("D5", "Tarifa ($)", "right"), ("E5", "Clientes", "right"),
+        ("F5", "Tarifa ($)", "right"), ("G5", "Clientes", "right"),
+        ("H5", "Tarifa ($)", "right"), ("I5", "Clientes", "right"),
+        ("J5", "Tarifa ($)", "right"), ("K5", "Clientes", "right"),
+        ("L5", "Total Tarifa ($)", "right"), ("M5", "Total Clientes", "right"),
+        ("N5", "% Tarifa", "right")
     ]
     for cell_id, text, align in sub_headers:
         c = ws[cell_id]
@@ -2053,8 +2061,8 @@ def download_campanas_tramos_pdf():
     story.append(Paragraph("COBRANZAPP | DESGLOSE POR TRAMOS Y CATEGORÍAS (CAMPAÑAS)", title_style))
     story.append(Paragraph(
         f"<b>Fecha de corte:</b> al {cutoff} &nbsp;|&nbsp; "
-        f"<b>Cartera Activa Total:</b> ${total_usd:,.2f} USD &nbsp;|&nbsp; "
-        f"<b>Clientes Únicos:</b> {total_clientes:,} &nbsp;|&nbsp; "
+        f"<b>Tarifa Pendiente Total:</b> ${total_usd:,.2f} USD &nbsp;|&nbsp; "
+        f"<b>Clientes con Tarifa:</b> {total_clientes:,} &nbsp;|&nbsp; "
         f"<b>Emisión:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}",
         subtitle_style
     ))
@@ -2067,17 +2075,17 @@ def download_campanas_tramos_pdf():
             Paragraph("<b>61 a 90 días</b>", hdr_group), "",
             Paragraph("<b>91 a 180 días</b>", hdr_group), "",
             Paragraph("<b>181+ días</b>", hdr_group), "",
-            Paragraph("<b>Total Cartera</b>", hdr_group), "", ""
+            Paragraph("<b>Total Tarifa</b>", hdr_group), "", ""
         ],
         [
             "",
-            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("% Cart", hdr_sub)
+            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
+            Paragraph("% Tarifa", hdr_sub)
         ]
     ]
 
