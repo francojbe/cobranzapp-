@@ -594,17 +594,29 @@
       <!-- Sección Ejecutiva: Resumen Agrupado Fijo por Tramos de Mora -->
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
         
-        <!-- Header con Fecha de Corte, Botones de Descarga y Card Cartera Activa -->
+        <!-- Header con Selector de Vista (Tramos vs Fibex), Fecha de Corte, Botones de Descarga y Card Cartera Activa -->
         <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <span class="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700 px-2.5 py-0.5 rounded-full border border-blue-200">
                 Indicador Macro Directivo
               </span>
               <span class="text-xs font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200" id="tramos-cutoff-date">al 18-10-2026</span>
+              
+              <!-- Selector de Pestañas de Vista Ejecutiva: Tramos vs Fibex -->
+              <div class="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl ml-1 shadow-2xs">
+                <button type="button" id="tab-btn-tramos" onclick="switchExecutiveView('tramos')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer" title="Ver resumen dividido por los 5 tramos de morosidad oficiales">
+                  <i class="fa-solid fa-layer-group text-blue-600"></i>
+                  <span>Tramos de Mora</span>
+                </button>
+                <button type="button" id="tab-btn-fibex" onclick="switchExecutiveView('fibex')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer" title="Ver comparación entre clientes sin suscripción Fibex (NO Fibex) y clientes Fibex / Resto">
+                  <i class="fa-solid fa-network-wired text-amber-500"></i>
+                  <span>Fibex vs. NO Fibex</span>
+                </button>
+              </div>
             </div>
-            <h3 class="text-lg font-bold text-slate-900 mt-1">Resumen Agrupado por Tramos de Mora</h3>
-            <p class="text-xs text-slate-500">Distribución consolidada de los 5 tramos sobre la Cartera Activa Total (fijo e independiente de los filtros).</p>
+            <h3 class="text-lg font-bold text-slate-900 mt-1.5" id="executive-indicator-title">Resumen Agrupado por Tramos de Mora</h3>
+            <p class="text-xs text-slate-500" id="executive-indicator-subtitle">Distribución consolidada de los 5 tramos sobre la Cartera Activa Total (fijo e independiente de los filtros).</p>
           </div>
 
           <!-- Acciones de Descarga Exclusivas + Card Cartera Activa Armonizada -->
@@ -657,13 +669,13 @@
         <!-- Layout Grid: Tabla Oficial + Gráfico de Distribución -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
           
-          <!-- Tabla Oficial de Tramos -->
+          <!-- Tabla Oficial de Tramos / Fibex -->
           <div class="lg:col-span-2 overflow-x-auto rounded-xl border border-slate-200 shadow-xs">
             <table class="w-full text-left text-xs">
               <thead class="bg-slate-50 border-b border-slate-200 text-slate-700 font-bold uppercase text-[11px] tracking-wider">
                 <tr>
-                  <th class="py-3 px-3.5">Fase / Categoría</th>
-                  <th class="py-3 px-3.5">Rango / Etiqueta</th>
+                  <th class="py-3 px-3.5" id="th-exec-col1">Fase / Categoría</th>
+                  <th class="py-3 px-3.5" id="th-exec-col2">Rango / Etiqueta</th>
                   <th class="py-3 px-3.5 text-right">Cant. Cuotas</th>
                   <th class="py-3 px-3.5 text-right">Clientes</th>
                   <th class="py-3 px-3.5 text-right">Tarifa (USD)</th>
@@ -671,7 +683,7 @@
                 </tr>
               </thead>
               <tbody id="global-tramos-tbody" class="divide-y divide-slate-100 font-mono">
-                <!-- Se llena dinamicamente con los 5 tramos oficiales -->
+                <!-- Se llena dinamicamente según la vista seleccionada -->
               </tbody>
               <tfoot id="global-tramos-tfoot" class="border-t-2 border-slate-300 bg-slate-100 font-mono font-bold text-xs text-slate-900">
                 <!-- Fila Total Gestión total -->
@@ -679,18 +691,18 @@
             </table>
           </div>
 
-          <!-- Gráfico de Tramos -->
+          <!-- Gráfico de Tramos / Fibex -->
           <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col justify-between min-h-[260px]">
             <div>
               <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-slate-800">Distribución de Tarifa</span>
-                <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold border border-blue-200">Tramos Oficiales</span>
+                <span class="text-xs font-bold text-slate-800" id="chart-exec-title">Distribución de Tarifa</span>
+                <span class="text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold border border-blue-200" id="chart-exec-tag">Tramos Oficiales</span>
               </div>
               <div class="h-48 relative">
                 <canvas id="chart-agrupacion"></canvas>
               </div>
             </div>
-            <div class="text-[10px] text-slate-400 text-center mt-2 pt-2 border-t border-slate-200">
+            <div class="text-[10px] text-slate-400 text-center mt-2 pt-2 border-t border-slate-200" id="chart-exec-footer">
               Participación sobre el Total de la Cartera Activa
             </div>
           </div>
@@ -1313,8 +1325,14 @@
       }
 
       const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
-      if (globalSummary) {
-        renderGlobalTramosScorecard(globalSummary);
+      const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
+      if (globalSummary) currentGlobalSummary = globalSummary;
+      if (fibexSummary) currentFibexSummary = fibexSummary;
+
+      if (currentExecutiveView === 'fibex' && currentFibexSummary) {
+        renderFibexScorecard(currentFibexSummary);
+      } else if (currentGlobalSummary) {
+        renderGlobalTramosScorecard(currentGlobalSummary);
       }
 
       const matrixData = data.matriz_campanas_tramos || (data.metadata && data.metadata.matriz_campanas_tramos);
@@ -1343,6 +1361,7 @@
             metadata: data.metadata,
             totals: data.totals,
             resumen_global_tramos: data.resumen_global_tramos,
+            resumen_fibex: data.resumen_fibex,
             matriz_campanas_tramos: data.matriz_campanas_tramos
           });
           ProgressController.complete('¡Cartera y Base de Datos sincronizadas!', () => {
@@ -1413,6 +1432,7 @@
               metadata: data.metadata,
               totals: data.totals,
               resumen_global_tramos: data.resumen_global_tramos,
+              resumen_fibex: data.resumen_fibex,
               matriz_campanas_tramos: data.matriz_campanas_tramos
             });
             ProgressController.complete('¡Base de Datos actualizada!', () => {
@@ -1433,6 +1453,7 @@
               metadata: data.metadata,
               totals: data.totals,
               resumen_global_tramos: data.resumen_global_tramos,
+              resumen_fibex: data.resumen_fibex,
               matriz_campanas_tramos: data.matriz_campanas_tramos
             });
             ProgressController.complete('¡Cartera procesada y cruzada con BD!', () => {
@@ -1645,10 +1666,16 @@
       document.getElementById('kpi-monto-contactable').textContent = `$${Number(k.monto_contactable).toLocaleString('en-US', {minimumFractionDigits: 2})} USD`;
       document.getElementById('kpi-pct-monto').textContent = `${k.pct_monto_contactable}% de la deuda`;
 
-      // Renderizar el Indicador Macro Fijo por 5 Tramos Oficiales
+      // Renderizar el Indicador Macro Fijo por 5 Tramos Oficiales o Fibex
       const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
-      if (globalSummary) {
-        renderGlobalTramosScorecard(globalSummary);
+      const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
+      if (globalSummary) currentGlobalSummary = globalSummary;
+      if (fibexSummary) currentFibexSummary = fibexSummary;
+
+      if (currentExecutiveView === 'fibex' && currentFibexSummary) {
+        renderFibexScorecard(currentFibexSummary);
+      } else if (currentGlobalSummary) {
+        renderGlobalTramosScorecard(currentGlobalSummary);
       }
 
       // Renderizar el Desglose por Tramos y Categorías (Matriz de Campañas)
@@ -1662,6 +1689,24 @@
 
     let currentCarteraActivaManual = null;
     let currentGlobalSummary = null;
+    let currentFibexSummary = null;
+    let currentExecutiveView = 'tramos';
+
+    function switchExecutiveView(viewType) {
+      currentExecutiveView = viewType;
+      const btnTramos = document.getElementById('tab-btn-tramos');
+      const btnFibex = document.getElementById('tab-btn-fibex');
+
+      if (viewType === 'tramos') {
+        if (btnTramos) btnTramos.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer';
+        if (btnFibex) btnFibex.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
+        if (currentGlobalSummary) renderGlobalTramosScorecard(currentGlobalSummary);
+      } else {
+        if (btnTramos) btnTramos.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
+        if (btnFibex) btnFibex.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer';
+        if (currentFibexSummary) renderFibexScorecard(currentFibexSummary);
+      }
+    }
 
     function parseManualNumber(val) {
       if (!val) return null;
@@ -1686,12 +1731,17 @@
     function handleCarteraActivaManualInput(val) {
       currentCarteraActivaManual = parseManualNumber(val);
 
-      // Actualizar URLs de descarga de los botones Excel y PDF de Tramos
+      // Actualizar URLs de descarga según la vista activa
+      const qParam = currentCarteraActivaManual ? `?cartera_activa=${currentCarteraActivaManual}` : '';
       const excelBtn = document.getElementById('btn-download-tramos-excel');
       const pdfBtn = document.getElementById('btn-download-tramos-pdf');
-      const qParam = currentCarteraActivaManual ? `?cartera_activa=${currentCarteraActivaManual}` : '';
-      if (excelBtn) excelBtn.href = `/api/tramos/download/excel${qParam}`;
-      if (pdfBtn) pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
+      if (currentExecutiveView === 'fibex') {
+        if (excelBtn) excelBtn.href = `/api/fibex/download/excel${qParam}`;
+        if (pdfBtn) pdfBtn.href = `/api/fibex/download/pdf${qParam}`;
+      } else {
+        if (excelBtn) excelBtn.href = `/api/tramos/download/excel${qParam}`;
+        if (pdfBtn) pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
+      }
 
       // Notificar al backend en segundo plano para persistir en DATA_STORE
       if (window.carteraActivaDebounce) clearTimeout(window.carteraActivaDebounce);
@@ -1703,8 +1753,10 @@
         }).catch(() => {});
       }, 400);
 
-      // Re-renderizar la tabla de tramos con los nuevos porcentajes
-      if (currentGlobalSummary) {
+      // Re-renderizar la vista ejecutiva activa con los nuevos porcentajes
+      if (currentExecutiveView === 'fibex' && currentFibexSummary) {
+        renderFibexScorecard(currentFibexSummary);
+      } else if (currentGlobalSummary) {
         renderGlobalTramosScorecard(currentGlobalSummary);
       }
     }
@@ -1712,6 +1764,25 @@
     function renderGlobalTramosScorecard(globalSummary) {
       if (!globalSummary || !globalSummary.tramos || globalSummary.tramos.length === 0) return;
       currentGlobalSummary = globalSummary;
+
+      // Restablecer títulos y encabezados de Tramos
+      const titleElem = document.getElementById('executive-indicator-title');
+      const subtitleElem = document.getElementById('executive-indicator-subtitle');
+      if (titleElem) titleElem.textContent = 'Resumen Agrupado por Tramos de Mora';
+      if (subtitleElem) subtitleElem.textContent = 'Distribución consolidada de los 5 tramos sobre la Cartera Activa Total (fijo e independiente de los filtros).';
+
+      const th1 = document.getElementById('th-exec-col1');
+      const th2 = document.getElementById('th-exec-col2');
+      if (th1) th1.textContent = 'Fase / Categoría';
+      if (th2) th2.textContent = 'Rango / Etiqueta';
+
+      const chartTitle = document.getElementById('chart-exec-title');
+      const chartTag = document.getElementById('chart-exec-tag');
+      if (chartTitle) chartTitle.textContent = 'Distribución de Tarifa';
+      if (chartTag) {
+        chartTag.className = 'text-[10px] bg-blue-50 text-blue-700 px-2 py-0.5 rounded font-semibold border border-blue-200';
+        chartTag.textContent = 'Tramos Oficiales';
+      }
 
       // Sincronizar input si vino desde el backend
       const inputElem = document.getElementById('input-cartera-activa-manual');
@@ -1728,8 +1799,16 @@
       const excelBtn = document.getElementById('btn-download-tramos-excel');
       const pdfBtn = document.getElementById('btn-download-tramos-pdf');
       const qParam = currentCarteraActivaManual ? `?cartera_activa=${currentCarteraActivaManual}` : '';
-      if (excelBtn) excelBtn.href = `/api/tramos/download/excel${qParam}`;
-      if (pdfBtn) pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
+      if (excelBtn) {
+        excelBtn.href = `/api/tramos/download/excel${qParam}`;
+        excelBtn.innerHTML = `<i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Tramos`;
+        excelBtn.title = 'Descargar Resumen de Tramos en formato Excel';
+      }
+      if (pdfBtn) {
+        pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
+        pdfBtn.innerHTML = `<i class="fa-solid fa-file-pdf text-rose-600"></i> PDF Tramos`;
+        pdfBtn.title = 'Descargar Reporte PDF de Tramos';
+      }
 
       // 1. Fecha de corte
       const dateElem = document.getElementById('tramos-cutoff-date');
@@ -1801,7 +1880,7 @@
         tbody.appendChild(tr);
       });
 
-      // 4. Footer Fila Total Consolidada (Armonizado con la paleta de CobranzApp)
+      // 4. Footer Fila Total Consolidada
       if (tfoot) {
         let footerPctDisplay = '';
         if (currentCarteraActivaManual && currentCarteraActivaManual > 0) {
@@ -1828,6 +1907,173 @@
       }
 
       // 5. Renderizar Gráfico
+      renderChart(chartLabels, chartValues, chartColors);
+    }
+
+    function renderFibexScorecard(fibexSummary) {
+      if (!fibexSummary || !fibexSummary.segments || fibexSummary.segments.length === 0) return;
+      currentFibexSummary = fibexSummary;
+
+      // Actualizar Título y Subtítulo
+      const titleElem = document.getElementById('executive-indicator-title');
+      const subtitleElem = document.getElementById('executive-indicator-subtitle');
+      if (titleElem) titleElem.textContent = 'Resumen Comparativo: Clientes Fibex vs. NO Fibex';
+      if (subtitleElem) subtitleElem.textContent = 'Distribución de cartera entre clientes sin servicio Fibex (NO Fibex) y clientes con suscripción Fibex / Resto.';
+
+      // Actualizar encabezados de columna
+      const th1 = document.getElementById('th-exec-col1');
+      const th2 = document.getElementById('th-exec-col2');
+      if (th1) th1.textContent = 'Segmento de Cartera';
+      if (th2) th2.textContent = 'Definición / Origen';
+
+      // Actualizar etiqueta del gráfico
+      const chartTitle = document.getElementById('chart-exec-title');
+      const chartTag = document.getElementById('chart-exec-tag');
+      if (chartTitle) chartTitle.textContent = 'Proporción de Cartera';
+      if (chartTag) {
+        chartTag.className = 'text-[10px] bg-amber-50 text-amber-700 px-2 py-0.5 rounded font-semibold border border-amber-200';
+        chartTag.textContent = 'Fibex vs. NO Fibex';
+      }
+
+      // Sincronizar input de Cartera Activa si vino del backend
+      const inputElem = document.getElementById('input-cartera-activa-manual');
+      if (inputElem) {
+        if (currentCarteraActivaManual === null && fibexSummary.cartera_activa_usd) {
+          currentCarteraActivaManual = Number(fibexSummary.cartera_activa_usd);
+          inputElem.value = currentCarteraActivaManual.toLocaleString('es-CL');
+        } else if (inputElem.value && currentCarteraActivaManual === null) {
+          currentCarteraActivaManual = parseManualNumber(inputElem.value);
+        }
+      }
+
+      // Sincronizar botones de descarga para Fibex
+      const excelBtn = document.getElementById('btn-download-tramos-excel');
+      const pdfBtn = document.getElementById('btn-download-tramos-pdf');
+      const qParam = currentCarteraActivaManual ? `?cartera_activa=${currentCarteraActivaManual}` : '';
+      if (excelBtn) {
+        excelBtn.href = `/api/fibex/download/excel${qParam}`;
+        excelBtn.innerHTML = `<i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Fibex`;
+        excelBtn.title = 'Descargar Resumen Fibex vs. NO Fibex en formato Excel';
+      }
+      if (pdfBtn) {
+        pdfBtn.href = `/api/fibex/download/pdf${qParam}`;
+        pdfBtn.innerHTML = `<i class="fa-solid fa-file-pdf text-rose-600"></i> PDF Fibex`;
+        pdfBtn.title = 'Descargar Reporte PDF Ejecutivo Fibex vs. NO Fibex';
+      }
+
+      // Fecha de corte
+      const dateElem = document.getElementById('tramos-cutoff-date');
+      if (dateElem && fibexSummary.cutoff_date) {
+        dateElem.textContent = `al ${fibexSummary.cutoff_date}`;
+      }
+
+      // Banner Ejecutivo "Tarifa Pendiente Total"
+      const bannerElem = document.getElementById('banner-cartera-activa');
+      if (bannerElem) {
+        const formattedTotal = Number(fibexSummary.total_cartera_usd).toLocaleString('es-CL', {
+          maximumFractionDigits: 0
+        });
+        bannerElem.textContent = `$${formattedTotal} USD`;
+      }
+
+      // Llenar Filas de la Tabla
+      const tbody = document.getElementById('global-tramos-tbody');
+      const tfoot = document.getElementById('global-tramos-tfoot');
+      if (!tbody) return;
+
+      tbody.innerHTML = '';
+
+      const chartLabels = [];
+      const chartValues = [];
+      const chartColors = [];
+
+      fibexSummary.segments.forEach(s => {
+        chartLabels.push(s.etiqueta);
+        chartValues.push(s.total_monto);
+        chartColors.push(s.color || '#3b82f6');
+
+        let pctBadge = '';
+        if (currentCarteraActivaManual && currentCarteraActivaManual > 0) {
+          const pct = (s.total_monto / currentCarteraActivaManual) * 100;
+          const isHigh = pct >= 8.0;
+          pctBadge = isHigh
+            ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs">${pct.toFixed(2)}%</span>`
+            : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">${pct.toFixed(2)}%</span>`;
+        } else {
+          pctBadge = `<span class="text-slate-400 font-mono text-xs font-normal" title="Ingresa la Cartera Activa Total arriba para calcular el %">-</span>`;
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50/80 transition-colors border-b border-slate-100 cursor-pointer';
+        tr.title = `Clic para ver ${s.etiqueta} (${s.porcentaje_mora}% de la morosidad)`;
+        tr.onclick = () => {
+          if (s.id === 'no_fibex') {
+            const matrixSearch = document.getElementById('matrix-search-input');
+            if (matrixSearch) {
+              matrixSearch.value = 'NO Fibex';
+              filterMatrixTable('NO Fibex');
+              matrixSearch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          } else {
+            const matrixSearch = document.getElementById('matrix-search-input');
+            if (matrixSearch) {
+              matrixSearch.value = '';
+              filterMatrixTable('');
+              matrixSearch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        };
+
+        tr.innerHTML = `
+          <td class="py-3 px-3.5 text-slate-800 font-medium text-xs">
+            <div class="flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full shrink-0 shadow-2xs" style="background-color: ${s.color}"></span>
+              <div>
+                <span class="font-bold text-slate-900">${s.etiqueta}</span>
+                <span class="ml-1.5 text-[10px] font-mono text-slate-500 font-semibold">(${s.porcentaje_mora}% mora)</span>
+              </div>
+            </div>
+          </td>
+          <td class="py-3 px-3.5">
+            <span class="${s.badge_class}">${s.subtitulo}</span>
+          </td>
+          <td class="py-3 px-3.5 text-right font-mono text-xs text-slate-700">${Number(s.cuotas).toLocaleString()}</td>
+          <td class="py-3 px-3.5 text-right font-mono text-xs text-slate-700">${Number(s.clientes).toLocaleString()}</td>
+          <td class="py-3 px-3.5 text-right font-mono font-bold text-xs text-slate-900">$${Number(s.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+          <td class="py-3 px-3.5 text-right">
+            ${pctBadge}
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      // Footer Fila Total
+      if (tfoot) {
+        let footerPctDisplay = '';
+        if (currentCarteraActivaManual && currentCarteraActivaManual > 0) {
+          const totPct = (fibexSummary.total_cartera_usd / currentCarteraActivaManual) * 100;
+          footerPctDisplay = `<span class="text-blue-700 font-black">${totPct.toFixed(2)}%</span>`;
+        } else {
+          footerPctDisplay = `<span class="text-slate-400 font-normal font-mono text-xs" title="Ingresa la Cartera Activa Total arriba">-</span>`;
+        }
+
+        tfoot.innerHTML = `
+          <tr class="bg-slate-100 font-bold border-t-2 border-slate-300 text-slate-900 text-xs">
+            <td class="py-3.5 px-3.5 uppercase tracking-wider text-[11px] text-slate-800">
+              <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> Total Cartera
+            </td>
+            <td class="py-3.5 px-3.5 text-slate-600 text-xs font-semibold">Gestión total evaluada</td>
+            <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(fibexSummary.total_cuotas).toLocaleString()}</td>
+            <td class="py-3.5 px-3.5 text-right font-mono text-xs text-slate-800">${Number(fibexSummary.total_clientes).toLocaleString()}</td>
+            <td class="py-3.5 px-3.5 text-right font-mono text-sm text-emerald-700 font-black">$${Number(fibexSummary.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+            <td class="py-3.5 px-3.5 text-right text-xs">
+              ${footerPctDisplay}
+            </td>
+          </tr>
+        `;
+      }
+
+      // Renderizar Gráfico
       renderChart(chartLabels, chartValues, chartColors);
     }
 

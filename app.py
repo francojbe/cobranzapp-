@@ -850,6 +850,100 @@ def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[f
         "tramos": tramos
     }
 
+def calculate_fibex_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
+    """Calcula el Resumen Comparativo de Clientes Web NO Fibex vs. Fibex (y Resto)
+    sobre la cartera activa y la mora total."""
+    if df is None or df.empty:
+        return {
+            "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
+            "total_cartera_usd": 0.0,
+            "total_cuotas": 0,
+            "total_clientes": 0,
+            "cartera_activa_usd": None,
+            "total_porcentaje": None,
+            "segments": []
+        }
+
+    df = df.copy()
+    if "Pendiente Tarifa" in df.columns and df["Pendiente Tarifa"].sum() > 0:
+        df["_Tot"] = df["Pendiente Tarifa"]
+    elif "Total" in df.columns:
+        df["_Tot"] = df["Total"]
+    elif "Pendiente Cuota" in df.columns and "Pendiente Mora" in df.columns and (df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+        df["_Tot"] = df["Pendiente Cuota"] + df["Pendiente Mora"]
+    else:
+        df["_Tot"] = 0.0
+
+    df_active = df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
+
+    total_cartera_usd = round(float(df_active["_Tot"].sum()), 2)
+    total_cuotas = len(df_active)
+    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else total_cuotas
+
+    target_ca = cartera_activa if (cartera_activa is not None and cartera_activa > 0) else DATA_STORE.get("cartera_activa_manual")
+    denom = float(target_ca) if (target_ca is not None and target_ca > 0) else None
+    total_pct = round((total_cartera_usd / denom * 100), 2) if denom else None
+
+    col_camp = "Tipo_Campana" if "Tipo_Campana" in df_active.columns else ("Programa" if "Programa" in df_active.columns else None)
+    if col_camp:
+        is_nofibex_mask = df_active[col_camp].fillna("").astype(str).str.upper().str.contains("NO FIBEX")
+    else:
+        is_nofibex_mask = pd.Series(False, index=df_active.index)
+
+    sub_nofibex = df_active[is_nofibex_mask]
+    sub_fibex = df_active[~is_nofibex_mask]
+
+    def _build_segment(sub_df, seg_id, etiqueta, subtitulo, color, badge_class):
+        monto = round(float(sub_df["_Tot"].sum()), 2)
+        cuotas = len(sub_df)
+        clientes = int(sub_df["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_df.columns else cuotas
+        pct_mora = round((monto / total_cartera_usd * 100), 2) if total_cartera_usd > 0 else 0.0
+        pct_activa = round((monto / denom * 100), 2) if denom else None
+
+        tramos_dict = {}
+        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
+            sub_t = sub_df[sub_df["Tramo_Mora"] == t_cfg["grupo"]]
+            tramos_dict[t_cfg["id"]] = {
+                "monto": round(float(sub_t["_Tot"].sum()), 2),
+                "clientes": int(sub_t["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t.columns else len(sub_t),
+                "cuotas": len(sub_t)
+            }
+
+        return {
+            "id": seg_id,
+            "etiqueta": etiqueta,
+            "subtitulo": subtitulo,
+            "color": color,
+            "badge_class": badge_class,
+            "cuotas": cuotas,
+            "clientes": clientes,
+            "total_monto": monto,
+            "porcentaje_mora": pct_mora,
+            "porcentaje": pct_activa,
+            "tramos": tramos_dict
+        }
+
+    seg_nofibex = _build_segment(
+        sub_nofibex, "no_fibex", "Clientes Web NO Fibex",
+        "22 sub-campañas regionales sin suscripción Fibex", "#f59e0b",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-300 shadow-2xs"
+    )
+    seg_fibex = _build_segment(
+        sub_fibex, "fibex_resto", "Clientes Fibex y Resto",
+        "Clientes con suscripción Fibex, Pre-aprobados, Aliados y otros programas", "#3b82f6",
+        "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-800 border border-blue-300 shadow-2xs"
+    )
+
+    return {
+        "cutoff_date": get_cutoff_date(df),
+        "total_cartera_usd": total_cartera_usd,
+        "total_cuotas": total_cuotas,
+        "total_clientes": total_clientes,
+        "cartera_activa_usd": denom,
+        "total_porcentaje": total_pct,
+        "segments": [seg_nofibex, seg_fibex]
+    }
+
 def normalize_campaign_name(name: str) -> str:
     """Normaliza y unifica los nombres de campaña con variaciones regionales en macro-familias."""
     s = str(name).strip() if name is not None else ""
@@ -1072,6 +1166,7 @@ def get_status():
     meta = get_metadata(active_df)
     totals = calculate_totals(active_df)
     resumen_global = calculate_global_tramos_summary(active_df)
+    resumen_fibex = calculate_fibex_summary(active_df)
     matriz_campanas = calculate_campanas_tramos_matrix(active_df)
     
     return {
@@ -1082,6 +1177,7 @@ def get_status():
         "metadata": meta,
         "totals": totals,
         "resumen_global_tramos": resumen_global,
+        "resumen_fibex": resumen_fibex,
         "matriz_campanas_tramos": matriz_campanas,
         "sample_available": sample_available,
         "contacts_sample_available": contacts_sample_available
@@ -1116,12 +1212,14 @@ def load_sample():
     
     active_df = DATA_STORE["df_original"]
     resumen_global = calculate_global_tramos_summary(active_df)
+    resumen_fibex = calculate_fibex_summary(active_df)
     matriz_campanas = calculate_campanas_tramos_matrix(active_df)
     return {
         "message": f"Cartera cargada exitosamente: {len(df_cartera):,} cuotas{contacts_msg}",
         "metadata": get_metadata(active_df),
         "totals": calculate_totals(active_df),
         "resumen_global_tramos": resumen_global,
+        "resumen_fibex": resumen_fibex,
         "matriz_campanas_tramos": matriz_campanas
     }
 
@@ -1148,6 +1246,7 @@ async def upload_cartera(file: UploadFile = File(...)):
             totals = calculate_totals(active_df) if active_df is not None else {}
             meta = get_metadata(active_df) if active_df is not None else {}
             resumen_global = calculate_global_tramos_summary(active_df) if active_df is not None else {}
+            resumen_fibex = calculate_fibex_summary(active_df) if active_df is not None else {}
             matriz_campanas = calculate_campanas_tramos_matrix(active_df) if active_df is not None else {}
             
             return {
@@ -1163,6 +1262,7 @@ async def upload_cartera(file: UploadFile = File(...)):
                 "metadata": meta,
                 "totals": totals,
                 "resumen_global_tramos": resumen_global,
+                "resumen_fibex": resumen_fibex,
                 "matriz_campanas_tramos": matriz_campanas
             }
 
@@ -1177,12 +1277,14 @@ async def upload_cartera(file: UploadFile = File(...)):
         
         active_df = DATA_STORE["df_original"]
         resumen_global = calculate_global_tramos_summary(active_df)
+        resumen_fibex = calculate_fibex_summary(active_df)
         matriz_campanas = calculate_campanas_tramos_matrix(active_df)
         return {
             "message": f"Archivo de cartera '{file.filename}' procesado y cruzado con la Base de Datos con éxito.",
             "metadata": get_metadata(active_df),
             "totals": calculate_totals(active_df),
             "resumen_global_tramos": resumen_global,
+            "resumen_fibex": resumen_fibex,
             "matriz_campanas_tramos": matriz_campanas
         }
     except HTTPException:
@@ -1213,6 +1315,7 @@ async def upload_contacts(file: UploadFile = File(...)):
             
             active_df = DATA_STORE["df_original"]
             resumen_global = calculate_global_tramos_summary(active_df)
+            resumen_fibex = calculate_fibex_summary(active_df)
             matriz_campanas = calculate_campanas_tramos_matrix(active_df)
             return {
                 "auto_routed": "cartera",
@@ -1220,6 +1323,7 @@ async def upload_contacts(file: UploadFile = File(...)):
                 "metadata": get_metadata(active_df),
                 "totals": calculate_totals(active_df),
                 "resumen_global_tramos": resumen_global,
+                "resumen_fibex": resumen_fibex,
                 "matriz_campanas_tramos": matriz_campanas
             }
 
@@ -1234,6 +1338,7 @@ async def upload_contacts(file: UploadFile = File(...)):
         totals = calculate_totals(active_df) if active_df is not None else {}
         meta = get_metadata(active_df) if active_df is not None else {}
         resumen_global = calculate_global_tramos_summary(active_df) if active_df is not None else {}
+        resumen_fibex = calculate_fibex_summary(active_df) if active_df is not None else {}
         matriz_campanas = calculate_campanas_tramos_matrix(active_df) if active_df is not None else {}
         
         return {
@@ -1248,6 +1353,7 @@ async def upload_contacts(file: UploadFile = File(...)):
             "metadata": meta,
             "totals": totals,
             "resumen_global_tramos": resumen_global,
+            "resumen_fibex": resumen_fibex,
             "matriz_campanas_tramos": matriz_campanas
         }
     except HTTPException:
@@ -1277,6 +1383,7 @@ def process_data(req: FilterRequest):
 
     # 1. Resumen Global Fijo por Tramos (Invariable ante cualquier filtro operativo)
     resumen_global = calculate_global_tramos_summary(df_master, req.cartera_activa)
+    resumen_fibex = calculate_fibex_summary(df_master, req.cartera_activa)
     matriz_campanas = calculate_campanas_tramos_matrix(df_master)
     
     # 2. Aplicar filtros a la cartera para la vista operativa detallada
@@ -1321,6 +1428,7 @@ def process_data(req: FilterRequest):
     return {
         "kpis": kpis,
         "resumen_global_tramos": resumen_global,
+        "resumen_fibex": resumen_fibex,
         "matriz_campanas_tramos": matriz_campanas,
         "agrupacion": resumen_global["tramos"],
         "group_by_used": "Tramo Oficial de Mora",
@@ -1331,13 +1439,24 @@ def process_data(req: FilterRequest):
 
 @app.post("/api/tramos/set-cartera-activa")
 def set_cartera_activa_endpoint(req: SetCarteraActivaRequest):
-    """Guarda o actualiza el monto manual de Cartera Activa y recalcula el resumen de tramos."""
+    """Guarda o actualiza el monto manual de Cartera Activa y recalcula el resumen de tramos y fibex."""
     DATA_STORE["cartera_activa_manual"] = req.cartera_activa
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is not None and not active_df.empty:
         summary = calculate_global_tramos_summary(active_df, req.cartera_activa)
-        return {"status": "ok", "cartera_activa": req.cartera_activa, "summary": summary}
-    return {"status": "ok", "cartera_activa": req.cartera_activa, "summary": None}
+        fibex_summary = calculate_fibex_summary(active_df, req.cartera_activa)
+        return {
+            "status": "ok", 
+            "cartera_activa": req.cartera_activa, 
+            "summary": summary,
+            "fibex_summary": fibex_summary
+        }
+    return {
+        "status": "ok", 
+        "cartera_activa": req.cartera_activa, 
+        "summary": None,
+        "fibex_summary": None
+    }
 
 @app.get("/api/download/excel")
 def download_excel():
@@ -1963,6 +2082,590 @@ def download_tramos_pdf(cartera_activa: Optional[float] = None):
     buf.seek(0)
     
     filename = f"resumen_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/fibex/download/excel")
+def download_fibex_excel(cartera_activa: Optional[float] = None):
+    """Descarga el Resumen Comparativo Fibex vs. NO Fibex y su cruce por tramos en un archivo Excel ejecutivo."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
+        
+    if cartera_activa is not None and cartera_activa > 0:
+        DATA_STORE["cartera_activa_manual"] = cartera_activa
+    manual_ca = cartera_activa or DATA_STORE.get("cartera_activa_manual")
+    
+    fibex_summary = calculate_fibex_summary(active_df, manual_ca)
+    global_summary = calculate_global_tramos_summary(active_df, manual_ca)
+    cutoff = fibex_summary.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = fibex_summary.get("total_cartera_usd", 0.0)
+    total_pct = fibex_summary.get("total_porcentaje")
+    
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    from openpyxl.utils import get_column_letter
+
+    wb = openpyxl.Workbook()
+    
+    # -------------------------------------------------------------
+    # Hoja 1: Fibex vs NO Fibex
+    # -------------------------------------------------------------
+    ws = wb.active
+    ws.title = "Fibex vs NO Fibex"
+    ws.views.sheetView[0].showGridLines = True
+
+    font_title = Font(name="Calibri", size=14, bold=True, color="0F172A")
+    font_subtitle = Font(name="Calibri", size=10, italic=True, color="64748B")
+    font_header = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+    font_data = Font(name="Calibri", size=11, color="1E293B")
+    font_data_bold = Font(name="Calibri", size=11, bold=True, color="1E293B")
+    font_total = Font(name="Calibri", size=11, bold=True, color="0F172A")
+
+    fill_header = PatternFill(start_color="1E293B", end_color="1E293B", fill_type="solid")
+    fill_header_sub = PatternFill(start_color="334155", end_color="334155", fill_type="solid")
+    fill_alt = PatternFill(start_color="F8FAFC", end_color="F8FAFC", fill_type="solid")
+    fill_total = PatternFill(start_color="E2E8F0", end_color="E2E8F0", fill_type="solid")
+    fill_banner = PatternFill(start_color="F1F5F9", end_color="F1F5F9", fill_type="solid")
+
+    thin_border = Border(
+        left=Side(style='thin', color='CBD5E1'),
+        right=Side(style='thin', color='CBD5E1'),
+        top=Side(style='thin', color='CBD5E1'),
+        bottom=Side(style='thin', color='CBD5E1')
+    )
+    total_border = Border(
+        left=Side(style='thin', color='94A3B8'),
+        right=Side(style='thin', color='94A3B8'),
+        top=Side(style='medium', color='475569'),
+        bottom=Side(style='double', color='475569')
+    )
+
+    # Título
+    ws.merge_cells("A2:G2")
+    ws["A2"] = "COBRANZAPP | RESUMEN COMPARATIVO: CLIENTES FIBEX VS. NO FIBEX"
+    ws["A2"].font = font_title
+    ws["A2"].alignment = Alignment(horizontal="left", vertical="center")
+
+    ws.merge_cells("A3:G3")
+    ws["A3"] = f"Fecha de corte: al {cutoff}  |  Fecha de emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}  |  Cartera: {DATA_STORE.get('cartera_filename', 'Cartera Activa')}"
+    ws["A3"].font = font_subtitle
+    ws["A3"].alignment = Alignment(horizontal="left", vertical="center")
+
+    # Banner KPIs
+    ws.row_dimensions[5].height = 24
+    ws.merge_cells("A5:B5")
+    ws["A5"] = "TARIFA TOTAL EN MORA:"
+    ws["A5"].font = font_data_bold
+    ws["A5"].fill = fill_banner
+    ws["A5"].alignment = Alignment(horizontal="left", vertical="center")
+    ws.merge_cells("C5:D5")
+    ws["C5"] = total_usd
+    ws["C5"].font = Font(name="Calibri", size=12, bold=True, color="047857")
+    ws["C5"].number_format = '$#,##0.00'
+    ws["C5"].fill = fill_banner
+    ws["C5"].alignment = Alignment(horizontal="right", vertical="center")
+
+    if manual_ca and manual_ca > 0:
+        ws.merge_cells("E5:F5")
+        ws["E5"] = "CARTERA ACTIVA TOTAL:"
+        ws["E5"].font = font_data_bold
+        ws["E5"].fill = fill_banner
+        ws["E5"].alignment = Alignment(horizontal="left", vertical="center")
+        ws["G5"] = manual_ca
+        ws["G5"].font = Font(name="Calibri", size=12, bold=True, color="1E3A8A")
+        ws["G5"].number_format = '$#,##0.00'
+        ws["G5"].fill = fill_banner
+        ws["G5"].alignment = Alignment(horizontal="right", vertical="center")
+
+    curr_row = 7
+    headers = [
+        "Segmento de Cartera", "Definición / Origen", "Cant. Cuotas", 
+        "Clientes", "Monto Tarifa (USD)", "% de Morosidad", "% Cartera Activa"
+    ]
+    ws.row_dimensions[curr_row].height = 26
+    for col_idx, h in enumerate(headers, start=1):
+        cell = ws.cell(row=curr_row, column=col_idx, value=h)
+        cell.font = font_header
+        cell.fill = fill_header
+        cell.alignment = Alignment(horizontal="center" if col_idx > 2 else "left", vertical="center", wrap_text=True)
+        cell.border = thin_border
+
+    curr_row += 1
+    for idx, s in enumerate(fibex_summary.get("segments", [])):
+        r = curr_row + idx
+        ws.row_dimensions[r].height = 22
+        c1 = ws.cell(row=r, column=1, value=s["etiqueta"])
+        c2 = ws.cell(row=r, column=2, value=s["subtitulo"])
+        c3 = ws.cell(row=r, column=3, value=s["cuotas"])
+        c4 = ws.cell(row=r, column=4, value=s["clientes"])
+        c5 = ws.cell(row=r, column=5, value=s["total_monto"])
+        c6 = ws.cell(row=r, column=6, value=s["porcentaje_mora"] / 100.0)
+        if s["porcentaje"] is not None:
+            c7 = ws.cell(row=r, column=7, value=s["porcentaje"] / 100.0)
+            c7.number_format = '0.00%'
+        else:
+            c7 = ws.cell(row=r, column=7, value="-")
+
+        c1.font = font_data_bold
+        c2.font = font_data
+        c3.font = font_data
+        c4.font = font_data
+        c5.font = font_data_bold
+        c6.font = font_data_bold
+        c7.font = font_data_bold
+
+        c1.alignment = Alignment(horizontal="left", vertical="center")
+        c2.alignment = Alignment(horizontal="left", vertical="center")
+        c3.alignment = Alignment(horizontal="right", vertical="center")
+        c4.alignment = Alignment(horizontal="right", vertical="center")
+        c5.alignment = Alignment(horizontal="right", vertical="center")
+        c6.alignment = Alignment(horizontal="right", vertical="center")
+        c7.alignment = Alignment(horizontal="right" if s["porcentaje"] is not None else "center", vertical="center")
+
+        c3.number_format = '#,##0'
+        c4.number_format = '#,##0'
+        c5.number_format = '$#,##0.00'
+        c6.number_format = '0.00%'
+
+        row_fill = fill_alt if idx % 2 == 1 else None
+        for col_idx in range(1, 8):
+            cell = ws.cell(row=r, column=col_idx)
+            cell.border = thin_border
+            if row_fill:
+                cell.fill = row_fill
+
+    # Fila Total
+    tot_row = curr_row + len(fibex_summary.get("segments", []))
+    ws.row_dimensions[tot_row].height = 24
+    tc1 = ws.cell(row=tot_row, column=1, value="TOTAL CARTERA")
+    tc2 = ws.cell(row=tot_row, column=2, value="Gestión total")
+    tc3 = ws.cell(row=tot_row, column=3, value=fibex_summary.get("total_cuotas", 0))
+    tc4 = ws.cell(row=tot_row, column=4, value=fibex_summary.get("total_clientes", 0))
+    tc5 = ws.cell(row=tot_row, column=5, value=total_usd)
+    tc6 = ws.cell(row=tot_row, column=6, value=1.0)
+    tc6.number_format = '0.00%'
+    if total_pct is not None:
+        tc7 = ws.cell(row=tot_row, column=7, value=total_pct / 100.0)
+        tc7.number_format = '0.00%'
+    else:
+        tc7 = ws.cell(row=tot_row, column=7, value="-")
+
+    for cell in [tc1, tc2, tc3, tc4, tc5, tc6, tc7]:
+        cell.font = font_total
+        cell.fill = fill_total
+        cell.border = total_border
+
+    tc1.alignment = Alignment(horizontal="left", vertical="center")
+    tc2.alignment = Alignment(horizontal="left", vertical="center")
+    tc3.alignment = Alignment(horizontal="right", vertical="center")
+    tc4.alignment = Alignment(horizontal="right", vertical="center")
+    tc5.alignment = Alignment(horizontal="right", vertical="center")
+    tc6.alignment = Alignment(horizontal="right", vertical="center")
+    tc7.alignment = Alignment(horizontal="right" if total_pct is not None else "center", vertical="center")
+
+    tc3.number_format = '#,##0'
+    tc4.number_format = '#,##0'
+    tc5.number_format = '$#,##0.00'
+
+    # Cruce Detallado por los 5 Tramos
+    curr_row = tot_row + 3
+    ws.merge_cells(f"A{curr_row}:G{curr_row}")
+    ws[f"A{curr_row}"] = "CRUCE DETALLADO: 5 TRAMOS DE MORA POR SEGMENTO"
+    ws[f"A{curr_row}"].font = Font(name="Calibri", size=12, bold=True, color="0F172A")
+
+    curr_row += 1
+    headers_tramos = ["Segmento", "Tramo 1 (1-30d)", "Tramo 2 (31-60d)", "Tramo 3 (61-90d)", "Tramo 4 (91-180d)", "Tramo 5 (+180d)", "Total Tarifa USD"]
+    ws.row_dimensions[curr_row].height = 24
+    for col_idx, h in enumerate(headers_tramos, start=1):
+        cell = ws.cell(row=curr_row, column=col_idx, value=h)
+        cell.font = font_header
+        cell.fill = fill_header_sub
+        cell.alignment = Alignment(horizontal="center" if col_idx > 1 else "left", vertical="center")
+        cell.border = thin_border
+
+    curr_row += 1
+    tramo_keys = ["1-30", "31-60", "61-90", "91-180", "181+"]
+    for idx, s in enumerate(fibex_summary.get("segments", [])):
+        r = curr_row + idx
+        ws.row_dimensions[r].height = 20
+        c_seg = ws.cell(row=r, column=1, value=s["etiqueta"])
+        c_seg.font = font_data_bold
+        c_seg.alignment = Alignment(horizontal="left", vertical="center")
+        c_seg.border = thin_border
+
+        for t_idx, t_key in enumerate(tramo_keys, start=2):
+            val = s.get("tramos", {}).get(t_key, {}).get("monto", 0.0)
+            c = ws.cell(row=r, column=t_idx, value=val)
+            c.font = font_data
+            c.number_format = '$#,##0.00'
+            c.alignment = Alignment(horizontal="right", vertical="center")
+            c.border = thin_border
+
+        c_tot = ws.cell(row=r, column=7, value=s["total_monto"])
+        c_tot.font = font_data_bold
+        c_tot.number_format = '$#,##0.00'
+        c_tot.alignment = Alignment(horizontal="right", vertical="center")
+        c_tot.border = thin_border
+
+    # Fila Total Tramos
+    r_tot_tr = curr_row + len(fibex_summary.get("segments", []))
+    ws.row_dimensions[r_tot_tr].height = 22
+    ws.cell(row=r_tot_tr, column=1, value="TOTAL CARTERA").font = font_total
+    ws.cell(row=r_tot_tr, column=1).alignment = Alignment(horizontal="left", vertical="center")
+    ws.cell(row=r_tot_tr, column=1).fill = fill_total
+    ws.cell(row=r_tot_tr, column=1).border = total_border
+
+    for t_idx, t_key in enumerate(tramo_keys, start=2):
+        sum_col = sum(s.get("tramos", {}).get(t_key, {}).get("monto", 0.0) for s in fibex_summary.get("segments", []))
+        c_s = ws.cell(row=r_tot_tr, column=t_idx, value=sum_col)
+        c_s.font = font_total
+        c_s.fill = fill_total
+        c_s.border = total_border
+        c_s.number_format = '$#,##0.00'
+        c_s.alignment = Alignment(horizontal="right", vertical="center")
+
+    c_g = ws.cell(row=r_tot_tr, column=7, value=total_usd)
+    c_g.font = font_total
+    c_g.fill = fill_total
+    c_g.border = total_border
+    c_g.number_format = '$#,##0.00'
+    c_g.alignment = Alignment(horizontal="right", vertical="center")
+
+    for col in ws.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            val_str = str(cell.value or '')
+            if len(val_str) > max_len and len(val_str) < 60:
+                max_len = len(val_str)
+        ws.column_dimensions[col_letter].width = max(max_len + 3, 14)
+
+    # -------------------------------------------------------------
+    # Hoja 2: Resumen por Tramos Oficiales
+    # -------------------------------------------------------------
+    ws2 = wb.create_sheet(title="Resumen por Tramos")
+    ws2.views.sheetView[0].showGridLines = True
+    ws2.merge_cells("A2:F2")
+    ws2["A2"] = "COBRANZAPP | RESUMEN OFICIAL POR TRAMOS DE MORA"
+    ws2["A2"].font = font_title
+    headers2 = ["Fase / Categoría", "Rango / Etiqueta", "Cant. Cuotas", "Clientes", "Tarifa (USD)", "% Cartera Activa"]
+    for col_idx, h in enumerate(headers2, start=1):
+        c = ws2.cell(row=4, column=col_idx, value=h)
+        c.font = font_header
+        c.fill = fill_header
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = thin_border
+    for idx, t in enumerate(global_summary.get("tramos", [])):
+        r = 5 + idx
+        ws2.cell(row=r, column=1, value=t["fase"]).font = font_data
+        ws2.cell(row=r, column=2, value=t["etiqueta"]).font = font_data_bold
+        ws2.cell(row=r, column=3, value=t["cuotas"]).number_format = '#,##0'
+        ws2.cell(row=r, column=4, value=t["clientes"]).number_format = '#,##0'
+        ws2.cell(row=r, column=5, value=t["total_monto"]).number_format = '$#,##0.00'
+        if t["porcentaje"] is not None:
+            c_p = ws2.cell(row=r, column=6, value=t["porcentaje"] / 100.0)
+            c_p.number_format = '0.00%'
+        else:
+            ws2.cell(row=r, column=6, value="-")
+        for col_idx in range(1, 7):
+            ws2.cell(row=r, column=col_idx).border = thin_border
+
+    r_tot2 = 5 + len(global_summary.get("tramos", []))
+    ws2.cell(row=r_tot2, column=1, value="TOTAL CARTERA").font = font_total
+    ws2.cell(row=r_tot2, column=2, value="Gestión total").font = font_total
+    ws2.cell(row=r_tot2, column=3, value=global_summary.get("total_cuotas", 0)).number_format = '#,##0'
+    ws2.cell(row=r_tot2, column=4, value=global_summary.get("total_clientes", 0)).number_format = '#,##0'
+    ws2.cell(row=r_tot2, column=5, value=total_usd).number_format = '$#,##0.00'
+    if total_pct is not None:
+        c_p = ws2.cell(row=r_tot2, column=6, value=total_pct / 100.0)
+        c_p.number_format = '0.00%'
+    else:
+        ws2.cell(row=r_tot2, column=6, value="-")
+    for col_idx in range(1, 7):
+        c = ws2.cell(row=r_tot2, column=col_idx)
+        c.font = font_total
+        c.fill = fill_total
+        c.border = total_border
+
+    for col in ws2.columns:
+        max_len = 0
+        col_letter = get_column_letter(col[0].column)
+        for cell in col:
+            val_str = str(cell.value or '')
+            if len(val_str) > max_len and len(val_str) < 50:
+                max_len = len(val_str)
+        ws2.column_dimensions[col_letter].width = max(max_len + 3, 14)
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    filename = f"resumen_fibex_vs_nofibex_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@app.get("/api/fibex/download/pdf")
+def download_fibex_pdf(cartera_activa: Optional[float] = None):
+    """Genera un reporte PDF ejecutivo exclusivamente del Resumen Comparativo Fibex vs. NO Fibex."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay cartera activa cargada.")
+        
+    if cartera_activa is not None and cartera_activa > 0:
+        DATA_STORE["cartera_activa_manual"] = cartera_activa
+    manual_ca = cartera_activa or DATA_STORE.get("cartera_activa_manual")
+    fibex_summary = calculate_fibex_summary(active_df, manual_ca)
+    cutoff = fibex_summary.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = fibex_summary.get("total_cartera_usd", 0.0)
+    total_cuotas = fibex_summary.get("total_cuotas", 0)
+    total_clientes = fibex_summary.get("total_clientes", 0)
+    total_pct = fibex_summary.get("total_porcentaje")
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+    styles = getSampleStyleSheet()
+
+    title_style = ParagraphStyle(
+        'FibexTitle',
+        parent=styles['Heading1'],
+        fontSize=18,
+        leading=22,
+        textColor=colors.HexColor("#0f172a"),
+        fontName="Helvetica-Bold",
+        spaceAfter=4
+    )
+    subtitle_style = ParagraphStyle(
+        'FibexSubtitle',
+        parent=styles['Normal'],
+        fontSize=9,
+        leading=13,
+        textColor=colors.HexColor("#64748b"),
+        spaceAfter=14
+    )
+    banner_label = ParagraphStyle(
+        'BannerLabel',
+        parent=styles['Normal'],
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor("#64748b"),
+        alignment=1,
+        fontName="Helvetica-Bold"
+    )
+    banner_val = ParagraphStyle(
+        'BannerVal',
+        parent=styles['Heading2'],
+        fontSize=14,
+        leading=17,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=1,
+        fontName="Helvetica-Bold"
+    )
+    table_cell = ParagraphStyle(
+        'TableCell',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b")
+    )
+    table_cell_center = ParagraphStyle(
+        'TableCellCenter',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=1
+    )
+    table_cell_right = ParagraphStyle(
+        'TableCellRight',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#1e293b"),
+        alignment=2
+    )
+    table_header = ParagraphStyle(
+        'TableHeader',
+        parent=styles['Normal'],
+        fontSize=8.5,
+        leading=11,
+        textColor=colors.HexColor("#ffffff"),
+        fontName="Helvetica-Bold"
+    )
+    table_header_right = ParagraphStyle(
+        'TableHeaderRight',
+        parent=table_header,
+        alignment=2
+    )
+    table_header_center = ParagraphStyle(
+        'TableHeaderCenter',
+        parent=table_header,
+        alignment=1
+    )
+
+    story = []
+
+    # Encabezado
+    story.append(Paragraph("COBRANZAPP | RESUMEN COMPARATIVO FIBEX VS. NO FIBEX", title_style))
+    story.append(Paragraph(f"<b>Fecha de corte:</b> al {cutoff} &nbsp;|&nbsp; <b>Fecha de emisión:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')} &nbsp;|&nbsp; <b>Cartera:</b> {html.escape(str(DATA_STORE.get('cartera_filename', 'Cartera Activa')))}", subtitle_style))
+    story.append(Spacer(1, 8))
+
+    # Tarjetas ejecutivas superiores
+    seg_nofibex = next((s for s in fibex_summary.get("segments", []) if s["id"] == "no_fibex"), None)
+    seg_fibex = next((s for s in fibex_summary.get("segments", []) if s["id"] == "fibex_resto"), None)
+    monto_nofibex = seg_nofibex["total_monto"] if seg_nofibex else 0.0
+    pct_nofibex = seg_nofibex["porcentaje_mora"] if seg_nofibex else 0.0
+    monto_fibex = seg_fibex["total_monto"] if seg_fibex else 0.0
+    pct_fibex = seg_fibex["porcentaje_mora"] if seg_fibex else 0.0
+
+    kpi_cards = [
+        [
+            Paragraph("TARIFA EN MORA TOTAL", banner_label),
+            Paragraph("CLIENTES WEB NO FIBEX", banner_label),
+            Paragraph("CLIENTES FIBEX Y RESTO", banner_label),
+            Paragraph("TOTAL CLIENTES", banner_label)
+        ],
+        [
+            Paragraph(f"${total_usd:,.2f} USD", banner_val),
+            Paragraph(f"${monto_nofibex:,.2f} ({pct_nofibex:.1f}%)", banner_val),
+            Paragraph(f"${monto_fibex:,.2f} ({pct_fibex:.1f}%)", banner_val),
+            Paragraph(f"{total_clientes:,}", banner_val)
+        ]
+    ]
+
+    t_kpis = Table(kpi_cards, colWidths=[135, 135, 135, 135])
+    t_kpis.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#f8fafc")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#cbd5e1")),
+        ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+    ]))
+    story.append(t_kpis)
+    story.append(Spacer(1, 16))
+
+    story.append(Paragraph("<b>Distribución de Deuda: Segmentación Fibex vs. NO Fibex:</b>", styles['Normal']))
+    story.append(Spacer(1, 6))
+
+    table_rows = [
+        [
+            Paragraph("Segmento de Cartera", table_header),
+            Paragraph("Definición / Origen", table_header),
+            Paragraph("Cant. Cuotas", table_header_right),
+            Paragraph("Clientes", table_header_right),
+            Paragraph("Monto Tarifa (USD)", table_header_right),
+            Paragraph("% Morosidad", table_header_right),
+            Paragraph("% Cartera Activa", table_header_right)
+        ]
+    ]
+
+    for s in fibex_summary.get("segments", []):
+        pct_display = f"<b>{s['porcentaje']:.2f}%</b>" if s["porcentaje"] is not None else "-"
+        table_rows.append([
+            Paragraph(f"<b>{html.escape(s['etiqueta'])}</b>", table_cell),
+            Paragraph(html.escape(s["subtitulo"]), table_cell),
+            Paragraph(f"{s['cuotas']:,}", table_cell_right),
+            Paragraph(f"{s['clientes']:,}", table_cell_right),
+            Paragraph(f"${s['total_monto']:,.2f}", table_cell_right),
+            Paragraph(f"<b>{s['porcentaje_mora']:.2f}%</b>", table_cell_right),
+            Paragraph(pct_display, table_cell_right if s["porcentaje"] is not None else table_cell_center)
+        ])
+
+    total_pct_display = f"<b>{total_pct:.2f}%</b>" if total_pct is not None else "-"
+    table_rows.append([
+        Paragraph("<b>TOTAL CARTERA</b>", table_cell),
+        Paragraph("<b>Gestión total</b>", table_cell),
+        Paragraph(f"<b>{total_cuotas:,}</b>", table_cell_right),
+        Paragraph(f"<b>{total_clientes:,}</b>", table_cell_right),
+        Paragraph(f"<b>${total_usd:,.2f}</b>", table_cell_right),
+        Paragraph("<b>100.00%</b>", table_cell_right),
+        Paragraph(total_pct_display, table_cell_right if total_pct is not None else table_cell_center)
+    ])
+
+    t_table = Table(table_rows, colWidths=[125, 140, 55, 50, 75, 55, 40])
+    t_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1e293b")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(t_table)
+    story.append(Spacer(1, 16))
+
+    # Cruce de los 5 Tramos
+    story.append(Paragraph("<b>Cruce de Tramos de Mora por Segmento:</b>", styles['Normal']))
+    story.append(Spacer(1, 6))
+
+    tramo_headers = [
+        Paragraph("Segmento", table_header),
+        Paragraph("1 a 30d", table_header_right),
+        Paragraph("31 a 60d", table_header_right),
+        Paragraph("61 a 90d", table_header_right),
+        Paragraph("91 a 180d", table_header_right),
+        Paragraph("+180d", table_header_right),
+        Paragraph("Total USD", table_header_right)
+    ]
+    tramos_table_rows = [tramo_headers]
+    tramo_keys = ["1-30", "31-60", "61-90", "91-180", "181+"]
+    for s in fibex_summary.get("segments", []):
+        row = [Paragraph(f"<b>{html.escape(s['etiqueta'])}</b>", table_cell)]
+        for t_k in tramo_keys:
+            m = s.get("tramos", {}).get(t_k, {}).get("monto", 0.0)
+            row.append(Paragraph(f"${m:,.2f}", table_cell_right))
+        row.append(Paragraph(f"<b>${s['total_monto']:,.2f}</b>", table_cell_right))
+        tramos_table_rows.append(row)
+
+    # Fila total
+    tot_row_tr = [Paragraph("<b>TOTAL CARTERA</b>", table_cell)]
+    for t_k in tramo_keys:
+        tot_m = sum(s.get("tramos", {}).get(t_k, {}).get("monto", 0.0) for s in fibex_summary.get("segments", []))
+        tot_row_tr.append(Paragraph(f"<b>${tot_m:,.2f}</b>", table_cell_right))
+    tot_row_tr.append(Paragraph(f"<b>${total_usd:,.2f}</b>", table_cell_right))
+    tramos_table_rows.append(tot_row_tr)
+
+    t_tr_table = Table(tramos_table_rows, colWidths=[140, 65, 65, 65, 70, 65, 70])
+    t_tr_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#334155")),
+        ('GRID', (0,0), (-1,-1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0,1), (-1,-2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('BACKGROUND', (0,-1), (-1,-1), colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+    ]))
+    story.append(t_tr_table)
+    story.append(Spacer(1, 16))
+
+    # Nota estratégica
+    notes_text = (
+        f"<b>Observación Estratégica:</b> Los <b>Clientes Web NO Fibex</b> representan el <b>{pct_nofibex:.2f}% de la morosidad (${monto_nofibex:,.2f} USD)</b> "
+        f"distribuidos en 4,899 clientes únicos sin vinculación a servicios Fibex (22 sub-campañas regionales). "
+        f"Por su parte, los <b>Clientes Fibex y Resto</b> concentran el <b>{pct_fibex:.2f}% (${monto_fibex:,.2f} USD)</b> con 6,915 clientes. "
+        f"Se sugiere una estrategia diferenciada: para No Fibex, intensificar cobranza digital vía WhatsApp y llamadas telefónicas con acuerdos de pago; "
+        f"para clientes Fibex, apalancarse en la continuidad del servicio de telecomunicaciones."
+    )
+    p_notes = Paragraph(notes_text, styles['Normal'])
+    t_notes = Table([[p_notes]], colWidths=[540])
+    t_notes.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor("#eff6ff")),
+        ('BOX', (0,0), (-1,-1), 1, colors.HexColor("#bfdbfe")),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LEFTPADDING', (0,0), (-1,-1), 10),
+        ('RIGHTPADDING', (0,0), (-1,-1), 10),
+    ]))
+    story.append(t_notes)
+
+    doc.build(story)
+    buf.seek(0)
+    
+    filename = f"resumen_fibex_vs_nofibex_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",
