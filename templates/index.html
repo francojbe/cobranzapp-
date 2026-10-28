@@ -14,9 +14,15 @@
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     body { font-family: 'Inter', sans-serif; }
     .tab-active {
-      border-bottom: 2px solid #2563eb;
-      color: #2563eb;
-      font-weight: 600;
+      border-bottom: 3px solid #2563eb !important;
+      color: #1d4ed8 !important;
+      font-weight: 700 !important;
+      background-color: #eff6ff !important;
+      border-top-left-radius: 0.75rem !important;
+      border-top-right-radius: 0.75rem !important;
+    }
+    .tab-active i {
+      color: #2563eb !important;
     }
     @keyframes progressPulse {
       0%, 100% { opacity: 1; }
@@ -72,16 +78,16 @@
 
     <!-- Navigation Tabs -->
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 sm:space-x-8 border-t border-slate-100 text-sm font-medium overflow-x-auto">
-      <button onclick="switchTab('tab-upload')" id="nav-upload" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 tab-active flex items-center gap-2 whitespace-nowrap">
+      <button onclick="switchTab('tab-upload')" id="nav-upload" class="py-2.5 px-3.5 border-b-2 border-blue-600 text-blue-700 font-bold bg-blue-50/80 rounded-t-xl tab-active flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
         <i class="fa-solid fa-cloud-arrow-up"></i> 1. Cargar Archivos (Cartera + Contactos)
       </button>
-      <button onclick="switchTab('tab-segment')" id="nav-segment" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
+      <button onclick="switchTab('tab-segment')" id="nav-segment" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
         <i class="fa-solid fa-sliders"></i> 2. Configurar Desglose
       </button>
-      <button onclick="switchTab('tab-results')" id="nav-results" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
+      <button onclick="switchTab('tab-results')" id="nav-results" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
         <i class="fa-solid fa-chart-simple"></i> 3. Métricas y Descarga
       </button>
-      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-3 px-1 border-b-2 border-transparent text-slate-500 hover:text-slate-700 flex items-center gap-2 whitespace-nowrap">
+      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
         <i class="fa-solid fa-phone-volume text-emerald-600"></i> 4. Call Center & WhatsApp
       </button>
     </div>
@@ -1116,6 +1122,6 @@
   </div>
 
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261028_1605"></script>
+  <script src="/static/js/dashboard.js?v=20261028_1635"></script>
 </body>
 </html>
