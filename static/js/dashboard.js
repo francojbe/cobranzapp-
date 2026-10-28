@@ -488,6 +488,17 @@ window.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
+// Guardián global para evitar que se abran descargas si no hay cartera cargada en memoria
+document.addEventListener('click', (e) => {
+  const link = e.target.closest('a[href*="/download/"], a[href*="/download"]');
+  if (link && !currentFilesState.cartera_loaded) {
+    e.preventDefault();
+    e.stopPropagation();
+    showToast('warning', 'Sin cartera cargada', 'Primero debes subir tu archivo de mora o hacer clic en "Cargar Cartera de Prueba" en el Paso 1 antes de descargar reportes.');
+    switchTab('tab-upload', true);
+  }
+});
+
 function updateUIState(data) {
   const meta = data.metadata || {};
   const totals = data.totals || {};
