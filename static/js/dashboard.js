@@ -444,15 +444,34 @@ function switchTab(tabId, bypassCheck = false) {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
-  ['nav-upload', 'nav-segment', 'nav-results', 'nav-contacts'].forEach(id => {
+
+  const allNavIds = ['nav-upload', 'nav-segment', 'nav-results', 'nav-contacts'];
+  allNavIds.forEach(id => {
     const el = document.getElementById(id);
-    if (el) el.classList.remove('tab-active');
+    if (el) {
+      el.classList.remove('tab-active', 'border-blue-600', 'text-blue-700', 'font-bold', 'bg-blue-50/80');
+      el.classList.add('border-transparent', 'text-slate-500', 'font-medium');
+      const icon = el.querySelector('i');
+      if (icon && !icon.classList.contains('text-emerald-600')) {
+        icon.classList.remove('text-blue-600');
+        icon.classList.add('text-slate-400');
+      }
+    }
   });
 
   const targetTab = document.getElementById(tabId);
   if (targetTab) targetTab.classList.remove('hidden');
+
   const targetNav = document.getElementById('nav-' + tabId.replace('tab-', ''));
-  if (targetNav) targetNav.classList.add('tab-active');
+  if (targetNav) {
+    targetNav.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
+    targetNav.classList.add('tab-active', 'border-blue-600', 'text-blue-700', 'font-bold', 'bg-blue-50/80');
+    const icon = targetNav.querySelector('i');
+    if (icon && !icon.classList.contains('text-emerald-600')) {
+      icon.classList.remove('text-slate-400');
+      icon.classList.add('text-blue-600');
+    }
+  }
 
   if (tabId === 'tab-contacts') {
     loadCallCenterData();
