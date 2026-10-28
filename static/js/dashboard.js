@@ -341,6 +341,24 @@ function renderSuiteModulesState(data) {
 async function selectActiveModule(moduleId, scrollToUpload = false) {
   if (moduleId !== 'general' && moduleId !== 'avila') return;
   hasUserSelectedModule = true;
+  currentActiveModule = moduleId;
+
+  // 1. Feedback visual instantáneo para que la UI reaccione de inmediato al clic
+  const ws = document.getElementById('module-upload-workspace');
+  if (ws) ws.classList.remove('hidden');
+  renderSuiteModulesState({
+    active_module: moduleId,
+    enable_mora_avila: enableMoraAvila,
+    modules_summary: currentModulesSummary
+  });
+
+  if (scrollToUpload && ws) {
+    setTimeout(() => {
+      ws.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 40);
+  }
+
+  // 2. Sincronizar estado con el servidor
   try {
     const res = await fetch('/api/module/select', {
       method: 'POST',
@@ -355,15 +373,6 @@ async function selectActiveModule(moduleId, scrollToUpload = false) {
 
     updateUIState(data);
     const modName = moduleId === 'avila' ? 'Módulo Mora Ávila' : 'Módulo Mora Ubi';
-
-    if (scrollToUpload) {
-      const ws = document.getElementById('module-upload-workspace');
-      if (ws) {
-        setTimeout(() => {
-          ws.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }, 60);
-      }
-    }
 
     // Si estamos en una pestaña de resultados o call center y el módulo tiene datos, refrescar vista
     const resultsTab = document.getElementById('tab-results');
@@ -1049,27 +1058,31 @@ function handleCarteraActivaManualInput(val) {
 }
 
 function updateQuickFilterBadges(globalSummary) {
-  if (!globalSummary || !globalSummary.tramos) return;
-  const total = Number(globalSummary.total_cartera_usd || 0);
-  const map = {
-    '1-30': 'btn-pct-tramo-1-30',
-    '31-60': 'btn-pct-tramo-31-60',
-    '61-90': 'btn-pct-tramo-61-90',
-    '91-180': 'btn-pct-tramo-91-180',
-    '181+': 'btn-pct-tramo-181'
-  };
-  globalSummary.tramos.forEach(t => {
-    const badgeId = map[t.id];
-    if (badgeId) {
-      const el = document.getElementById(badgeId);
-      if (el) {
-        const pctVal = total > 0 ? ((Number(t.total_monto || 0) / total) * 100).toFixed(1) + '%' : '0.0%';
-        el.textContent = pctVal;
+  try {
+    if (!globalSummary || !globalSummary.tramos) return;
+    const total = Number(globalSummary.total_cartera_usd || 0);
+    const map = {
+      '1-30': 'btn-pct-tramo-1-30',
+      '31-60': 'btn-pct-tramo-31-60',
+      '61-90': 'btn-pct-tramo-61-90',
+      '91-180': 'btn-pct-tramo-91-180',
+      '181+': 'btn-pct-tramo-181'
+    };
+    globalSummary.tramos.forEach(t => {
+      const badgeId = map[t.id];
+      if (badgeId) {
+        const el = document.getElementById(badgeId);
+        if (el) {
+          const pctVal = total > 0 ? ((Number(t.total_monto || 0) / total) * 100).toFixed(1) + '%' : '0.0%';
+          el.textContent = pctVal;
+        }
       }
-    }
-  });
-  const allEl = document.getElementById('btn-pct-tramo-all');
-  if (allEl) allEl.textContent = '100%';
+    });
+    const allEl = document.getElementById('btn-pct-tramo-all');
+    if (allEl) allEl.textContent = '100%';
+  } catch (err) {
+    console.warn('Error en updateQuickFilterBadges:', err);
+  }
 }
 
 /**
