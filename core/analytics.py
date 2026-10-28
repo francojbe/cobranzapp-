@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 import pandas as pd
-from core.config import DATA_STORE, OFFICIAL_TRAMOS_CONFIG
+from core.config import DATA_STORE, OFFICIAL_TRAMOS_CONFIG, sync_active_module_to_slot
 from core.database import load_contacts_from_db, upsert_contacts_to_db
 from core.parsers import (
     assign_tramo_mora,
@@ -13,9 +13,28 @@ from core.parsers import (
 
 
 def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Resuelve la columna monetaria activa (_Tot) priorizando Pendiente Tarifa y filtra filas con deuda > 0."""
+    """Resuelve la columna monetaria activa (_Tot):
+    - En Mora Ávila (o cuando Pendiente Cuota supera a Pendiente Tarifa), utiliza la suma total de la deuda
+      (Pendiente Tarifa + Pendiente Cuota + Pendiente Mora).
+    - En Cartera General, prioriza Pendiente Tarifa y filtra filas con deuda > 0."""
     df = df.copy()
-    if "Pendiente Tarifa" in df.columns and df["Pendiente Tarifa"].sum() > 0:
+    if "_Modulo" in df.columns:
+        mod_is_avila = bool((df["_Modulo"] == "avila").any())
+    else:
+        mod_is_avila = (DATA_STORE.get("active_module") == "avila")
+
+    is_avila = (
+        mod_is_avila
+        or (
+            "Pendiente Cuota" in df.columns
+            and "Pendiente Tarifa" in df.columns
+            and float(df["Pendiente Cuota"].sum()) > float(df["Pendiente Tarifa"].sum())
+        )
+    )
+
+    if is_avila and all(c in df.columns for c in ["Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora"]):
+        df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    elif "Pendiente Tarifa" in df.columns and df["Pendiente Tarifa"].sum() > 0:
         df["_Tot"] = df["Pendiente Tarifa"]
     elif "Total" in df.columns:
         df["_Tot"] = df["Total"]
@@ -30,9 +49,11 @@ def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
 def enrich_and_merge_datasets():
     """Cruza y unifica la cartera con la base de contactos de forma instantanea."""
     if DATA_STORE["df_cartera_raw"] is None:
+        sync_active_module_to_slot()
         return
 
     df_mora = DATA_STORE["df_cartera_raw"].copy()
+    df_mora["_Modulo"] = DATA_STORE.get("active_module", "general")
     df_contacts = DATA_STORE["df_contacts_raw"]
 
     if df_contacts is not None and not df_contacts.empty:
@@ -82,6 +103,7 @@ def enrich_and_merge_datasets():
     DATA_STORE["df_original"] = merged
     DATA_STORE["df_filtered"] = merged
     build_debtor_matched_dataset(merged)
+    sync_active_module_to_slot()
 
 
 def build_debtor_matched_dataset(df: pd.DataFrame):
@@ -196,9 +218,16 @@ def get_cutoff_date(df: pd.DataFrame) -> str:
     """Extrae la fecha de corte de la cartera o la fecha actual."""
     if df is not None and not df.empty and "Fecha Vencimiento" in df.columns:
         try:
-            dates = pd.to_datetime(df["Fecha Vencimiento"], errors="coerce").dropna()
-            if not dates.empty:
-                return dates.max().strftime("%d-%m-%Y")
+            s_vals = df["Fecha Vencimiento"].dropna().astype(str).str.strip()
+            s_vals = s_vals[s_vals != ""]
+            if not s_vals.empty:
+                sample_val = s_vals.iloc[0]
+                if len(sample_val) >= 10 and sample_val[4:5] == "-":
+                    dates = pd.to_datetime(s_vals, format="%Y-%m-%d", errors="coerce").dropna()
+                else:
+                    dates = pd.to_datetime(s_vals, dayfirst=True, errors="coerce").dropna()
+                if not dates.empty:
+                    return dates.max().strftime("%d-%m-%Y")
         except Exception:
             pass
     return datetime.now().strftime("%d-%m-%Y")
@@ -493,12 +522,51 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
     }
 
 
+def get_modules_summary() -> dict:
+    """Retorna el estado ejecutivo resumido de cada módulo de cartera (Cartera General y Mora Ávila)."""
+    sync_active_module_to_slot()
+    summary = {}
+    for mod_id, slot in DATA_STORE.get("modules", {}).items():
+        df_mod = slot.get("df_original") if slot.get("df_original") is not None else slot.get("df_cartera_raw")
+        if df_mod is not None and not df_mod.empty:
+            df_act = resolve_active_debt_df(df_mod)
+            monto = round(float(df_act["_Tot"].sum()), 2)
+            cuotas = len(df_mod)
+            clientes = int(df_mod["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_mod.columns else cuotas
+            summary[mod_id] = {
+                "id": mod_id,
+                "label": slot.get("label", mod_id),
+                "loaded": True,
+                "filename": slot.get("cartera_filename", ""),
+                "total_cuotas": cuotas,
+                "total_clientes": clientes,
+                "monto_total": monto,
+                "cartera_activa": slot.get("cartera_activa_manual"),
+            }
+        else:
+            summary[mod_id] = {
+                "id": mod_id,
+                "label": slot.get("label", mod_id),
+                "loaded": False,
+                "filename": "",
+                "total_cuotas": 0,
+                "total_clientes": 0,
+                "monto_total": 0.0,
+                "cartera_activa": slot.get("cartera_activa_manual"),
+            }
+    return summary
+
+
 def get_metadata(df: pd.DataFrame):
     has_contacts = (DATA_STORE["df_contacts_raw"] is not None and not DATA_STORE["df_contacts_raw"].empty)
     total_contacts = len(DATA_STORE["df_contacts_raw"]) if has_contacts else 0
+    active_mod = DATA_STORE.get("active_module", "general")
+    enable_avila = bool(DATA_STORE.get("enable_mora_avila", True))
 
     if df is None or df.empty:
         return {
+            "active_module": active_mod,
+            "enable_mora_avila": enable_avila,
             "total_rows": 0, "total_clientes": 0, "programas": [],
             "tipos_campana": [], "tipos": [], "canales": [], "tramos": {},
             "min_dias": 0, "max_dias": 0, "has_contacts": has_contacts,
@@ -518,6 +586,8 @@ def get_metadata(df: pd.DataFrame):
     max_dias = int(df["Dias de Mora"].max()) if "Dias de Mora" in df.columns and not df.empty else 0
 
     return {
+        "active_module": active_mod,
+        "enable_mora_avila": enable_avila,
         "total_rows": len(df),
         "total_clientes": int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else 0,
         "programas": programas,
@@ -537,6 +607,9 @@ def get_metadata(df: pd.DataFrame):
 def build_dashboard_payload(df: Optional[pd.DataFrame], cartera_activa: Optional[float] = None) -> dict:
     """Construye el paquete estándar de indicadores del dashboard para evitar duplicación en los endpoints."""
     return {
+        "active_module": DATA_STORE.get("active_module", "general"),
+        "enable_mora_avila": bool(DATA_STORE.get("enable_mora_avila", True)),
+        "modules_summary": get_modules_summary(),
         "metadata": get_metadata(df),
         "totals": calculate_totals(df),
         "resumen_global_tramos": calculate_global_tramos_summary(df, cartera_activa),

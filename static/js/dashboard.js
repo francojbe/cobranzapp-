@@ -200,6 +200,195 @@ let currentFilesState = {
   contacts_filename: ''
 };
 let hasProcessedOnce = false;
+let currentActiveModule = 'general';
+let enableMoraAvila = true;
+let currentModulesSummary = {};
+let hasUserSelectedModule = false;
+
+function renderSuiteModulesState(data) {
+  if (data.active_module) currentActiveModule = data.active_module;
+  if (typeof data.enable_mora_avila === 'boolean') enableMoraAvila = data.enable_mora_avila;
+  if (data.modules_summary) currentModulesSummary = data.modules_summary;
+  if (data.loaded) hasUserSelectedModule = true;
+
+  const headerSwitcher = document.getElementById('header-module-switcher');
+  const homeSelector = document.getElementById('home-suite-selector');
+  const uploadWorkspace = document.getElementById('module-upload-workspace');
+  const uploadBadge = document.getElementById('upload-active-module-badge');
+  const uploadIcon = document.getElementById('upload-box-icon');
+  const sampleBtnLabel = document.getElementById('btn-load-samples-label');
+
+  if (!enableMoraAvila) {
+    if (headerSwitcher) headerSwitcher.classList.add('hidden');
+    if (homeSelector) homeSelector.classList.add('hidden');
+    if (uploadBadge) uploadBadge.classList.add('hidden');
+    if (uploadWorkspace) uploadWorkspace.classList.remove('hidden');
+    return;
+  }
+
+  if (headerSwitcher) headerSwitcher.classList.remove('hidden');
+  if (homeSelector) homeSelector.classList.remove('hidden');
+  if (uploadBadge) uploadBadge.classList.remove('hidden');
+
+  if (uploadWorkspace) {
+    if (hasUserSelectedModule) {
+      uploadWorkspace.classList.remove('hidden');
+    } else {
+      uploadWorkspace.classList.add('hidden');
+    }
+  }
+
+  const isAvila = currentActiveModule === 'avila';
+
+  // 1. Header Switcher Buttons
+  const hBtnGen = document.getElementById('header-btn-mod-general');
+  const hBtnAvi = document.getElementById('header-btn-mod-avila');
+  if (hBtnGen && hBtnAvi) {
+    if (!hasUserSelectedModule) {
+      hBtnGen.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
+      hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
+    } else if (isAvila) {
+      hBtnGen.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
+      hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-emerald-600 text-white shadow-xs';
+    } else {
+      hBtnGen.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-blue-600 text-white shadow-xs';
+      hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
+    }
+  }
+
+  // 2. Upload Box Active Module Indicator
+  if (uploadBadge) {
+    if (isAvila) {
+      uploadBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+      uploadBadge.innerHTML = `<i class="fa-solid fa-mountain-sun text-[10px]"></i> Módulo Activo: Mora Ávila`;
+    } else {
+      uploadBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200';
+      uploadBadge.innerHTML = `<i class="fa-solid fa-building-columns text-[10px]"></i> Módulo Activo: Mora Ubi`;
+    }
+  }
+  if (uploadIcon) {
+    uploadIcon.className = isAvila
+      ? 'w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors'
+      : 'w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors';
+  }
+  if (sampleBtnLabel) {
+    sampleBtnLabel.textContent = isAvila ? 'Cargar Muestra Mora Ávila' : 'Cargar Muestra Mora Ubi';
+  }
+
+  // 3. Home Suite Cards (General & Avila)
+  const cardGen = document.getElementById('card-module-general');
+  const cardAvi = document.getElementById('card-module-avila');
+  const badgeActGen = document.getElementById('badge-active-general');
+  const badgeActAvi = document.getElementById('badge-active-avila');
+  const btnLblGen = document.getElementById('btn-label-open-general');
+  const btnLblAvi = document.getElementById('btn-label-open-avila');
+
+  if (cardGen && cardAvi) {
+    if (!hasUserSelectedModule) {
+      cardGen.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-500 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      cardAvi.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      if (badgeActGen) badgeActGen.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white';
+      if (badgeActAvi) badgeActAvi.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+      if (btnLblGen) btnLblGen.textContent = 'Seleccionar Módulo Ubi';
+      if (btnLblAvi) btnLblAvi.textContent = 'Seleccionar Módulo Ávila';
+    } else if (isAvila) {
+      cardGen.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-400 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      cardAvi.className = 'relative rounded-2xl border-2 border-emerald-600 bg-emerald-50/20 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      if (badgeActGen) badgeActGen.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white';
+      if (badgeActAvi) badgeActAvi.className = 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+      if (btnLblGen) btnLblGen.textContent = 'Cambiar a Mora Ubi';
+      if (btnLblAvi) btnLblAvi.textContent = 'Módulo Activo';
+    } else {
+      cardGen.className = 'relative rounded-2xl border-2 border-blue-600 bg-blue-50/20 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      cardAvi.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-400 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      if (badgeActGen) badgeActGen.className = 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white';
+      if (badgeActAvi) badgeActAvi.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+      if (btnLblGen) btnLblGen.textContent = 'Módulo Activo';
+      if (btnLblAvi) btnLblAvi.textContent = 'Cambiar a Mora Ávila';
+    }
+  }
+
+  // 4. Stats & Status Dots per Module
+  ['general', 'avila'].forEach(modKey => {
+    const modInfo = currentModulesSummary[modKey] || { loaded: false, total_cuotas: 0, total_clientes: 0, monto_total: 0 };
+    const pill = document.getElementById(`status-pill-${modKey}`);
+    const statsLine = document.getElementById(`stats-line-${modKey}`);
+    const dot = document.getElementById(`header-dot-${modKey}`);
+
+    if (modInfo.loaded) {
+      if (pill) {
+        pill.className = 'text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 shrink-0';
+        pill.innerHTML = `<i class="fa-solid fa-check mr-1"></i> Cargado`;
+      }
+      if (statsLine) {
+        const montoFmt = '$' + Number(modInfo.monto_total || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        statsLine.innerHTML = `<span class="text-slate-900 font-bold">${Number(modInfo.total_cuotas || 0).toLocaleString()} cuotas</span> · <span class="text-slate-700">${Number(modInfo.total_clientes || 0).toLocaleString()} clientes</span> · <span class="text-emerald-700 font-extrabold">${montoFmt} USD</span>`;
+      }
+      if (dot) dot.className = 'w-2 h-2 rounded-full bg-emerald-400 ml-0.5 shadow-2xs';
+    } else {
+      if (pill) {
+        pill.className = 'text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0';
+        pill.textContent = 'Sin cargar';
+      }
+      if (statsLine) {
+        statsLine.textContent = 'Ningún archivo cargado en este módulo';
+      }
+      if (dot) dot.className = 'w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5';
+    }
+  });
+}
+
+async function selectActiveModule(moduleId, scrollToUpload = false) {
+  if (moduleId !== 'general' && moduleId !== 'avila') return;
+  hasUserSelectedModule = true;
+  try {
+    const res = await fetch('/api/module/select', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ module_id: moduleId })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast('error', 'Error al cambiar módulo', data.detail || 'No se pudo cambiar el módulo.');
+      return;
+    }
+
+    updateUIState(data);
+    const modName = moduleId === 'avila' ? 'Módulo Mora Ávila' : 'Módulo Mora Ubi';
+
+    if (scrollToUpload) {
+      const ws = document.getElementById('module-upload-workspace');
+      if (ws) {
+        setTimeout(() => {
+          ws.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }, 60);
+      }
+    }
+
+    // Si estamos en una pestaña de resultados o call center y el módulo tiene datos, refrescar vista
+    const resultsTab = document.getElementById('tab-results');
+    const contactsTab = document.getElementById('tab-contacts');
+    const segmentTab = document.getElementById('tab-segment');
+
+    if (data.loaded) {
+      if (resultsTab && !resultsTab.classList.contains('hidden')) {
+        await processFilters();
+      } else if (contactsTab && !contactsTab.classList.contains('hidden')) {
+        await loadCallCenterData();
+      }
+      showToast('info', modName, `Visualizando ${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas activas de ${modName}.`);
+    } else {
+      if ((resultsTab && !resultsTab.classList.contains('hidden')) ||
+          (contactsTab && !contactsTab.classList.contains('hidden')) ||
+          (segmentTab && !segmentTab.classList.contains('hidden'))) {
+        switchTab('tab-upload', true);
+      }
+      showToast('info', modName, `${modName} habilitado. Sube tu archivo o haz clic en el botón de muestra.`);
+    }
+  } catch (err) {
+    showToast('error', 'Error de conexión', 'No se pudo cambiar de módulo: ' + err.message);
+  }
+}
 
 function highlightMissingCard(cardType) {
   const cardId = cardType === 'cartera' ? 'card-status-cartera' : 'card-status-contacts';
@@ -275,10 +464,14 @@ function updateUIState(data) {
   const meta = data.metadata || {};
   const totals = data.totals || {};
 
+  renderSuiteModulesState(data);
+
   currentFilesState.cartera_loaded = Boolean(data.loaded);
   currentFilesState.contacts_loaded = Boolean(data.contacts_loaded);
-  if (data.cartera_filename) currentFilesState.cartera_filename = data.cartera_filename;
-  if (data.contacts_filename) currentFilesState.contacts_filename = data.contacts_filename;
+  currentFilesState.cartera_filename = data.cartera_filename || meta.cartera_filename || '';
+  if (data.contacts_filename || meta.contacts_filename) {
+    currentFilesState.contacts_filename = data.contacts_filename || meta.contacts_filename;
+  }
 
   const carteraCard = document.getElementById('card-status-cartera');
   const carteraBadge = document.getElementById('badge-cartera');
@@ -406,7 +599,10 @@ function updateUIState(data) {
 
   const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
   const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
-  if (globalSummary) currentGlobalSummary = globalSummary;
+  if (globalSummary) {
+    currentGlobalSummary = globalSummary;
+    updateQuickFilterBadges(globalSummary);
+  }
   if (fibexSummary) currentFibexSummary = fibexSummary;
 
   if (currentExecutiveView === 'fibex' && currentFibexSummary) {
@@ -421,23 +617,31 @@ function updateUIState(data) {
   }
 }
 
-async function loadSampleFiles() {
+async function loadSampleFiles(moduleId = null) {
+  const targetMod = moduleId || currentActiveModule || 'general';
   const btn = document.getElementById('btn-load-samples');
-  const originalText = btn.innerHTML;
-  btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando y cruzando...`;
-  btn.disabled = true;
+  const originalText = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Cargando y cruzando...`;
+    btn.disabled = true;
+  }
 
-  ProgressController.start('Cargando cartera de prueba...', 'Leyendo mora.csv y cruzando con la Base de Datos SQLite...');
+  const sampleLabel = targetMod === 'avila' ? 'reporte_mora_2026-10-28.csv (Mora Ávila)' : 'mora.csv (Mora Ubi)';
+  ProgressController.start('Cargando cartera de prueba...', `Leyendo ${sampleLabel} y cruzando con la Base de Datos SQLite...`);
 
   try {
-    const res = await fetch('/api/load-sample', { method: 'POST' });
+    const url = moduleId ? `/api/load-sample?module_id=${encodeURIComponent(moduleId)}` : '/api/load-sample';
+    const res = await fetch(url, { method: 'POST' });
     const data = await res.json();
     if (res.ok) {
       updateUIState({
         loaded: true,
         contacts_loaded: true,
-        cartera_filename: 'mora.csv (Cartera Principal)',
-        contacts_filename: 'Base de Datos SQLite (Contactos + Campañas)',
+        active_module: data.active_module || targetMod,
+        enable_mora_avila: data.enable_mora_avila,
+        modules_summary: data.modules_summary,
+        cartera_filename: data.metadata?.cartera_filename || sampleLabel,
+        contacts_filename: data.metadata?.contacts_filename || 'Base de Datos SQLite (Contactos + Campañas)',
         metadata: data.metadata,
         totals: data.totals,
         resumen_global_tramos: data.resumen_global_tramos,
@@ -456,8 +660,10 @@ async function loadSampleFiles() {
     ProgressController.error(err.message);
     showToast('error', 'Error de Conexión', 'No se pudo conectar con el servidor: ' + err.message);
   } finally {
-    btn.innerHTML = originalText;
-    btn.disabled = false;
+    if (btn) {
+      btn.innerHTML = originalText;
+      btn.disabled = false;
+    }
   }
 }
 
@@ -506,6 +712,9 @@ async function processSingleFile(file) {
         updateUIState({
           loaded: currentFilesState.cartera_loaded,
           contacts_loaded: true,
+          active_module: data.active_module,
+          enable_mora_avila: data.enable_mora_avila,
+          modules_summary: data.modules_summary,
           cartera_filename: currentFilesState.cartera_filename,
           contacts_filename: `BD Actualizada (+ ${file.name})`,
           total_contacts: data.total_contacts,
@@ -528,6 +737,9 @@ async function processSingleFile(file) {
         updateUIState({
           loaded: true,
           contacts_loaded: (data.metadata && data.metadata.has_contacts) || currentFilesState.contacts_loaded,
+          active_module: data.active_module,
+          enable_mora_avila: data.enable_mora_avila,
+          modules_summary: data.modules_summary,
           cartera_filename: file.name,
           contacts_filename: currentFilesState.contacts_filename,
           metadata: data.metadata,
@@ -742,7 +954,10 @@ function renderResults(data, minDias, maxDias) {
 
   const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
   const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
-  if (globalSummary) currentGlobalSummary = globalSummary;
+  if (globalSummary) {
+    currentGlobalSummary = globalSummary;
+    updateQuickFilterBadges(globalSummary);
+  }
   if (fibexSummary) currentFibexSummary = fibexSummary;
 
   if (currentExecutiveView === 'fibex' && currentFibexSummary) {
@@ -833,6 +1048,30 @@ function handleCarteraActivaManualInput(val) {
   }
 }
 
+function updateQuickFilterBadges(globalSummary) {
+  if (!globalSummary || !globalSummary.tramos) return;
+  const total = Number(globalSummary.total_cartera_usd || 0);
+  const map = {
+    '1-30': 'btn-pct-tramo-1-30',
+    '31-60': 'btn-pct-tramo-31-60',
+    '61-90': 'btn-pct-tramo-61-90',
+    '91-180': 'btn-pct-tramo-91-180',
+    '181+': 'btn-pct-tramo-181'
+  };
+  globalSummary.tramos.forEach(t => {
+    const badgeId = map[t.id];
+    if (badgeId) {
+      const el = document.getElementById(badgeId);
+      if (el) {
+        const pctVal = total > 0 ? ((Number(t.total_monto || 0) / total) * 100).toFixed(1) + '%' : '0.0%';
+        el.textContent = pctVal;
+      }
+    }
+  });
+  const allEl = document.getElementById('btn-pct-tramo-all');
+  if (allEl) allEl.textContent = '100%';
+}
+
 /**
  * Motor compartido de renderizado para el Indicador Ejecutivo (Tramos Oficiales y Fibex vs. NO Fibex).
  */
@@ -867,6 +1106,11 @@ function renderExecutiveScorecard(cfg) {
   const th2 = document.getElementById('th-exec-col2');
   if (th1) th1.textContent = col1Header;
   if (th2) th2.textContent = col2Header;
+
+  const thPct = document.getElementById('th-exec-col-pct');
+  if (thPct) {
+    thPct.textContent = (currentCarteraActivaManual && currentCarteraActivaManual > 0) ? '% Cartera Activa' : '% de la Mora';
+  }
 
   const chartTitle = document.getElementById('chart-exec-title');
   const chartTag = document.getElementById('chart-exec-tag');
@@ -932,7 +1176,8 @@ function renderExecutiveScorecard(cfg) {
         ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs">${pct.toFixed(2)}%</span>`
         : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">${pct.toFixed(2)}%</span>`;
     } else {
-      pctBadge = `<span class="text-slate-400 font-mono text-xs font-normal" title="Ingresa la Cartera Activa Total arriba para calcular el %">-</span>`;
+      const pctMora = summary.total_cartera_usd > 0 ? ((item.total_monto / summary.total_cartera_usd) * 100) : 0;
+      pctBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title="% sobre la mora cargada">${pctMora.toFixed(1)}%</span>`;
     }
 
     const tr = document.createElement('tr');
@@ -966,7 +1211,7 @@ function renderExecutiveScorecard(cfg) {
       const totPct = (summary.total_cartera_usd / currentCarteraActivaManual) * 100;
       footerPctDisplay = `<span class="text-blue-700 font-black">${totPct.toFixed(2)}%</span>`;
     } else {
-      footerPctDisplay = `<span class="text-slate-400 font-normal font-mono text-xs" title="Ingresa la Cartera Activa Total arriba">-</span>`;
+      footerPctDisplay = `<span class="text-slate-700 font-bold font-mono text-xs" title="% sobre la mora cargada">100.0%</span>`;
     }
 
     tfoot.innerHTML = `
@@ -991,6 +1236,7 @@ function renderExecutiveScorecard(cfg) {
 function renderGlobalTramosScorecard(globalSummary) {
   if (!globalSummary || !globalSummary.tramos || globalSummary.tramos.length === 0) return;
   currentGlobalSummary = globalSummary;
+  updateQuickFilterBadges(globalSummary);
 
   renderExecutiveScorecard({
     summary: globalSummary,

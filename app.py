@@ -13,15 +13,20 @@ from core.analytics import (
     calculate_totals,
     enrich_and_merge_datasets,
     get_metadata,
+    get_modules_summary,
     ingest_uploaded_file,
 )
 from core.config import (
     BASE_DIR,
     DATA_STORE,
     DEFAULT_CONTACTS_PATH,
+    DEFAULT_MORA_AVILA_PATH,
     DEFAULT_MORA_PATH,
     FilterRequest,
+    SelectModuleRequest,
     SetCarteraActivaRequest,
+    switch_active_module,
+    sync_active_module_to_slot,
 )
 from core.database import load_contacts_from_db
 from core.parsers import (
@@ -76,13 +81,18 @@ def get_status():
     cartera_loaded = DATA_STORE["df_cartera_raw"] is not None
     contacts_loaded = DATA_STORE["df_contacts_raw"] is not None
     sample_available = os.path.exists(DEFAULT_MORA_PATH)
+    avila_sample_available = os.path.exists(DEFAULT_MORA_AVILA_PATH)
     contacts_sample_available = os.path.exists(DEFAULT_CONTACTS_PATH)
 
     if not cartera_loaded and not contacts_loaded:
         return {
             "loaded": False,
             "contacts_loaded": False,
+            "active_module": DATA_STORE.get("active_module", "general"),
+            "enable_mora_avila": bool(DATA_STORE.get("enable_mora_avila", True)),
+            "modules_summary": get_modules_summary(),
             "sample_available": sample_available,
+            "avila_sample_available": avila_sample_available,
             "contacts_sample_available": contacts_sample_available
         }
 
@@ -96,24 +106,58 @@ def get_status():
         "contacts_filename": DATA_STORE["contacts_filename"],
         **payload,
         "sample_available": sample_available,
+        "avila_sample_available": avila_sample_available,
         "contacts_sample_available": contacts_sample_available
     }
 
 
+@app.post("/api/module/select")
+def select_module_endpoint(req: SelectModuleRequest):
+    """Cambia el módulo activo ('general' o 'avila') conservando en memoria los datos de ambos."""
+    mod_id = switch_active_module(req.module_id)
+    cartera_loaded = DATA_STORE["df_cartera_raw"] is not None
+    contacts_loaded = DATA_STORE["df_contacts_raw"] is not None
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    payload = build_dashboard_payload(active_df)
+    mod_label = "Mora Ávila" if mod_id == "avila" else "Mora Ubi"
+    return {
+        "status": "ok",
+        "message": f"Módulo activo cambiado a: {mod_label}",
+        "loaded": cartera_loaded,
+        "contacts_loaded": contacts_loaded,
+        "cartera_filename": DATA_STORE["cartera_filename"],
+        "contacts_filename": DATA_STORE["contacts_filename"],
+        **payload,
+    }
+
+
 @app.post("/api/load-sample")
-def load_sample():
-    """Carga el archivo de mora de ejemplo y lo cruza instantáneamente con la Base de Datos Maestra SQLite."""
-    if not os.path.exists(DEFAULT_MORA_PATH):
-        raise HTTPException(status_code=404, detail="Archivo mora.csv no encontrado en el servidor.")
+def load_sample(module_id: Optional[str] = None):
+    """Carga el archivo de mora de ejemplo del módulo activo ('general' o 'avila') y lo cruza con la Base de Datos SQLite."""
+    if module_id in ("general", "avila"):
+        switch_active_module(module_id)
+
+    active_mod = DATA_STORE.get("active_module", "general")
+    if active_mod == "avila":
+        sample_path = DEFAULT_MORA_AVILA_PATH
+        sample_filename = "reporte_mora_2026-10-28.csv"
+        display_name = "reporte_mora_2026-10-28.csv (Mora Ávila)"
+    else:
+        sample_path = DEFAULT_MORA_PATH
+        sample_filename = "mora.csv"
+        display_name = "mora.csv (Mora Ubi)"
+
+    if not os.path.exists(sample_path):
+        raise HTTPException(status_code=404, detail=f"Archivo de muestra {sample_filename} no encontrado en el servidor.")
 
     try:
-        cartera_bytes = safe_read_bytes(DEFAULT_MORA_PATH)
-        df_cartera = parse_bytes_to_dataframe(cartera_bytes, "mora.csv")
+        cartera_bytes = safe_read_bytes(sample_path)
+        df_cartera = parse_bytes_to_dataframe(cartera_bytes, sample_filename)
         df_cartera = standardize_cartera_dataframe(df_cartera)
         DATA_STORE["df_cartera_raw"] = df_cartera
-        DATA_STORE["cartera_filename"] = "mora.csv (Cartera Principal)"
+        DATA_STORE["cartera_filename"] = display_name
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"No se pudo leer mora.csv: {e}")
+        raise HTTPException(status_code=500, detail=f"No se pudo leer {sample_filename}: {e}")
 
     if DATA_STORE["df_contacts_raw"] is None or DATA_STORE["df_contacts_raw"].empty:
         load_contacts_from_db()
@@ -124,9 +168,10 @@ def load_sample():
 
     enrich_and_merge_datasets()
     payload = build_dashboard_payload(DATA_STORE["df_original"])
+    mod_title = "Mora Ávila" if active_mod == "avila" else "Mora Ubi"
 
     return {
-        "message": f"Cartera cargada exitosamente: {len(df_cartera):,} cuotas{contacts_msg}",
+        "message": f"{mod_title} cargada exitosamente: {len(df_cartera):,} cuotas{contacts_msg}",
         **payload
     }
 
@@ -200,6 +245,7 @@ def process_data(req: FilterRequest):
     DATA_STORE["filter_info"] = req.dict()
 
     build_debtor_matched_dataset(df)
+    sync_active_module_to_slot()
     kpis = calculate_totals(df)
 
     cols_priority = [
@@ -217,6 +263,8 @@ def process_data(req: FilterRequest):
         preview.append(r)
 
     return {
+        "active_module": DATA_STORE.get("active_module", "general"),
+        "modules_summary": get_modules_summary(),
         "kpis": kpis,
         "resumen_global_tramos": payload["resumen_global_tramos"],
         "resumen_fibex": payload["resumen_fibex"],
@@ -233,6 +281,7 @@ def process_data(req: FilterRequest):
 def set_cartera_activa_endpoint(req: SetCarteraActivaRequest):
     """Guarda o actualiza el monto manual de Cartera Activa y recalcula el resumen de tramos y fibex."""
     DATA_STORE["cartera_activa_manual"] = req.cartera_activa
+    sync_active_module_to_slot()
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is not None and not active_df.empty:
         return {

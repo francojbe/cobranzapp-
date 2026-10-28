@@ -16,6 +16,31 @@ def clean_col(s: str) -> str:
     return re.sub(r'[^a-zA-Z0-9]', '', no_acc).lower()
 
 
+def clean_excel_formula_str(val) -> str:
+    """Limpia envoltorios de fórmula de Excel como '=\"LC-0027\"' o '=\"V13934746\"'."""
+    if pd.isna(val) or val is None:
+        return ""
+    s = str(val).strip()
+    if s.startswith("="):
+        s = s.lstrip("=").strip()
+    if (s.startswith('"') and s.endswith('"')) or (s.startswith("'") and s.endswith("'")):
+        s = s[1:-1].strip()
+    return s
+
+
+def normalize_cedula_str(val) -> str:
+    """Limpia fórmulas de Excel y normaliza la cédula al formato estándar con guion (ej. V13934746 -> V-13934746)."""
+    s = clean_excel_formula_str(val).upper().replace(".", "").replace(" ", "")
+    if not s or s in ("NAN", "NONE", "NULL"):
+        return ""
+    m = re.match(r"^([VEJGP])-?(\d+)$", s)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    if s.isdigit():
+        return f"V-{s}"
+    return s
+
+
 def clean_phone_str(val) -> str:
     """Limpia y estandariza números telefónicos al formato venezolano 584..."""
     if pd.isna(val) or val is None or val == "":
@@ -261,23 +286,25 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if "Programa" not in df.columns:
         df["Programa"] = "General"
     else:
-        df["Programa"] = df["Programa"].fillna("General").astype(str).str.strip()
-        df["Programa"] = df["Programa"].replace({"": "General", "nan": "General", "None": "General"})
+        df["Programa"] = df["Programa"].apply(clean_excel_formula_str).replace({"": "General", "nan": "General", "None": "General"})
         df["Programa"] = df["Programa"].str.replace(r"CAMPA.*AS", "CAMPAÑAS", regex=True)
 
     if "Tipo" not in df.columns:
         df["Tipo"] = "General"
     else:
-        df["Tipo"] = df["Tipo"].fillna("General").astype(str).str.strip()
-        df["Tipo"] = df["Tipo"].replace({"": "General", "nan": "General", "None": "General"})
+        df["Tipo"] = df["Tipo"].apply(clean_excel_formula_str).replace({"": "General", "nan": "General", "None": "General"})
 
-    df["Cedula Cliente"] = df["Cedula Cliente"].fillna("").astype(str).str.strip()
+    for clean_target in ["Identificador de credito", "Fecha Vencimiento", "Cuota Numero", "Canal"]:
+        if clean_target in df.columns:
+            df[clean_target] = df[clean_target].apply(clean_excel_formula_str)
+
+    df["Cedula Cliente"] = df["Cedula Cliente"].apply(normalize_cedula_str)
     df["Cedula_Key"] = df["Cedula Cliente"].str.upper()
 
     if "Nombre Cliente" not in df.columns:
         df["Nombre Cliente"] = "Cliente Sin Nombre"
     else:
-        df["Nombre Cliente"] = df["Nombre Cliente"].fillna("").astype(str).str.strip()
+        df["Nombre Cliente"] = df["Nombre Cliente"].apply(clean_excel_formula_str)
 
     return df
 
@@ -310,7 +337,7 @@ def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if "Cedula" not in df.columns:
         raise HTTPException(status_code=400, detail="El archivo de contactos o campañas debe contener una columna de Cédula (ej. 'Cedula' o 'cliente_ci').")
 
-    df["Cedula"] = df["Cedula"].fillna("").astype(str).str.strip().str.upper()
+    df["Cedula"] = df["Cedula"].apply(normalize_cedula_str)
     df = df[~df["Cedula"].isin(["", "NAN", "NULL", "NONE"])].copy()
 
     for col in ["Telefono_1", "Telefono_2", "Telefono_3"]:

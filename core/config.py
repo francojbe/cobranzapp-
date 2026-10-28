@@ -6,22 +6,84 @@ from pydantic import BaseModel
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 DEFAULT_MORA_PATH = os.path.join(BASE_DIR, "mora.csv")
+DEFAULT_MORA_AVILA_PATH = os.path.join(BASE_DIR, "reporte_mora_2026-10-28.csv")
 DEFAULT_CONTACTS_PATH = os.path.join(BASE_DIR, "Base de contactos.csv")
 DEFAULT_CAMPANAS_PATH = os.path.join(BASE_DIR, "campañas.xlsx")
 DB_PATH = os.path.join(BASE_DIR, "cobranzapp.db")
 
-# Almacén en memoria del estado activo de la sesión
+# Interruptor de licencia para el segundo módulo (Mora Ávila)
+# Se puede controlar por variable de entorno ENABLE_MORA_AVILA=true/false en Easypanel o Docker
+ENABLE_MORA_AVILA = os.getenv("ENABLE_MORA_AVILA", "true").strip().lower() in ("true", "1", "yes", "si")
+
+def _empty_module_slot(name: str, label: str) -> dict:
+    return {
+        "id": name,
+        "label": label,
+        "df_cartera_raw": None,
+        "cartera_filename": "",
+        "df_original": None,
+        "df_filtered": None,
+        "filter_info": {},
+        "df_matched": None,
+        "cartera_activa_manual": None,
+    }
+
+# Almacén en memoria del estado activo de la sesión (soporta múltiples módulos de mora)
 DATA_STORE = {
+    "active_module": "general",   # "general" | "avila"
+    "enable_mora_avila": ENABLE_MORA_AVILA,
     "df_cartera_raw": None,
     "cartera_filename": "",
     "df_contacts_raw": None,
     "contacts_filename": "",
-    "df_original": None,          # Enriquecida y unificada
-    "df_filtered": None,          # Filtrada según criterios operativos
+    "df_original": None,          # Enriquecida y unificada del módulo activo
+    "df_filtered": None,          # Filtrada según criterios operativos del módulo activo
     "filter_info": {},
-    "df_matched": None,           # Agregada a nivel deudor para Call Center
-    "cartera_activa_manual": None # Monto manual de cartera activa para cálculo de % mora
+    "df_matched": None,           # Agregada a nivel deudor para Call Center del módulo activo
+    "cartera_activa_manual": None,# Monto manual de cartera activa del módulo activo
+    "modules": {
+        "general": _empty_module_slot("general", "Mora Ubi"),
+        "avila": _empty_module_slot("avila", "Mora Ávila"),
+    }
 }
+
+_MODULE_KEYS = [
+    "df_cartera_raw",
+    "cartera_filename",
+    "df_original",
+    "df_filtered",
+    "filter_info",
+    "df_matched",
+    "cartera_activa_manual",
+]
+
+
+def sync_active_module_to_slot():
+    """Guarda el estado actual del módulo activo en su ranura independiente en memoria."""
+    mod_id = DATA_STORE.get("active_module", "general")
+    slot = DATA_STORE["modules"].get(mod_id)
+    if slot is not None:
+        for k in _MODULE_KEYS:
+            slot[k] = DATA_STORE.get(k)
+
+
+def switch_active_module(target_module: str) -> str:
+    """Cambia el módulo activo ('general' o 'avila') preservando en memoria los datos de ambos."""
+    if target_module not in ("general", "avila"):
+        target_module = "general"
+    if target_module == "avila" and not DATA_STORE.get("enable_mora_avila", True):
+        target_module = "general"
+
+    # 1. Guardar estado del módulo saliente
+    sync_active_module_to_slot()
+
+    # 2. Cargar estado del módulo entrante
+    DATA_STORE["active_module"] = target_module
+    target_slot = DATA_STORE["modules"][target_module]
+    for k in _MODULE_KEYS:
+        DATA_STORE[k] = target_slot.get(k)
+
+    return target_module
 
 # Configuración fija de los 5 Tramos Oficiales de Mora
 OFFICIAL_TRAMOS_CONFIG = [
@@ -116,6 +178,12 @@ TARGET_PATTERNS = {
     ],
     "Canal": [
         r"^canal$", r"^sucursal$", r"^agencia$"
+    ],
+    "Fecha Vencimiento": [
+        r"^fechavencimiento$", r"^fechadevencimiento$", r"^vencimiento$"
+    ],
+    "Cuota Numero": [
+        r"^cuotanumero$", r"^nrocuota$", r"^numerocuota$", r"^numerodecuota$"
     ]
 }
 
@@ -133,3 +201,7 @@ class FilterRequest(BaseModel):
 
 class SetCarteraActivaRequest(BaseModel):
     cartera_activa: Optional[float] = None
+
+
+class SelectModuleRequest(BaseModel):
+    module_id: str = "general"
