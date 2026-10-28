@@ -12,8 +12,8 @@ DEFAULT_CAMPANAS_PATH = os.path.join(BASE_DIR, "campañas.xlsx")
 DB_PATH = os.path.join(BASE_DIR, "cobranzapp.db")
 
 # Interruptor de licencia para el segundo módulo (Mora Ávila)
-# Se puede controlar por variable de entorno ENABLE_MORA_AVILA=true/false en Easypanel o Docker
-ENABLE_MORA_AVILA = os.getenv("ENABLE_MORA_AVILA", "true").strip().lower() in ("true", "1", "yes", "si")
+# En la rama 'version-basica', viene desactivado por defecto (Mora Ubi única)
+ENABLE_MORA_AVILA = os.getenv("ENABLE_MORA_AVILA", "false").strip().lower() in ("true", "1", "yes", "si")
 
 def _empty_module_slot(name: str, label: str) -> dict:
     return {
