@@ -177,8 +177,10 @@ def load_sample(module_id: Optional[str] = None):
 
 
 @app.post("/api/upload")
-async def upload_cartera(file: UploadFile = File(...)):
+async def upload_cartera(file: UploadFile = File(...), module_id: Optional[str] = None):
     """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos o campañas, actualiza la Base de Datos SQLite."""
+    if module_id in ("general", "avila"):
+        switch_active_module(module_id)
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
@@ -207,6 +209,8 @@ async def upload_contacts(file: UploadFile = File(...)):
 @app.post("/api/process")
 def process_data(req: FilterRequest):
     """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Solo requiere el archivo de Cartera."""
+    if req.module_id in ("general", "avila"):
+        switch_active_module(req.module_id)
     if DATA_STORE["df_cartera_raw"] is None:
         raise HTTPException(
             status_code=400,

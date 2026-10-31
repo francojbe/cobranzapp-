@@ -197,6 +197,7 @@ class FilterRequest(BaseModel):
     only_with_phone: bool = False
     group_by: str = "Tipo_Campana"
     cartera_activa: Optional[float] = None
+    module_id: Optional[str] = None
 
 
 class SetCarteraActivaRequest(BaseModel):
