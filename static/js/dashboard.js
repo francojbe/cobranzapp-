@@ -679,7 +679,7 @@ async function loadSampleFiles(moduleId = null) {
   }
 
   const sampleLabel = targetMod === 'avila' ? 'reporte_mora_2026-10-28.csv (Mora Ávila)' : 'mora.csv (Mora Ubi)';
-  ProgressController.start('Cargando cartera de prueba...', `Leyendo ${sampleLabel} y cruzando con la Base de Datos SQLite...`);
+  ProgressController.start('Cargando cartera de prueba...', `Leyendo ${sampleLabel} y cruzando con la Base de Datos Supabase...`);
 
   try {
     const url = moduleId ? `/api/load-sample?module_id=${encodeURIComponent(moduleId)}` : '/api/load-sample';
@@ -693,7 +693,7 @@ async function loadSampleFiles(moduleId = null) {
         enable_mora_avila: data.enable_mora_avila,
         modules_summary: data.modules_summary,
         cartera_filename: data.metadata?.cartera_filename || sampleLabel,
-        contacts_filename: data.metadata?.contacts_filename || 'Base de Datos SQLite (Contactos + Campañas)',
+        contacts_filename: data.metadata?.contacts_filename || 'Base de Datos Supabase (Contactos + Campañas)',
         metadata: data.metadata,
         totals: data.totals,
         resumen_global_tramos: data.resumen_global_tramos,
