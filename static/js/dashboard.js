@@ -428,6 +428,9 @@ function handleProcessClick() {
 }
 
 function switchTab(tabId, bypassCheck = false) {
+  if (tabId === 'tab-history') {
+    bypassCheck = true;
+  }
   if (tabId !== 'tab-upload' && !bypassCheck) {
     if (!currentFilesState.cartera_loaded) {
       handleProcessClick();
@@ -440,19 +443,19 @@ function switchTab(tabId, bypassCheck = false) {
     return;
   }
 
-  ['tab-upload', 'tab-segment', 'tab-results', 'tab-contacts'].forEach(id => {
+  ['tab-upload', 'tab-segment', 'tab-results', 'tab-contacts', 'tab-history'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.add('hidden');
   });
 
-  const allNavIds = ['nav-upload', 'nav-segment', 'nav-results', 'nav-contacts'];
+  const allNavIds = ['nav-upload', 'nav-segment', 'nav-results', 'nav-contacts', 'nav-history'];
   allNavIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
       el.classList.remove('tab-active', 'border-blue-600', 'text-blue-700', 'font-bold', 'bg-blue-50/80');
       el.classList.add('border-transparent', 'text-slate-500', 'font-medium');
       const icon = el.querySelector('i');
-      if (icon && !icon.classList.contains('text-emerald-600')) {
+      if (icon && !icon.classList.contains('text-emerald-600') && !icon.classList.contains('text-indigo-600')) {
         icon.classList.remove('text-blue-600');
         icon.classList.add('text-slate-400');
       }
@@ -467,7 +470,7 @@ function switchTab(tabId, bypassCheck = false) {
     targetNav.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
     targetNav.classList.add('tab-active', 'border-blue-600', 'text-blue-700', 'font-bold', 'bg-blue-50/80');
     const icon = targetNav.querySelector('i');
-    if (icon && !icon.classList.contains('text-emerald-600')) {
+    if (icon && !icon.classList.contains('text-emerald-600') && !icon.classList.contains('text-indigo-600')) {
       icon.classList.remove('text-slate-400');
       icon.classList.add('text-blue-600');
     }
@@ -475,6 +478,8 @@ function switchTab(tabId, bypassCheck = false) {
 
   if (tabId === 'tab-contacts') {
     loadCallCenterData();
+  } else if (tabId === 'tab-history') {
+    loadHistoryData();
   }
 }
 
@@ -502,6 +507,14 @@ document.addEventListener('click', (e) => {
 function updateUIState(data) {
   const meta = data.metadata || {};
   const totals = data.totals || {};
+
+  if (data.user && data.user.email) {
+    const userLabel = document.getElementById('header-user-email');
+    if (userLabel) {
+      userLabel.textContent = data.user.nombre || data.user.email;
+      userLabel.title = data.user.email;
+    }
+  }
 
   renderSuiteModulesState(data);
 

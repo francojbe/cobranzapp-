@@ -1,8 +1,8 @@
 import os
 from typing import Optional
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.analytics import (
@@ -18,17 +18,31 @@ from core.analytics import (
 )
 from core.config import (
     BASE_DIR,
+    CreateUserRequest,
     DATA_STORE,
     DEFAULT_CONTACTS_PATH,
     DEFAULT_MORA_AVILA_PATH,
     DEFAULT_MORA_PATH,
     FilterRequest,
+    LoginRequest,
     SelectModuleRequest,
     SetCarteraActivaRequest,
     switch_active_module,
     sync_active_module_to_slot,
 )
-from core.database import load_contacts_from_db
+from core.database import (
+    authenticate_user,
+    create_or_update_user,
+    create_session_token,
+    delete_history_item,
+    ensure_supabase_default_users,
+    get_history_detail,
+    get_history_list,
+    list_users,
+    load_contacts_from_db,
+    save_history_snapshot,
+    verify_session_token,
+)
 from core.parsers import (
     parse_bytes_to_dataframe,
     safe_read_bytes,
@@ -65,11 +79,136 @@ STATIC_DIR = os.path.join(BASE_DIR, "static")
 if os.path.isdir(STATIC_DIR):
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-# Cargar automáticamente la base de datos maestra al iniciar el servidor
+# Cargar automáticamente la base de datos maestra y usuarios al iniciar el servidor
 try:
     load_contacts_from_db()
+    ensure_supabase_default_users()
 except Exception as _db_err:
-    print("Aviso al iniciar base de datos SQLite:", _db_err)
+    print("Aviso al iniciar base de datos:", _db_err)
+
+
+def _get_current_user(request: Request) -> Optional[dict]:
+    token = request.cookies.get("cobranzapp_session")
+    return verify_session_token(token)
+
+
+# -------------------------------------------------------------
+# RUTAS DE AUTENTICACIÓN Y USUARIOS (SUPABASE)
+# -------------------------------------------------------------
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    user = _get_current_user(request)
+    if user:
+        return RedirectResponse(url="/", status_code=302)
+    with open(os.path.join(BASE_DIR, "templates", "login.html"), "r", encoding="utf-8") as f:
+        return f.read()
+
+
+@app.post("/api/auth/login")
+def api_login(req: LoginRequest, response: Response):
+    user = authenticate_user(req.email, req.password)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Correo o contraseña incorrectos. Verifica tus credenciales.",
+        )
+    token = create_session_token(user)
+    response.set_cookie(
+        key="cobranzapp_session",
+        value=token,
+        max_age=86400 * 7,
+        httponly=True,
+        samesite="lax",
+        path="/",
+    )
+    return {"status": "ok", "user": user}
+
+
+@app.post("/api/auth/logout")
+def api_logout(response: Response):
+    response.delete_cookie(key="cobranzapp_session", path="/")
+    return {"status": "ok"}
+
+
+@app.get("/api/auth/me")
+def api_me(request: Request):
+    user = _get_current_user(request)
+    if not user:
+        return {"authenticated": False, "user": None}
+    return {"authenticated": True, "user": user}
+
+
+@app.get("/api/auth/users")
+def api_list_users(request: Request):
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+    return {"users": list_users()}
+
+
+@app.post("/api/auth/users")
+def api_create_user(req: CreateUserRequest, request: Request):
+    user = _get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="No autorizado")
+    if len(req.password or "") < 6:
+        raise HTTPException(status_code=400, detail="La contraseña debe tener al menos 6 caracteres.")
+    created = create_or_update_user(req.email, req.nombre, req.password, req.rol)
+    return {"status": "ok", "user": created, "users": list_users()}
+
+
+# -------------------------------------------------------------
+# RUTAS DE HISTÓRICO DE MORA (SUPABASE public.historial_cargas)
+# -------------------------------------------------------------
+
+@app.get("/api/history")
+def api_get_history(modulo: Optional[str] = None, limit: int = 100):
+    mod_filter = modulo if modulo in ("general", "avila") else None
+    return get_history_list(modulo=mod_filter, limit=limit)
+
+
+@app.get("/api/history/{item_id}")
+def api_get_history_detail(item_id: int):
+    detail = get_history_detail(item_id)
+    if not detail:
+        raise HTTPException(status_code=404, detail="Registro histórico no encontrado.")
+    return detail
+
+
+@app.post("/api/history/snapshot")
+def api_save_manual_snapshot(request: Request):
+    """Permite guardar manualmente en Supabase una instantánea de la cartera actualmente cargada."""
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    if active_df is None or active_df.empty:
+        raise HTTPException(status_code=400, detail="No hay ninguna cartera cargada en memoria para guardar en el historial.")
+
+    user = _get_current_user(request)
+    user_email = user.get("email") if user else "admin@credix.com"
+    active_mod = DATA_STORE.get("active_module", "general")
+    ca_manual = DATA_STORE.get("cartera_activa_manual")
+    payload = build_dashboard_payload(active_df, ca_manual)
+
+    saved = save_history_snapshot(
+        modulo=active_mod,
+        nombre_archivo=DATA_STORE.get("cartera_filename") or "corte_manual.csv",
+        origen="web_manual",
+        usuario_email=user_email,
+        cartera_activa_usd=ca_manual,
+        kpis=payload["totals"],
+        resumen_tramos=payload["resumen_global_tramos"],
+        resumen_fibex=payload["resumen_fibex"],
+        filtros=DATA_STORE.get("filter_info") or {},
+    )
+    return {"status": "ok", "snapshot": saved}
+
+
+@app.delete("/api/history/{item_id}")
+def api_delete_history(item_id: int):
+    ok = delete_history_item(item_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="No se pudo eliminar el registro.")
+    return {"status": "ok", "deleted_id": item_id}
 
 
 # -------------------------------------------------------------
@@ -77,7 +216,8 @@ except Exception as _db_err:
 # -------------------------------------------------------------
 
 @app.get("/api/status")
-def get_status():
+def get_status(request: Request):
+    user = _get_current_user(request)
     cartera_loaded = DATA_STORE["df_cartera_raw"] is not None
     contacts_loaded = DATA_STORE["df_contacts_raw"] is not None
     sample_available = os.path.exists(DEFAULT_MORA_PATH)
@@ -86,6 +226,7 @@ def get_status():
 
     if not cartera_loaded and not contacts_loaded:
         return {
+            "user": user,
             "loaded": False,
             "contacts_loaded": False,
             "active_module": DATA_STORE.get("active_module", "general"),
@@ -100,6 +241,7 @@ def get_status():
     payload = build_dashboard_payload(active_df)
 
     return {
+        "user": user,
         "loaded": cartera_loaded,
         "contacts_loaded": contacts_loaded,
         "cartera_filename": DATA_STORE["cartera_filename"],
@@ -133,7 +275,7 @@ def select_module_endpoint(req: SelectModuleRequest):
 
 @app.post("/api/load-sample")
 def load_sample(module_id: Optional[str] = None):
-    """Carga el archivo de mora de ejemplo del módulo activo ('general' o 'avila') y lo cruza con la Base de Datos SQLite."""
+    """Carga el archivo de mora de ejemplo del módulo activo ('general' o 'avila') y lo cruza con la Base de Datos."""
     if module_id in ("general", "avila"):
         switch_active_module(module_id)
 
@@ -163,8 +305,8 @@ def load_sample(module_id: Optional[str] = None):
         load_contacts_from_db()
 
     total_db_contacts = len(DATA_STORE["df_contacts_raw"]) if DATA_STORE["df_contacts_raw"] is not None else 0
-    DATA_STORE["contacts_filename"] = f"Base de Datos Activa ({total_db_contacts:,} clientes)"
-    contacts_msg = f" + {total_db_contacts:,} clientes en Base de Datos."
+    DATA_STORE["contacts_filename"] = f"Base Supabase Activa ({total_db_contacts:,} clientes)"
+    contacts_msg = f" + {total_db_contacts:,} clientes en Base Supabase."
 
     enrich_and_merge_datasets()
     payload = build_dashboard_payload(DATA_STORE["df_original"])
@@ -178,7 +320,7 @@ def load_sample(module_id: Optional[str] = None):
 
 @app.post("/api/upload")
 async def upload_cartera(file: UploadFile = File(...), module_id: Optional[str] = None):
-    """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos o campañas, actualiza la Base de Datos SQLite."""
+    """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos o campañas, actualiza la Base de Datos."""
     if module_id in ("general", "avila"):
         switch_active_module(module_id)
     contents = await file.read()
@@ -194,7 +336,7 @@ async def upload_cartera(file: UploadFile = File(...), module_id: Optional[str] 
 
 @app.post("/api/contacts/upload")
 async def upload_contacts(file: UploadFile = File(...)):
-    """Sube un archivo de contactos o campañas para sumar/actualizar la Base de Datos SQLite."""
+    """Sube un archivo de contactos o campañas para sumar/actualizar la Base de Datos en Supabase y SQLite."""
     contents = await file.read()
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
@@ -207,8 +349,8 @@ async def upload_contacts(file: UploadFile = File(...)):
 
 
 @app.post("/api/process")
-def process_data(req: FilterRequest):
-    """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Solo requiere el archivo de Cartera."""
+def process_data(req: FilterRequest, request: Request):
+    """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Registra automáticamente en el historial de Supabase."""
     if req.module_id in ("general", "avila"):
         switch_active_module(req.module_id)
     if DATA_STORE["df_cartera_raw"] is None:
@@ -252,6 +394,25 @@ def process_data(req: FilterRequest):
     sync_active_module_to_slot()
     kpis = calculate_totals(df)
 
+    # Registrar automáticamente en el Histórico de Mora en Supabase
+    try:
+        user = _get_current_user(request)
+        origen_efectivo = req.origen or ("web" if user else "n8n")
+        email_efectivo = user.get("email") if user else "automatizacion@n8n.credix"
+        save_history_snapshot(
+            modulo=DATA_STORE.get("active_module", "general"),
+            nombre_archivo=DATA_STORE.get("cartera_filename") or "mora.csv",
+            origen=origen_efectivo,
+            usuario_email=email_efectivo,
+            cartera_activa_usd=DATA_STORE.get("cartera_activa_manual"),
+            kpis=payload["totals"],
+            resumen_tramos=payload["resumen_global_tramos"],
+            resumen_fibex=payload["resumen_fibex"],
+            filtros=req.dict(),
+        )
+    except Exception as _hist_err:
+        print("Aviso al registrar instantánea en historial:", _hist_err)
+
     cols_priority = [
         "Cedula Cliente", "Nombre Cliente", "Dias de Mora", "Tramo_Mora",
         "Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora", "Total",
@@ -282,17 +443,34 @@ def process_data(req: FilterRequest):
 
 
 @app.post("/api/tramos/set-cartera-activa")
-def set_cartera_activa_endpoint(req: SetCarteraActivaRequest):
+def set_cartera_activa_endpoint(req: SetCarteraActivaRequest, request: Request):
     """Guarda o actualiza el monto manual de Cartera Activa y recalcula el resumen de tramos y fibex."""
     DATA_STORE["cartera_activa_manual"] = req.cartera_activa
     sync_active_module_to_slot()
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is not None and not active_df.empty:
+        tramos_sum = calculate_global_tramos_summary(active_df, req.cartera_activa)
+        fibex_sum = calculate_fibex_summary(active_df, req.cartera_activa)
+        try:
+            user = _get_current_user(request)
+            save_history_snapshot(
+                modulo=DATA_STORE.get("active_module", "general"),
+                nombre_archivo=DATA_STORE.get("cartera_filename") or "mora.csv",
+                origen="web" if user else "n8n",
+                usuario_email=user.get("email") if user else "admin@credix.com",
+                cartera_activa_usd=req.cartera_activa,
+                kpis=calculate_totals(active_df),
+                resumen_tramos=tramos_sum,
+                resumen_fibex=fibex_sum,
+                filtros=DATA_STORE.get("filter_info") or {},
+            )
+        except Exception:
+            pass
         return {
             "status": "ok",
             "cartera_activa": req.cartera_activa,
-            "summary": calculate_global_tramos_summary(active_df, req.cartera_activa),
-            "fibex_summary": calculate_fibex_summary(active_df, req.cartera_activa)
+            "summary": tramos_sum,
+            "fibex_summary": fibex_sum
         }
     return {
         "status": "ok",
@@ -476,7 +654,10 @@ def health_check():
 
 
 @app.get("/", response_class=HTMLResponse)
-def get_dashboard():
+def get_dashboard(request: Request):
+    user = _get_current_user(request)
+    if not user:
+        return RedirectResponse(url="/login", status_code=302)
     with open(os.path.join(BASE_DIR, "templates", "index.html"), "r", encoding="utf-8") as f:
         return f.read()
 

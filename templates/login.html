@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iniciar Sesión | CobranzApp · Motor de Cartera Credix</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .glass-card {
+            background: rgba(255, 255, 255, 0.96);
+            backdrop-filter: blur(16px);
+        }
+        .bg-grid-pattern {
+            background-image: radial-gradient(rgba(99, 102, 241, 0.14) 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-800 flex flex-col justify-between relative overflow-x-hidden bg-grid-pattern">
+
+    <!-- Efectos de luz de fondo -->
+    <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
+        <div class="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-indigo-600/20 blur-3xl"></div>
+        <div class="absolute top-1/3 -right-32 w-96 h-96 rounded-full bg-emerald-500/15 blur-3xl"></div>
+        <div class="absolute -bottom-32 left-1/3 w-96 h-96 rounded-full bg-blue-600/15 blur-3xl"></div>
+    </div>
+
+    <!-- Barra Superior -->
+    <header class="relative z-10 w-full max-w-6xl mx-auto px-6 pt-6 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-indigo-600 text-white p-2.5 rounded-xl shadow-lg shadow-indigo-600/30">
+                <i class="fa-solid fa-layer-group text-lg"></i>
+            </div>
+            <div>
+                <span class="text-white font-extrabold text-lg tracking-tight">Cobranz<span class="text-indigo-400">App</span></span>
+                <span class="block text-[11px] text-slate-400 font-medium">Motor Inteligente de Cartera &amp; Call Center</span>
+            </div>
+        </div>
+        <div class="inline-flex items-center gap-2 bg-slate-900/90 border border-emerald-500/30 text-emerald-400 text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-sm">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <i class="fa-solid fa-database text-[11px]"></i>
+            <span>Supabase Conectado · Credix</span>
+        </div>
+    </header>
+
+    <!-- Contenedor Central -->
+    <main class="relative z-10 flex-grow flex items-center justify-center px-4 py-8">
+        <div class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden shadow-2xl border border-slate-800/80 bg-slate-900/70 backdrop-blur-xl">
+
+            <!-- Panel Izquierdo: Resumen Ejecutivo -->
+            <div class="lg:col-span-5 bg-gradient-to-br from-indigo-950 via-slate-900 to-slate-950 p-8 text-white flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-slate-800">
+                <div>
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-300 border border-indigo-400/30 mb-5">
+                        <i class="fa-solid fa-shield-halved"></i> Acceso Corporativo
+                    </span>
+                    <h1 class="text-2xl font-extrabold tracking-tight leading-snug mb-3">
+                        Control Ejecutivo y Evolución Histórica de Mora
+                    </h1>
+                    <p class="text-xs text-slate-300 leading-relaxed mb-6">
+                        Plataforma centralizada conectada en tiempo real con <strong class="text-emerald-400">Supabase PostgreSQL</strong> y flujos automatizados de <strong class="text-indigo-300">n8n</strong>.
+                    </p>
+
+                    <div class="space-y-3.5">
+                        <div class="flex items-start gap-3 bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-users text-sm"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-white">154.009 Clientes Sincronizados</div>
+                                <div class="text-[11px] text-slate-400">Base maestra de teléfonos, correos y campañas en Supabase.</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                            <div class="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-chart-line text-sm"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-white">Histórico de Mora Ubi &amp; Ávila</div>
+                                <div class="text-[11px] text-slate-400">Registro automático de cada corte, tramos y variación de deuda.</div>
+                            </div>
+                        </div>
+
+                        <div class="flex items-start gap-3 bg-slate-800/50 border border-slate-700/60 rounded-xl p-3">
+                            <div class="w-8 h-8 rounded-lg bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 mt-0.5">
+                                <i class="fa-solid fa-bolt text-sm"></i>
+                            </div>
+                            <div>
+                                <div class="text-xs font-bold text-white">Automatización Drive + n8n</div>
+                                <div class="text-[11px] text-slate-400">Ingesta desatendida y despacho de reportes ejecutivos Excel.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-8 pt-4 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+                    <span>Proyecto: <strong class="text-slate-200">credix</strong></span>
+                    <span class="text-emerald-400 font-semibold"><i class="fa-solid fa-circle-check mr-1"></i>TLS 1.3 Activo</span>
+                </div>
+            </div>
+
+            <!-- Panel Derecho: Formulario de Login -->
+            <div class="lg:col-span-7 glass-card p-8 sm:p-10 flex flex-col justify-center">
+                <div class="mb-6">
+                    <h2 class="text-xl font-extrabold text-slate-900 tracking-tight">Bienvenido nuevamente</h2>
+                    <p class="text-xs text-slate-500 mt-1">Ingresa tus credenciales para acceder al panel de cartera e histórico de mora.</p>
+                </div>
+
+                <!-- Alerta de Error -->
+                <div id="login-error" class="hidden mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2.5">
+                    <i class="fa-solid fa-circle-exclamation text-rose-600 text-sm shrink-0"></i>
+                    <span id="login-error-text">Credenciales inválidas.</span>
+                </div>
+
+                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                    <div>
+                        <label for="email" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Correo Electrónico
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                                <i class="fa-solid fa-envelope text-sm"></i>
+                            </span>
+                            <input
+                                type="email"
+                                id="email"
+                                name="email"
+                                required
+                                autocomplete="username"
+                                placeholder="admin@credix.com"
+                                class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition"
+                            >
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="password" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Contraseña
+                        </label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
+                                <i class="fa-solid fa-lock text-sm"></i>
+                            </span>
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                required
+                                autocomplete="current-password"
+                                placeholder="••••••••••••"
+                                class="w-full pl-10 pr-10 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-indigo-600 transition"
+                            >
+                            <button
+                                type="button"
+                                onclick="togglePassword()"
+                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
+                                title="Mostrar/Ocultar contraseña"
+                            >
+                                <i id="eye-icon" class="fa-solid fa-eye text-sm"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <button
+                        type="submit"
+                        id="btn-submit"
+                        class="w-full mt-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-5 rounded-xl shadow-lg shadow-indigo-600/25 transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+                    >
+                        <i class="fa-solid fa-right-to-bracket"></i>
+                        <span>Ingresar al Sistema</span>
+                    </button>
+                </form>
+
+                <!-- Acceso Rápido para Pruebas / Administración -->
+                <div class="mt-6 pt-5 border-t border-slate-200/80">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cuentas Administrativas Activas</span>
+                        <span class="text-[10px] font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">Clic para autocompletar</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                            type="button"
+                            onclick="fillCredentials('admin@credix.com', 'Credix2026*')"
+                            class="text-left p-2.5 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition group"
+                        >
+                            <div class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 flex items-center justify-between">
+                                <span>admin@credix.com</span>
+                                <i class="fa-solid fa-bolt text-[10px] text-indigo-500"></i>
+                            </div>
+                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">Clave: <span class="text-slate-700 font-semibold">Credix2026*</span></div>
+                        </button>
+
+                        <button
+                            type="button"
+                            onclick="fillCredentials('francojbe@gmail.com', 'Admin2026*')"
+                            class="text-left p-2.5 rounded-xl border border-slate-200 hover:border-indigo-400 hover:bg-indigo-50/40 transition group"
+                        >
+                            <div class="text-xs font-bold text-slate-800 group-hover:text-indigo-700 flex items-center justify-between">
+                                <span>francojbe@gmail.com</span>
+                                <i class="fa-solid fa-bolt text-[10px] text-indigo-500"></i>
+                            </div>
+                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">Clave: <span class="text-slate-700 font-semibold">Admin2026*</span></div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="relative z-10 text-center py-4 text-xs text-slate-500">
+        CobranzApp &copy; 2026 · Conectado a Supabase (<span class="font-mono text-slate-400">osujrrbpeayljdsatutw</span>)
+    </footer>
+
+    <script>
+        function togglePassword() {
+            const input = document.getElementById('password');
+            const icon = document.getElementById('eye-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fa-solid fa-eye-slash text-sm';
+            } else {
+                input.type = 'password';
+                icon.className = 'fa-solid fa-eye text-sm';
+            }
+        }
+
+        function fillCredentials(email, password) {
+            document.getElementById('email').value = email;
+            document.getElementById('password').value = password;
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const btn = document.getElementById('btn-submit');
+            const errBox = document.getElementById('login-error');
+            const errText = document.getElementById('login-error-text');
+
+            errBox.classList.add('hidden');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Verificando en Supabase...</span>';
+
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.detail || 'Error al iniciar sesión');
+                }
+                window.location.href = '/';
+            } catch (err) {
+                errText.textContent = err.message;
+                errBox.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-right-to-bracket"></i><span>Ingresar al Sistema</span>';
+            }
+        }
+    </script>
+</body>
+</html>

@@ -11,6 +11,14 @@ DEFAULT_CONTACTS_PATH = os.path.join(BASE_DIR, "Base de contactos.csv")
 DEFAULT_CAMPANAS_PATH = os.path.join(BASE_DIR, "campañas.xlsx")
 DB_PATH = os.path.join(BASE_DIR, "cobranzapp.db")
 
+# Configuración de Supabase (Proyecto credix: osujrrbpeayljdsatutw)
+SUPABASE_URL = os.getenv("SUPABASE_URL", "https://osujrrbpeayljdsatutw.supabase.co").rstrip("/")
+SUPABASE_SERVICE_KEY = os.getenv(
+    "SUPABASE_SERVICE_KEY",
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zdWpycmJwZWF5bGpkc2F0dXR3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzUwNDg0NiwiZXhwIjoyMTA5MDgwODQ2fQ.jZl3E2dDPgWqwjKdXMUlowsUzGhl_1AFM8Fhq0c0IwM"
+)
+SESSION_SECRET = os.getenv("SESSION_SECRET", "cobranzapp-credix-secret-key-2026-prod")
+
 # Interruptor de licencia para el segundo módulo (Mora Ávila)
 # Se puede controlar por variable de entorno ENABLE_MORA_AVILA=true/false en Easypanel o Docker
 ENABLE_MORA_AVILA = os.getenv("ENABLE_MORA_AVILA", "true").strip().lower() in ("true", "1", "yes", "si")
@@ -198,6 +206,7 @@ class FilterRequest(BaseModel):
     group_by: str = "Tipo_Campana"
     cartera_activa: Optional[float] = None
     module_id: Optional[str] = None
+    origen: Optional[str] = None
 
 
 class SetCarteraActivaRequest(BaseModel):
@@ -206,3 +215,15 @@ class SetCarteraActivaRequest(BaseModel):
 
 class SelectModuleRequest(BaseModel):
     module_id: str = "general"
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class CreateUserRequest(BaseModel):
+    email: str
+    nombre: str
+    password: str
+    rol: str = "analista"

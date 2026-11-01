@@ -73,6 +73,15 @@
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
           <span>Sin archivos activos</span>
         </div>
+        <!-- Usuario Conectado (Supabase Auth) + Cerrar Sesión -->
+        <div class="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full pl-3 pr-1.5 py-1 text-xs">
+          <i class="fa-solid fa-user-shield text-indigo-600 text-[11px]"></i>
+          <span id="header-user-email" class="font-semibold text-slate-700 max-w-[140px] truncate">Admin Credix</span>
+          <button onclick="logoutUser()" title="Cerrar Sesión" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200/80 font-bold text-[11px] transition-colors cursor-pointer">
+            <i class="fa-solid fa-power-off text-[10px]"></i>
+            <span class="hidden sm:inline">Salir</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -89,6 +98,9 @@
       </button>
       <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
         <i class="fa-solid fa-phone-volume text-emerald-600"></i> 4. Call Center & WhatsApp
+      </button>
+      <button onclick="switchTab('tab-history', true)" id="nav-history" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> 5. Histórico de Mora (Supabase)
       </button>
     </div>
   </header>
@@ -984,6 +996,162 @@
 
     </div>
 
+
+    <!-- ============================================== -->
+    <!-- TAB 5: HISTÓRICO DE MORA (SUPABASE POSTGRESQL) -->
+    <!-- ============================================== -->
+    <div id="tab-history" class="hidden space-y-6">
+
+      <!-- Cabecera Ejecutiva del Histórico -->
+      <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-5">
+        <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
+                <i class="fa-solid fa-database"></i> Supabase PostgreSQL · Proyecto Credix
+              </span>
+              <span id="history-total-badge" class="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-200">
+                Sincronizado en tiempo real
+              </span>
+            </div>
+            <h2 class="text-xl font-bold text-slate-900 mt-1.5">Histórico y Evolución de Cargas de Mora</h2>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Registro persistente de cada procesamiento manual (Web) y automatizado (Google Drive + n8n) para <strong>Mora Ubi</strong> y <strong>Mora Ávila</strong>.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Filtro de Módulo Histórico -->
+            <div class="inline-flex bg-slate-100 p-1 rounded-xl border border-slate-200">
+              <button type="button" id="hist-filter-all" onclick="setHistoryModuleFilter('all')" class="px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-xs transition cursor-pointer">
+                Todos
+              </button>
+              <button type="button" id="hist-filter-general" onclick="setHistoryModuleFilter('general')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                Mora Ubi
+              </button>
+              <button type="button" id="hist-filter-avila" onclick="setHistoryModuleFilter('avila')" class="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer">
+                Mora Ávila
+              </button>
+            </div>
+
+            <button type="button" onclick="saveCurrentSnapshotToHistory()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer" title="Guardar corte actualmente cargado en memoria">
+              <i class="fa-solid fa-floppy-disk"></i> Guardar Corte Actual
+            </button>
+
+            <button type="button" onclick="loadHistoryData()" class="inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl border border-slate-200 transition cursor-pointer" title="Refrescar desde Supabase">
+              <i class="fa-solid fa-arrows-rotate"></i> Actualizar
+            </button>
+          </div>
+        </div>
+
+        <!-- Tarjetas Comparativas de Evolución: Mora Ubi vs Mora Ávila -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Card Evolución Mora Ubi -->
+          <div class="rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-50/50 via-white to-slate-50 p-5 shadow-2xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-blue-800 bg-blue-100/80 px-2.5 py-1 rounded-lg border border-blue-200">
+                <i class="fa-solid fa-building-columns"></i> Mora Ubi (Último Corte)
+              </span>
+              <span id="hist-ubi-date" class="text-[11px] font-mono text-slate-500">Sin registros</span>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <div class="text-[11px] text-slate-500 font-medium">Deuda Mora Total</div>
+                <div id="hist-ubi-mora" class="text-lg font-extrabold text-slate-900 font-mono mt-0.5">$0.00</div>
+                <div id="hist-ubi-delta" class="text-[11px] font-semibold text-slate-400 mt-0.5">Sin corte previo</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-500 font-medium">Cartera Activa</div>
+                <div id="hist-ubi-activa" class="text-sm font-bold text-slate-800 font-mono mt-1">No definida</div>
+                <div id="hist-ubi-pct" class="text-[11px] font-bold text-blue-700 mt-0.5">% Mora: N/D</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-500 font-medium">Volumen</div>
+                <div id="hist-ubi-clientes" class="text-sm font-bold text-slate-800 mt-1">0 clientes</div>
+                <div id="hist-ubi-cuotas" class="text-[11px] text-slate-500 mt-0.5">0 cuotas</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card Evolución Mora Ávila -->
+          <div class="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/50 via-white to-slate-50 p-5 shadow-2xs">
+            <div class="flex items-center justify-between mb-2">
+              <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-100/80 px-2.5 py-1 rounded-lg border border-emerald-200">
+                <i class="fa-solid fa-mountain-sun"></i> Mora Ávila (Último Corte)
+              </span>
+              <span id="hist-avila-date" class="text-[11px] font-mono text-slate-500">Sin registros</span>
+            </div>
+            <div class="grid grid-cols-3 gap-3 mt-3">
+              <div>
+                <div class="text-[11px] text-slate-500 font-medium">Deuda Mora Total</div>
+                <div id="hist-avila-mora" class="text-lg font-extrabold text-slate-900 font-mono mt-0.5">$0.00</div>
+                <div id="hist-avila-delta" class="text-[11px] font-semibold text-slate-400 mt-0.5">Sin corte previo</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-500 font-medium">Cartera Activa</div>
+                <div id="hist-avila-activa" class="text-sm font-bold text-slate-800 font-mono mt-1">No definida</div>
+                <div id="hist-avila-pct" class="text-[11px] font-bold text-emerald-700 mt-0.5">% Mora: N/D</div>
+              </div>
+              <div>
+                <div class="text-[11px] text-slate-500 font-medium">Volumen</div>
+                <div id="hist-avila-clientes" class="text-sm font-bold text-slate-800 mt-1">0 clientes</div>
+                <div id="hist-avila-cuotas" class="text-[11px] text-slate-500 mt-0.5">0 cuotas</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gráfico de Evolución Histórica -->
+        <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4">
+          <div class="flex items-center justify-between mb-3">
+            <div>
+              <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Curva de Evolución de Mora (USD)</h3>
+              <p class="text-[11px] text-slate-500">Comparativa cronológica de los cortes registrados en Supabase</p>
+            </div>
+            <span class="text-[11px] font-mono text-slate-500" id="hist-chart-subtitle">Últimos cortes</span>
+          </div>
+          <div class="h-56 relative">
+            <canvas id="chart-history-evolution"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de Cargas Históricas -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Bitácora de Cargas y Cortes en Supabase (`public.historial_cargas`)</h3>
+            <p class="text-xs text-slate-400">Haz clic en "Ver Tramos" para inspeccionar la foto exacta de los 5 Tramos Oficiales y Fibex de esa fecha.</p>
+          </div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <thead class="bg-slate-50 text-slate-700 font-semibold uppercase text-[10px] border-b border-slate-200">
+              <tr>
+                <th class="py-3 px-3.5">Fecha Registro</th>
+                <th class="py-3 px-3.5">Corte</th>
+                <th class="py-3 px-3.5">Módulo</th>
+                <th class="py-3 px-3.5">Archivo</th>
+                <th class="py-3 px-3.5 text-right">Cartera Activa</th>
+                <th class="py-3 px-3.5 text-right">Mora Total (USD)</th>
+                <th class="py-3 px-3.5 text-right">% Mora</th>
+                <th class="py-3 px-3.5 text-right">Clientes</th>
+                <th class="py-3 px-3.5 text-right">Cuotas</th>
+                <th class="py-3 px-3.5 text-center">Origen</th>
+                <th class="py-3 px-3.5 text-center">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="history-tbody" class="divide-y divide-slate-100">
+              <tr>
+                <td colspan="11" class="p-6 text-center text-slate-400">Cargando historial desde Supabase...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+
   </main>
 
   <!-- ============================================== -->
@@ -1121,7 +1289,40 @@
     </div>
   </div>
 
+
+  <!-- ============================================== -->
+  <!-- MODAL DE DETALLE HISTÓRICO DE TRAMOS           -->
+  <!-- ============================================== -->
+  <div id="history-detail-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center text-base shadow-xs">
+            <i class="fa-solid fa-table-list"></i>
+          </div>
+          <div>
+            <h3 id="hist-modal-title" class="text-base font-bold text-slate-900">Detalle de Corte Histórico</h3>
+            <p id="hist-modal-subtitle" class="text-xs text-slate-500">Instantánea guardada en Supabase</p>
+          </div>
+        </div>
+        <button onclick="closeHistoryModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 flex items-center justify-center transition cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div id="hist-modal-body" class="p-6 overflow-y-auto space-y-5 text-xs">
+        <!-- Se llena dinámicamente -->
+      </div>
+
+      <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex justify-end">
+        <button onclick="closeHistoryModal()" class="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer">
+          Cerrar Detalle
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261028_1645"></script>
+  <script src="/static/js/dashboard.js?v=20261101_supabase"></script>
 </body>
 </html>
