@@ -77,10 +77,10 @@
         <div class="inline-flex items-center gap-2 bg-slate-100 border border-slate-200 rounded-full pl-3 pr-1.5 py-1 text-xs">
           <i class="fa-solid fa-user-shield text-indigo-600 text-[11px]"></i>
           <span id="header-user-email" class="font-semibold text-slate-700 max-w-[140px] truncate">Admin Credix</span>
-          <button onclick="logoutUser()" title="Cerrar Sesión" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200/80 font-bold text-[11px] transition-colors cursor-pointer">
+          <a href="/logout" onclick="logoutUser(); return false;" title="Cerrar Sesión" class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-600 border border-slate-200/80 font-bold text-[11px] transition-colors cursor-pointer">
             <i class="fa-solid fa-power-off text-[10px]"></i>
             <span class="hidden sm:inline">Salir</span>
-          </button>
+          </a>
         </div>
       </div>
     </div>
@@ -1323,6 +1323,6 @@
   </div>
 
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261101_supabase"></script>
+  <script src="/static/js/dashboard.js?v=20261101_v2"></script>
 </body>
 </html>

@@ -125,6 +125,14 @@ def api_login(req: LoginRequest, response: Response):
     return {"status": "ok", "user": user}
 
 
+@app.get("/logout")
+def direct_logout():
+    resp = RedirectResponse(url="/login", status_code=302)
+    resp.delete_cookie(key="cobranzapp_session", path="/")
+    return resp
+
+
+@app.get("/api/auth/logout")
 @app.post("/api/auth/logout")
 def api_logout(response: Response):
     response.delete_cookie(key="cobranzapp_session", path="/")

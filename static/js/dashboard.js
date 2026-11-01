@@ -1640,3 +1640,414 @@ function toggleGuideModal(show) {
     document.body.style.overflow = 'auto';
   }
 }
+
+
+// ==============================================================
+// AUTENTICACIÓN Y PESTAÑA 5: HISTÓRICO DE MORA (SUPABASE)
+// ==============================================================
+let currentHistoryModuleFilter = 'all';
+let historyChartInstance = null;
+
+async function logoutUser() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'same-origin' });
+  } catch (e) {
+    console.warn("Logout error:", e);
+  }
+  window.location.href = '/logout';
+}
+
+function setHistoryModuleFilter(mod) {
+  currentHistoryModuleFilter = mod;
+  ['all', 'general', 'avila'].forEach(k => {
+    const btn = document.getElementById('hist-filter-' + k);
+    if (!btn) return;
+    if (k === mod) {
+      btn.className = 'px-3 py-1.5 rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-xs transition cursor-pointer';
+    } else {
+      btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
+    }
+  });
+  loadHistoryData();
+}
+
+function formatHistoryDate(isoStr) {
+  if (!isoStr) return '-';
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return isoStr;
+    return d.toLocaleDateString('es-VE', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (e) {
+    return isoStr;
+  }
+}
+
+function renderModuleComparisonCard(prefix, comp, accentColor) {
+  const moraEl = document.getElementById(`hist-${prefix}-mora`);
+  const deltaEl = document.getElementById(`hist-${prefix}-delta`);
+  const activaEl = document.getElementById(`hist-${prefix}-activa`);
+  const pctEl = document.getElementById(`hist-${prefix}-pct`);
+  const cliEl = document.getElementById(`hist-${prefix}-clientes`);
+  const cuoEl = document.getElementById(`hist-${prefix}-cuotas`);
+  const dateEl = document.getElementById(`hist-${prefix}-date`);
+
+  if (!comp || !comp.has_data) {
+    if (moraEl) moraEl.textContent = '$0.00';
+    if (deltaEl) deltaEl.textContent = 'Sin cargas registradas';
+    if (activaEl) activaEl.textContent = 'No definida';
+    if (pctEl) pctEl.textContent = '% Mora: N/D';
+    if (cliEl) cliEl.textContent = '0 clientes';
+    if (cuoEl) cuoEl.textContent = '0 cuotas';
+    if (dateEl) dateEl.textContent = 'Sin registros';
+    return;
+  }
+
+  if (moraEl) {
+    moraEl.textContent = '$' + Number(comp.latest_mora_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
+  if (dateEl) {
+    dateEl.textContent = `Corte: ${comp.latest_fecha_corte || '-'} (${comp.total_cargas} cargas)`;
+  }
+  if (activaEl) {
+    activaEl.textContent = comp.latest_cartera_activa_usd
+      ? '$' + Number(comp.latest_cartera_activa_usd).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      : 'No ingresada';
+  }
+  if (pctEl) {
+    pctEl.textContent = comp.latest_porcentaje_mora !== null && comp.latest_porcentaje_mora !== undefined
+      ? `% Mora: ${Number(comp.latest_porcentaje_mora).toFixed(2)}%`
+      : '% Mora: N/D';
+  }
+  if (cliEl) cliEl.textContent = `${Number(comp.latest_clientes || 0).toLocaleString()} clientes`;
+  if (cuoEl) cuoEl.textContent = `${Number(comp.latest_cuotas || 0).toLocaleString()} cuotas`;
+
+  if (deltaEl) {
+    if (comp.delta_mora_usd === null || comp.delta_mora_usd === undefined) {
+      deltaEl.className = 'text-[11px] font-semibold text-slate-400 mt-0.5';
+      deltaEl.textContent = 'Primer corte registrado';
+    } else if (Math.abs(comp.delta_mora_usd) < 0.01) {
+      deltaEl.className = 'text-[11px] font-semibold text-slate-500 mt-0.5';
+      deltaEl.textContent = 'Sin variación vs carga previa';
+    } else if (comp.delta_mora_usd > 0) {
+      const signPct = comp.delta_mora_pct ? ` (+${comp.delta_mora_pct}%)` : '';
+      deltaEl.className = 'text-[11px] font-bold text-rose-600 mt-0.5';
+      deltaEl.innerHTML = `<i class="fa-solid fa-arrow-trend-up mr-1"></i>+$${Number(comp.delta_mora_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })}${signPct} vs anterior`;
+    } else {
+      const signPct = comp.delta_mora_pct ? ` (${comp.delta_mora_pct}%)` : '';
+      deltaEl.className = 'text-[11px] font-bold text-emerald-600 mt-0.5';
+      deltaEl.innerHTML = `<i class="fa-solid fa-arrow-trend-down mr-1"></i>-$${Number(Math.abs(comp.delta_mora_usd)).toLocaleString('en-US', { minimumFractionDigits: 2 })}${signPct} vs anterior`;
+    }
+  }
+}
+
+async function loadHistoryData() {
+  const tbody = document.getElementById('history-tbody');
+  if (tbody) {
+    tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Consultando historial en Supabase...</td></tr>`;
+  }
+
+  try {
+    const q = currentHistoryModuleFilter !== 'all' ? `?modulo=${currentHistoryModuleFilter}&limit=100` : '?limit=100';
+    const res = await fetch('/api/history' + q);
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.detail || 'Error al cargar historial');
+    }
+
+    const totalBadge = document.getElementById('history-total-badge');
+    if (totalBadge && data.summary) {
+      totalBadge.textContent = `${data.summary.total_snapshots || 0} cortes guardados en Supabase`;
+    }
+
+    if (data.summary) {
+      renderModuleComparisonCard('ubi', data.summary.general, 'blue');
+      renderModuleComparisonCard('avila', data.summary.avila, 'emerald');
+    }
+
+    const items = data.items || [];
+    renderHistoryChart(items);
+    renderHistoryTable(items);
+  } catch (err) {
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-rose-500">Error al consultar historial: ${err.message}</td></tr>`;
+    }
+  }
+}
+
+function renderHistoryChart(items) {
+  const canvas = document.getElementById('chart-history-evolution');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (historyChartInstance) {
+    historyChartInstance.destroy();
+  }
+
+  const chronological = [...items].reverse().slice(-20);
+  const labels = chronological.map(x => {
+    const modShort = x.modulo === 'avila' ? 'Ávila' : 'Ubi';
+    return `${x.fecha_corte || '-'} (${modShort})`;
+  });
+  const moraValues = chronological.map(x => Number(x.total_mora_usd || 0));
+  const bgColors = chronological.map(x => x.modulo === 'avila' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(37, 99, 235, 0.8)');
+
+  historyChartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        {
+          label: 'Deuda en Mora (USD)',
+          data: moraValues,
+          backgroundColor: bgColors,
+          borderRadius: 6,
+          maxBarThickness: 44
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: (context) => 'Mora Total: $' + Number(context.raw || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { font: { size: 10 } }
+        },
+        y: {
+          ticks: {
+            callback: v => '$' + Number(v).toLocaleString('en-US')
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderHistoryTable(items) {
+  const tbody = document.getElementById('history-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = '';
+
+  if (!items || items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="11" class="p-8 text-center text-slate-400">No hay cortes registrados para este filtro. Procesa una cartera o haz clic en "Guardar Corte Actual".</td></tr>`;
+    return;
+  }
+
+  items.forEach(item => {
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-indigo-50/30 transition-colors';
+
+    const isAvila = item.modulo === 'avila';
+    const modBadge = isAvila
+      ? `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200"><i class="fa-solid fa-mountain-sun"></i> Mora Ávila</span>`
+      : `<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200"><i class="fa-solid fa-building-columns"></i> Mora Ubi</span>`;
+
+    const isN8n = (item.origen || '').toLowerCase().includes('n8n');
+    const origenBadge = isN8n
+      ? `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200"><i class="fa-solid fa-robot"></i> n8n Drive</span>`
+      : `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200"><i class="fa-solid fa-user"></i> Web</span>`;
+
+    const caStr = item.cartera_activa_usd
+      ? '$' + Number(item.cartera_activa_usd).toLocaleString('en-US', { minimumFractionDigits: 2 })
+      : '<span class="text-slate-400">No def.</span>';
+
+    const pctStr = (item.porcentaje_mora !== null && item.porcentaje_mora !== undefined)
+      ? `<span class="px-2 py-0.5 rounded-full font-bold text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200">${Number(item.porcentaje_mora).toFixed(2)}%</span>`
+      : '<span class="text-slate-400">-</span>';
+
+    tr.innerHTML = `
+      <td class="py-3 px-3.5 font-mono text-[11px] text-slate-600">${formatHistoryDate(item.created_at)}</td>
+      <td class="py-3 px-3.5 font-mono font-bold text-slate-800">${item.fecha_corte || '-'}</td>
+      <td class="py-3 px-3.5">${modBadge}</td>
+      <td class="py-3 px-3.5 font-medium text-slate-800 max-w-[180px] truncate" title="${item.nombre_archivo || ''}">${item.nombre_archivo || '-'}</td>
+      <td class="py-3 px-3.5 text-right font-mono text-slate-700">${caStr}</td>
+      <td class="py-3 px-3.5 text-right font-mono font-extrabold text-slate-900">$${Number(item.total_mora_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+      <td class="py-3 px-3.5 text-right font-mono">${pctStr}</td>
+      <td class="py-3 px-3.5 text-right font-mono text-slate-700">${Number(item.total_clientes || 0).toLocaleString()}</td>
+      <td class="py-3 px-3.5 text-right font-mono text-slate-600">${Number(item.total_cuotas || 0).toLocaleString()}</td>
+      <td class="py-3 px-3.5 text-center">${origenBadge}</td>
+      <td class="py-3 px-3.5 text-center">
+        <div class="inline-flex items-center gap-1.5">
+          <button onclick="viewHistorySnapshot(${item.id})" class="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-bold text-[11px] transition cursor-pointer" title="Ver desglose de 5 Tramos y Fibex">
+            <i class="fa-solid fa-eye mr-1"></i>Ver Tramos
+          </button>
+          <button onclick="deleteHistorySnapshot(${item.id})" class="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition cursor-pointer" title="Eliminar registro">
+            <i class="fa-solid fa-trash-can"></i>
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+async function saveCurrentSnapshotToHistory() {
+  try {
+    const res = await fetch('/api/history/snapshot', { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      showToast('warning', 'Aviso', data.detail || 'No hay cartera cargada para guardar.');
+      return;
+    }
+    showToast('success', '¡Corte Guardado en Supabase!', 'La instantánea actual de mora se registró correctamente en el historial.');
+    loadHistoryData();
+  } catch (err) {
+    showToast('error', 'Error', 'No se pudo guardar la instantánea: ' + err.message);
+  }
+}
+
+async function viewHistorySnapshot(id) {
+  const modal = document.getElementById('history-detail-modal');
+  const body = document.getElementById('hist-modal-body');
+  const title = document.getElementById('hist-modal-title');
+  const subtitle = document.getElementById('hist-modal-subtitle');
+  if (!modal || !body) return;
+
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  body.innerHTML = `<div class="p-8 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Cargando desglose del corte #${id}...</div>`;
+
+  try {
+    const res = await fetch(`/api/history/${id}`);
+    const item = await res.json();
+    if (!res.ok) throw new Error(item.detail || 'No encontrado');
+
+    if (title) title.textContent = `${item.modulo_label} · Corte ${item.fecha_corte || ''}`;
+    if (subtitle) subtitle.textContent = `Archivo: ${item.nombre_archivo} · Registrado: ${formatHistoryDate(item.created_at)} · Usuario: ${item.usuario_email || 'sistema'}`;
+
+    const rt = item.resumen_tramos || {};
+    const tramos = rt.tramos || [];
+    const rf = item.resumen_fibex || {};
+    const segments = rf.segments || [];
+
+    let tramosRowsHtml = '';
+    tramos.forEach(t => {
+      const pctTxt = (t.porcentaje !== null && t.porcentaje !== undefined) ? `${Number(t.porcentaje).toFixed(2)}%` : '-';
+      tramosRowsHtml += `
+        <tr class="border-b border-slate-100">
+          <td class="py-2 px-3 font-semibold text-slate-800">${t.fase || t.grupo}</td>
+          <td class="py-2 px-3"><span class="${t.badge_class || 'px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-bold'}">${t.etiqueta}</span></td>
+          <td class="py-2 px-3 text-right font-mono">${Number(t.cuotas || 0).toLocaleString()}</td>
+          <td class="py-2 px-3 text-right font-mono">${Number(t.clientes || 0).toLocaleString()}</td>
+          <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">$${Number(t.total_monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+          <td class="py-2 px-3 text-right font-mono text-indigo-700 font-bold">${pctTxt}</td>
+        </tr>
+      `;
+    });
+
+    let fibexRowsHtml = '';
+    segments.forEach(s => {
+      const pctAct = (s.porcentaje !== null && s.porcentaje !== undefined) ? `${Number(s.porcentaje).toFixed(2)}%` : '-';
+      fibexRowsHtml += `
+        <tr class="border-b border-slate-100">
+          <td class="py-2 px-3 font-bold text-slate-800">${s.etiqueta}</td>
+          <td class="py-2 px-3 text-right font-mono">${Number(s.clientes || 0).toLocaleString()}</td>
+          <td class="py-2 px-3 text-right font-mono">${Number(s.cuotas || 0).toLocaleString()}</td>
+          <td class="py-2 px-3 text-right font-mono font-bold text-slate-900">$${Number(s.total_monto || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+          <td class="py-2 px-3 text-right font-mono text-slate-600">${Number(s.porcentaje_mora || 0).toFixed(2)}%</td>
+          <td class="py-2 px-3 text-right font-mono font-bold text-indigo-700">${pctAct}</td>
+        </tr>
+      `;
+    });
+
+    body.innerHTML = `
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div class="text-[11px] text-slate-500">Deuda en Mora Total</div>
+          <div class="text-base font-extrabold text-slate-900 font-mono mt-0.5">$${Number(item.total_mora_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+        </div>
+        <div class="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+          <div class="text-[11px] text-slate-500">Cartera Activa Base</div>
+          <div class="text-base font-bold text-slate-800 font-mono mt-0.5">${item.cartera_activa_usd ? '$' + Number(item.cartera_activa_usd).toLocaleString('en-US', { minimumFractionDigits: 2 }) : 'No definida'}</div>
+        </div>
+        <div class="bg-indigo-50/60 p-3.5 rounded-xl border border-indigo-200">
+          <div class="text-[11px] text-indigo-700 font-semibold">% Índice de Mora</div>
+          <div class="text-base font-extrabold text-indigo-800 font-mono mt-0.5">${item.porcentaje_mora !== null && item.porcentaje_mora !== undefined ? Number(item.porcentaje_mora).toFixed(2) + '%' : 'N/D'}</div>
+        </div>
+        <div class="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200">
+          <div class="text-[11px] text-emerald-700 font-semibold">Clientes / Contactabilidad</div>
+          <div class="text-base font-bold text-emerald-800 mt-0.5">${Number(item.total_clientes || 0).toLocaleString()} (${item.cobertura_contacto_pct || 0}% tel)</div>
+        </div>
+      </div>
+
+      <div>
+        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Desglose Oficial en los 5 Tramos de Mora</h4>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+              <tr>
+                <th class="py-2.5 px-3">Fase Operativa</th>
+                <th class="py-2.5 px-3">Tramo</th>
+                <th class="py-2.5 px-3 text-right">Cuotas</th>
+                <th class="py-2.5 px-3 text-right">Clientes</th>
+                <th class="py-2.5 px-3 text-right">Monto Mora (USD)</th>
+                <th class="py-2.5 px-3 text-right">% Cartera Activa</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${tramosRowsHtml || '<tr><td colspan="6" class="p-4 text-center text-slate-400">Sin desglose de tramos</td></tr>'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      ${fibexRowsHtml ? `
+      <div>
+        <h4 class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Segmentación Clientes Web NO Fibex vs. Fibex</h4>
+        <div class="overflow-x-auto rounded-xl border border-slate-200">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-100 text-slate-700 uppercase text-[10px] font-bold">
+              <tr>
+                <th class="py-2.5 px-3">Segmento</th>
+                <th class="py-2.5 px-3 text-right">Clientes</th>
+                <th class="py-2.5 px-3 text-right">Cuotas</th>
+                <th class="py-2.5 px-3 text-right">Monto Mora (USD)</th>
+                <th class="py-2.5 px-3 text-right">% Sobre Mora</th>
+                <th class="py-2.5 px-3 text-right">% Cartera Activa</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${fibexRowsHtml}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      ` : ''}
+    `;
+  } catch (err) {
+    body.innerHTML = `<div class="p-6 text-center text-rose-500">Error al cargar detalle: ${err.message}</div>`;
+  }
+}
+
+function closeHistoryModal() {
+  const modal = document.getElementById('history-detail-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+  }
+}
+
+async function deleteHistorySnapshot(id) {
+  try {
+    const res = await fetch(`/api/history/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      showToast('info', 'Registro eliminado', `El corte #${id} fue eliminado del historial.`);
+      loadHistoryData();
+    }
+  } catch (err) {
+    showToast('error', 'Error', 'No se pudo eliminar: ' + err.message);
+  }
+}
