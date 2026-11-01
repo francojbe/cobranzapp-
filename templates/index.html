@@ -31,6 +31,15 @@
     .animate-progress-pulse {
       animation: progressPulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
     }
+    .no-scrollbar::-webkit-scrollbar {
+      display: none !important;
+      width: 0 !important;
+      height: 0 !important;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none !important;
+      scrollbar-width: none !important;
+    }
   </style>
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col relative">
@@ -85,22 +94,22 @@
       </div>
     </div>
 
-    <!-- Navigation Tabs -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-6 sm:space-x-8 border-t border-slate-100 text-sm font-medium overflow-x-auto">
-      <button onclick="switchTab('tab-upload')" id="nav-upload" class="py-2.5 px-3.5 border-b-2 border-blue-600 text-blue-700 font-bold bg-blue-50/80 rounded-t-xl tab-active flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-cloud-arrow-up"></i> 1. Cargar Archivos (Cartera + Contactos)
+    <!-- Navigation Tabs (Compacto, estilizado y sin barra de scroll) -->
+    <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 flex items-center justify-between gap-1 sm:gap-2 border-t border-slate-100 text-xs font-semibold overflow-x-auto no-scrollbar">
+      <button onclick="switchTab('tab-upload')" id="nav-upload" class="flex-1 py-2.5 px-2 border-b-2 border-blue-600 text-blue-700 font-bold bg-blue-50/80 rounded-t-xl tab-active flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-cloud-arrow-up text-xs"></i> <span>1. Carga & Cruce</span>
       </button>
-      <button onclick="switchTab('tab-segment')" id="nav-segment" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-sliders"></i> 2. Configurar Desglose
+      <button onclick="switchTab('tab-segment')" id="nav-segment" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-sliders text-xs"></i> <span>2. Segmentación</span>
       </button>
-      <button onclick="switchTab('tab-results')" id="nav-results" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-chart-simple"></i> 3. Métricas y Descarga
+      <button onclick="switchTab('tab-results')" id="nav-results" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-chart-simple text-xs"></i> <span>3. Métricas & Reportes</span>
       </button>
-      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-phone-volume text-emerald-600"></i> 4. Call Center & WhatsApp
+      <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-phone-volume text-emerald-600 text-xs"></i> <span>4. Call Center & WA</span>
       </button>
-      <button onclick="switchTab('tab-history', true)" id="nav-history" class="py-2.5 px-3.5 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i> 5. Histórico de Mora (Supabase)
+      <button onclick="switchTab('tab-history', true)" id="nav-history" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-clock-rotate-left text-indigo-600 text-xs"></i> <span>5. Histórico de Mora</span>
       </button>
     </div>
   </header>
@@ -1323,6 +1332,6 @@
   </div>
 
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261101_v3"></script>
+  <script src="/static/js/dashboard.js?v=20261101_v4"></script>
 </body>
 </html>
