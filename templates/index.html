@@ -136,7 +136,7 @@
                 <h2 class="text-base font-bold text-slate-900">Suite Multi-Cartera: Selecciona el Módulo de Operación</h2>
                 <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">2 Módulos Habilitados</span>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">Cada módulo mantiene su propio archivo, métricas y reportes independientes, compartiendo la Base Maestra de 154.009 contactos.</p>
+              <p class="text-xs text-slate-500 mt-0.5">Selecciona la cartera que deseas operar.</p>
             </div>
           </div>
           <div class="text-xs text-slate-500 flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80 self-start sm:self-auto">
@@ -245,7 +245,7 @@
                   <i class="fa-solid fa-building-columns text-[10px]"></i> Módulo: Mora Ubi
                 </span>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">Sube tu archivo de <strong>Cartera / Mora</strong> para procesar en el módulo activo. La <strong>Base de Contactos y Campañas</strong> ya está cargada en la Base de Datos integrada (opcionalmente puedes subir nuevos archivos para sumar más clientes).</p>
+              <p class="text-xs text-slate-500 mt-0.5">Arrastra tu archivo de mora para iniciar el análisis.</p>
             </div>
           </div>
           
@@ -269,22 +269,19 @@
               </div>
               
               <div>
-                <p class="text-base sm:text-lg font-bold text-slate-900">Haz clic o arrastra aquí tus archivos</p>
-                <p class="text-xs text-slate-500 mt-1 max-w-lg mx-auto leading-relaxed">
-                  Sube tu archivo obligatorio de <strong>Cartera de Mora</strong> (<code>mora.csv</code>). Si en el futuro necesitas agregar o actualizar clientes, también puedes arrastrar aquí un archivo de <strong>Contactos o Campañas</strong> (<code>.csv</code> o <code>.xlsx</code>) para sumarlo a la Base de Datos.
+                <p class="text-base sm:text-lg font-bold text-slate-900">Haz clic o arrastra aquí el archivo de mora</p>
+                <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                  Formatos compatibles: CSV o Excel (.xlsx, .xls)
                 </p>
               </div>
 
-              <!-- Píldoras informativas -->
-              <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] text-slate-600">
+              <!-- Píldoras informativas compactas -->
+              <div class="flex flex-wrap items-center justify-center gap-2 pt-1 text-[11px] text-slate-500">
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> 1. Cartera (Obligatorio): mora.csv o .xlsx
+                  <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Cartera de Mora
                 </span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-database text-emerald-600"></i> 2. Contactos/Campañas (Opcional - Ya en BD): .xlsx o .csv
-                </span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-wand-magic-sparkles text-amber-500"></i> Guardado incremental en Base de Datos
+                  <i class="fa-solid fa-database text-emerald-600"></i> Base Supabase (154.009 clientes)
                 </span>
               </div>
             </div>
@@ -330,7 +327,7 @@
         <div class="bg-slate-50 border-t border-slate-100 p-5 sm:p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i class="fa-solid fa-list-check text-blue-600"></i> Estado de Fuentes de Datos (Cartera Obligatoria + Base de Datos de Contactos)
+              <i class="fa-solid fa-list-check text-blue-600"></i> Estado de Fuentes
             </h4>
             <span id="files-status-summary" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">Verificando...</span>
           </div>
@@ -345,10 +342,10 @@
                 </div>
                 <div class="truncate">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-900 truncate" id="cartera-filename-label">1. Archivo de Cartera / Mora</span>
+                    <span class="text-xs font-bold text-slate-900 truncate" id="cartera-filename-label">Cartera de Mora</span>
                     <span id="badge-cartera" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200">Obligatorio</span>
                   </div>
-                  <div class="text-[11px] text-slate-400 mt-0.5" id="cartera-status-detail">Pendiente de subir (cuotas y días de mora)</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="cartera-status-detail">Pendiente de cargar</div>
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0 ml-2">
@@ -367,16 +364,16 @@
                 </div>
                 <div class="truncate">
                   <div class="flex items-center gap-2">
-                    <span class="text-xs font-bold text-slate-900 truncate" id="contacts-filename-label">2. Base de Contactos y Campañas</span>
+                    <span class="text-xs font-bold text-slate-900 truncate" id="contacts-filename-label">Base de Contactos</span>
                     <span id="badge-contacts" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">✓ En Base de Datos</span>
                   </div>
-                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Precargada en BD local (Opcional: sube archivo para sumar clientes)</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Sincronizada en Supabase (154.009 clientes)</div>
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0 ml-2">
                 <span id="contacts-count-label" class="text-xs font-mono font-bold text-slate-500">0 clientes</span>
                 <button type="button" onclick="document.getElementById('file-contacts-input').click()" class="px-2.5 py-1 text-[11px] font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg transition-colors cursor-pointer" title="Opcional: Subir archivo de Contactos o Campañas para agregar/actualizar clientes en la Base de Datos">
-                  <i class="fa-solid fa-user-plus mr-1"></i>Sumar a BD
+                  <i class="fa-solid fa-upload mr-1"></i>Actualizar
                 </button>
               </div>
             </div>
@@ -386,7 +383,7 @@
           <!-- Botón de Procesar Archivos -->
           <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/60">
             <div class="text-xs text-slate-500 flex items-center gap-1.5" id="process-help-text">
-              <i class="fa-solid fa-database text-emerald-600"></i> Base de Contactos y Campañas activa en BD local. Solo necesitas subir el archivo de <strong>Cartera / Mora</strong> para procesar.
+              <i class="fa-solid fa-circle-check text-emerald-600"></i> Base de clientes conectada en Supabase
             </div>
             <button onclick="handleProcessClick()" id="btn-process-files" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer">
               <span>Procesar Cartera</span> <i class="fa-solid fa-arrow-right"></i>
@@ -1332,6 +1329,6 @@
   </div>
 
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261101_v4"></script>
+  <script src="/static/js/dashboard.js?v=20261101_v5"></script>
 </body>
 </html>

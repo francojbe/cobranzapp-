@@ -542,7 +542,7 @@ function updateUIState(data) {
     }
     if (carteraName) carteraName.textContent = currentFilesState.cartera_filename || 'Cartera de Mora activa';
     if (carteraCount) carteraCount.textContent = `${Number(meta.total_rows || 0).toLocaleString()} cuotas`;
-    if (carteraDetail) carteraDetail.textContent = 'Verificado y cruzado con Base de Datos';
+    if (carteraDetail) carteraDetail.textContent = 'Cargada y vinculada con Supabase';
     if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
   } else {
     if (carteraBadge) {
@@ -552,9 +552,9 @@ function updateUIState(data) {
     if (carteraIcon) {
       carteraIcon.className = 'w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors';
     }
-    if (carteraName) carteraName.textContent = '1. Archivo de Cartera / Mora';
+    if (carteraName) carteraName.textContent = 'Cartera de Mora';
     if (carteraCount) carteraCount.textContent = '0 cuotas';
-    if (carteraDetail) carteraDetail.textContent = 'Obligatorio: sube mora.csv o .xlsx para procesar';
+    if (carteraDetail) carteraDetail.textContent = 'Pendiente de cargar';
     if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
   }
 
@@ -583,7 +583,7 @@ function updateUIState(data) {
         contactsCount.textContent = `${(totalContactsIdx || totalWithPhone).toLocaleString()} en BD`;
       }
     }
-    if (contactsDetail) contactsDetail.textContent = 'Activa en BD local (Opcional: sube archivo para sumar más)';
+    if (contactsDetail) contactsDetail.textContent = 'Sincronizada en Supabase';
     if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
   } else {
     if (contactsBadge) {
@@ -593,9 +593,9 @@ function updateUIState(data) {
     if (contactsIcon) {
       contactsIcon.className = 'w-9 h-9 rounded-xl bg-slate-100 text-slate-400 flex items-center justify-center text-sm shrink-0 transition-colors';
     }
-    if (contactsName) contactsName.textContent = '2. Base de Contactos y Campañas';
+    if (contactsName) contactsName.textContent = 'Base de Contactos';
     if (contactsCount) contactsCount.textContent = '0 en BD';
-    if (contactsDetail) contactsDetail.textContent = 'Opcional: sube archivo para cargar a la BD';
+    if (contactsDetail) contactsDetail.textContent = 'Sincronizada en Supabase';
     if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
   }
 
@@ -605,13 +605,13 @@ function updateUIState(data) {
   if (summaryBadge) {
     if (currentFilesState.cartera_loaded) {
       summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1.5';
-      summaryBadge.innerHTML = `<i class="fa-solid fa-check"></i> Cartera + BD Listas para Procesar`;
+      summaryBadge.innerHTML = `<i class="fa-solid fa-check"></i> Listo para Procesar`;
     } else if (currentFilesState.contacts_loaded) {
       summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1.5';
-      summaryBadge.innerHTML = `<i class="fa-solid fa-database"></i> BD Activa (Sube Cartera de Mora)`;
+      summaryBadge.innerHTML = `<i class="fa-solid fa-database"></i> Base Conectada`;
     } else {
       summaryBadge.className = 'text-xs font-bold px-3 py-1 rounded-full bg-slate-200 text-slate-700';
-      summaryBadge.textContent = 'Esperando Cartera de Mora';
+      summaryBadge.textContent = 'Pendiente Cartera';
     }
   }
 
@@ -629,11 +629,11 @@ function updateUIState(data) {
   if (topBadge) {
     if (currentFilesState.cartera_loaded) {
       topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200';
-      topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera + BD vinculadas (${Number(meta.total_rows || 0).toLocaleString()} cuotas)</span>`;
+      topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span><span>Cartera lista (${Number(meta.total_rows || 0).toLocaleString()} cuotas)</span>`;
     } else if (currentFilesState.contacts_loaded) {
       const totalContactsIdx = Number(data.total_contacts || meta.total_contacts || 0);
       topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200';
-      topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500"></span><span>BD Activa (${totalContactsIdx.toLocaleString()} clientes) · Sube Cartera</span>`;
+      topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-blue-500"></span><span>Base Conectada (${totalContactsIdx.toLocaleString()} clientes)</span>`;
     } else {
       topBadge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500 border border-slate-200';
       topBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-slate-400"></span><span>Sin cartera cargada</span>`;
@@ -801,7 +801,7 @@ async function processSingleFile(file) {
           matriz_campanas_tramos: data.matriz_campanas_tramos
         });
         ProgressController.complete('¡Cartera procesada y cruzada con BD!', () => {
-          showToast('success', '¡Cartera Lista para Procesar!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas) y cruzada automáticamente con la Base de Datos de Contactos y Campañas.`);
+          showToast('success', '¡Cartera Lista para Procesar!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas) y vinculada con Supabase.`);
         });
       }
     } else {
