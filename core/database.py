@@ -570,36 +570,30 @@ def save_history_snapshot(
         "filtros_aplicados": filtros,
     }
 
-    # 1. Guardar en Supabase public.historial_cargas
+    # 1. Guardar en Supabase public.historial_cargas con Detección Inteligente de Duplicados
     try:
-        # Evitar duplicados idénticos en menos de 90 segundos
-        recent = _supabase_request(
+        # Buscar si ya existe un corte idéntico (mismo módulo, misma fecha de corte, mismas cuotas y saldo)
+        encoded_date = urllib.parse.quote(fecha_corte)
+        existing_matches = _supabase_request(
             "GET",
-            f"historial_cargas?modulo=eq.{mod_clean}&order=created_at.desc&limit=1",
+            f"historial_cargas?modulo=eq.{mod_clean}&fecha_corte=eq.{encoded_date}&order=created_at.desc&limit=5",
             timeout=8,
         )
-        if recent and len(recent) > 0:
-            last_row = recent[0]
-            same_file = last_row.get("nombre_archivo") == record["nombre_archivo"]
-            same_mora = abs(float(last_row.get("total_mora_usd") or 0) - record["total_mora_usd"]) < 0.05
-            same_ca = (last_row.get("cartera_activa_usd") == record["cartera_activa_usd"])
-            created_str = str(last_row.get("created_at") or "")
-            is_very_recent = False
-            if created_str:
-                try:
-                    dt_last = datetime.fromisoformat(created_str.replace("Z", "+00:00"))
-                    is_very_recent = (datetime.now(timezone.utc) - dt_last).total_seconds() < 90
-                except Exception:
-                    pass
-            if same_file and same_mora and same_ca and is_very_recent:
-                updated = _supabase_request(
-                    "PATCH",
-                    f"historial_cargas?id=eq.{last_row['id']}",
-                    data=record,
-                    prefer="return=representation",
-                    timeout=8,
-                )
-                return updated[0] if updated else last_row
+        if existing_matches:
+            for em in existing_matches:
+                same_cuotas = (int(em.get("total_cuotas") or 0) == record["total_cuotas"])
+                same_mora = abs(float(em.get("total_mora_usd") or 0) - record["total_mora_usd"]) < 0.1
+                same_clientes = (int(em.get("total_clientes") or 0) == record["total_clientes"])
+                if same_cuotas and same_mora and same_clientes:
+                    # Corte idéntico detectado: actualizar en lugar de duplicar
+                    updated = _supabase_request(
+                        "PATCH",
+                        f"historial_cargas?id=eq.{em['id']}",
+                        data=record,
+                        prefer="return=representation",
+                        timeout=8,
+                    )
+                    return updated[0] if updated else em
 
         inserted = _supabase_request(
             "POST",
