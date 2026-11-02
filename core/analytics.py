@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 import pandas as pd
-from core.config import DATA_STORE, OFFICIAL_TRAMOS_CONFIG, sync_active_module_to_slot
+from core.config import DATA_STORE, OFFICIAL_TRAMOS_CONFIG, switch_active_module, sync_active_module_to_slot
 from core.database import load_contacts_from_db, upsert_contacts_to_db
 from core.parsers import (
     assign_tramo_mora,
@@ -12,38 +12,82 @@ from core.parsers import (
 )
 
 
-def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Resuelve la columna monetaria activa (_Tot):
-    - En Mora Ávila (o cuando Pendiente Cuota supera a Pendiente Tarifa), utiliza la suma total de la deuda
-      (Pendiente Tarifa + Pendiente Cuota + Pendiente Mora).
-    - En Cartera General, prioriza Pendiente Tarifa y filtra filas con deuda > 0."""
-    df = df.copy()
-    if "_Modulo" in df.columns:
-        mod_is_avila = bool((df["_Modulo"] == "avila").any())
-    else:
-        mod_is_avila = (DATA_STORE.get("active_module") == "avila")
+def detect_cartera_module(df: pd.DataFrame, filename: str = "") -> str:
+    """Detecta automáticamente si un DataFrame de cartera pertenece a Mora Ubi ('general') o Mora Ávila ('avila')."""
+    fname = (filename or "").lower()
+    if "avila" in fname or "ávila" in fname:
+        return "avila"
+    if "ubi" in fname:
+        return "general"
 
-    is_avila = (
-        mod_is_avila
-        or (
-            "Pendiente Cuota" in df.columns
-            and "Pendiente Tarifa" in df.columns
-            and float(df["Pendiente Cuota"].sum()) > float(df["Pendiente Tarifa"].sum())
-        )
-    )
+    if df is not None and not df.empty:
+        if "Programa" in df.columns:
+            progs = " ".join(df["Programa"].dropna().astype(str).unique()).upper()
+            if "AVILA" in progs or "ÁVILA" in progs:
+                return "avila"
+            if "CREDIX" in progs or "FIBEX" in progs:
+                return "general"
+
+        tarifa_sum = float(df["Pendiente Tarifa"].sum()) if "Pendiente Tarifa" in df.columns else 0.0
+        cuota_sum = float(df["Pendiente Cuota"].sum()) if "Pendiente Cuota" in df.columns else 0.0
+
+        if cuota_sum > tarifa_sum and cuota_sum > 0:
+            return "avila"
+        if tarifa_sum > cuota_sum and tarifa_sum > 0:
+            return "general"
+
+    if "reporte_mora" in fname:
+        return "avila"
+
+    return DATA_STORE.get("active_module", "general")
+
+
+def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
+    """Resuelve la columna monetaria activa (_Tot) y consolida Tramo y Campaña por cliente único (Cedula_Key):
+    - En Mora Ávila (cuando Pendiente Cuota supera a Pendiente Tarifa), utiliza la suma total de la deuda
+      (Pendiente Tarifa + Pendiente Cuota + Pendiente Mora).
+    - En Mora Ubi (Cartera General), utiliza exclusivamente Pendiente Tarifa y filtra filas con deuda > 0."""
+    df = df.copy()
+
+    tarifa_sum = float(df["Pendiente Tarifa"].sum()) if "Pendiente Tarifa" in df.columns else 0.0
+    cuota_sum = float(df["Pendiente Cuota"].sum()) if "Pendiente Cuota" in df.columns else 0.0
+
+    # Si Pendiente Tarifa supera ampliamente a Pendiente Cuota (firma financiera de Mora Ubi),
+    # jamás debe calcularse como Mora Ávila aunque el usuario haya subido el archivo en la pestaña equivocada.
+    if tarifa_sum > cuota_sum * 1.5 and tarifa_sum > 0:
+        is_avila = False
+    elif cuota_sum > tarifa_sum and cuota_sum > 0:
+        is_avila = True
+    elif "_Modulo" in df.columns:
+        is_avila = bool((df["_Modulo"] == "avila").any())
+    else:
+        is_avila = (DATA_STORE.get("active_module") == "avila")
 
     if is_avila and all(c in df.columns for c in ["Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora"]):
         df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
-    elif "Pendiente Tarifa" in df.columns and df["Pendiente Tarifa"].sum() > 0:
+    elif "Pendiente Tarifa" in df.columns and tarifa_sum > 0:
         df["_Tot"] = df["Pendiente Tarifa"]
     elif "Total" in df.columns:
         df["_Tot"] = df["Total"]
-    elif "Pendiente Cuota" in df.columns and "Pendiente Mora" in df.columns and (df["Pendiente Cuota"].sum() + df["Pendiente Mora"].sum()) > 0:
+    elif "Pendiente Cuota" in df.columns and "Pendiente Mora" in df.columns and (cuota_sum + float(df["Pendiente Mora"].sum())) > 0:
         df["_Tot"] = df["Pendiente Cuota"] + df["Pendiente Mora"]
     else:
         df["_Tot"] = 0.0
 
-    return df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
+    df_act = df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
+
+    # Consolidar Tramo_Mora y Campaña a nivel de Cédula Única sobre las cuotas activas,
+    # garantizando que ningún cliente se duplique entre distintos tramos ni entre distintas campañas.
+    if not df_act.empty and "Cedula_Key" in df_act.columns:
+        if "Dias de Mora" in df_act.columns:
+            max_dias_cliente = df_act.groupby("Cedula_Key")["Dias de Mora"].transform("max")
+            df_act["Tramo_Mora"] = max_dias_cliente.apply(assign_tramo_mora)
+        if "Tipo_Campana" in df_act.columns:
+            df_act["Tipo_Campana"] = df_act.groupby("Cedula_Key")["Tipo_Campana"].transform("first")
+        if "Programa" in df_act.columns:
+            df_act["Programa"] = df_act.groupby("Cedula_Key")["Programa"].transform("first")
+
+    return df_act
 
 
 def enrich_and_merge_datasets():
@@ -62,10 +106,11 @@ def enrich_and_merge_datasets():
             "Telefono_1", "Telefono_2", "Telefono_3", "Correo", "Nombre_Contacto"
         ]
         avail_cols = [c for c in cols_to_merge if c in df_contacts.columns]
+        contacts_dedup = df_contacts[avail_cols].drop_duplicates(subset=["Cedula_Key"], keep="last")
 
         merged = pd.merge(
             df_mora,
-            df_contacts[avail_cols],
+            contacts_dedup,
             on="Cedula_Key",
             how="left"
         )
@@ -100,6 +145,12 @@ def enrich_and_merge_datasets():
         merged["Telefono_3"] = ""
         merged["Correo"] = ""
 
+    if not merged.empty and "Cedula_Key" in merged.columns:
+        merged["Tipo_Campana"] = merged.groupby("Cedula_Key")["Tipo_Campana"].transform("first")
+        merged["Programa"] = merged.groupby("Cedula_Key")["Programa"].transform("first")
+        max_dias = merged.groupby("Cedula_Key")["Dias de Mora"].transform("max")
+        merged["Tramo_Mora"] = max_dias.apply(assign_tramo_mora)
+
     DATA_STORE["df_original"] = merged
     DATA_STORE["df_filtered"] = merged
     build_debtor_matched_dataset(merged)
@@ -112,16 +163,13 @@ def build_debtor_matched_dataset(df: pd.DataFrame):
         DATA_STORE["df_matched"] = None
         return
 
-    df = df.copy()
-    df["_Fila_Total"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
-    if df["_Fila_Total"].sum() == 0 and "Total" in df.columns:
-        df["_Fila_Total"] = df["Total"]
+    df_active = resolve_active_debt_df(df)
 
-    debtors = df.groupby("Cedula_Key", as_index=False).agg(
+    debtors = df_active.groupby("Cedula_Key", as_index=False).agg(
         Cedula=("Cedula Cliente", "first"),
         Nombre_Cliente=("Nombre Cliente", "first"),
         Cuotas_Vencidas=("Cedula Cliente", "count"),
-        Monto_Total_USD=("_Fila_Total", "sum"),
+        Monto_Total_USD=("_Tot", "sum"),
         Pendiente_Tarifa=("Pendiente Tarifa", "sum"),
         Pendiente_Cuota=("Pendiente Cuota", "sum"),
         Pendiente_Mora=("Pendiente Mora", "sum"),
@@ -164,33 +212,27 @@ def calculate_totals(df: pd.DataFrame):
             "pct_monto_contactable": 0.0
         }
 
-    total_cuotas = len(df)
-    total_clientes = int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else total_cuotas
-    total_creditos = int(df["Identificador de credito"].nunique()) if "Identificador de credito" in df.columns else 0
-    p_tarifa = float(df["Pendiente Tarifa"].sum()) if "Pendiente Tarifa" in df.columns else 0.0
-    p_cuota = float(df["Pendiente Cuota"].sum()) if "Pendiente Cuota" in df.columns else 0.0
-    p_mora = float(df["Pendiente Mora"].sum()) if "Pendiente Mora" in df.columns else 0.0
+    df_active = resolve_active_debt_df(df)
 
-    monto_total = p_tarifa + p_cuota + p_mora
-    if monto_total == 0.0 and "Total" in df.columns:
-        monto_total = float(df["Total"].sum())
-        p_tarifa = monto_total
+    total_cuotas = len(df_active)
+    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else total_cuotas
+    total_creditos = int(df_active["Identificador de credito"].nunique()) if "Identificador de credito" in df_active.columns else 0
+    p_tarifa = float(df_active["Pendiente Tarifa"].sum()) if "Pendiente Tarifa" in df_active.columns else 0.0
+    p_cuota = float(df_active["Pendiente Cuota"].sum()) if "Pendiente Cuota" in df_active.columns else 0.0
+    p_mora = float(df_active["Pendiente Mora"].sum()) if "Pendiente Mora" in df_active.columns else 0.0
+    monto_total = float(df_active["_Tot"].sum())
 
     promedio = monto_total / total_clientes if total_clientes > 0 else 0.0
 
-    # Metricas de contactabilidad
-    has_tel = (df["Telefono_1"].fillna("") != "") | (df["Telefono_2"].fillna("") != "") | (df["Telefono_3"].fillna("") != "")
-    has_mail = df["Correo"].fillna("") != ""
+    # Metricas de contactabilidad sobre la cartera activa
+    has_tel = (df_active["Telefono_1"].fillna("") != "") | (df_active["Telefono_2"].fillna("") != "") | (df_active["Telefono_3"].fillna("") != "")
+    has_mail = df_active["Correo"].fillna("") != ""
     has_contact = has_tel | has_mail
 
-    clientes_con_tel = df[has_tel]["Cedula Cliente"].nunique() if "Cedula Cliente" in df.columns else int(has_tel.sum())
-    clientes_con_mail = df[has_mail]["Cedula Cliente"].nunique() if "Cedula Cliente" in df.columns else int(has_mail.sum())
+    clientes_con_tel = df_active[has_tel]["Cedula Cliente"].nunique() if "Cedula Cliente" in df_active.columns else int(has_tel.sum())
+    clientes_con_mail = df_active[has_mail]["Cedula Cliente"].nunique() if "Cedula Cliente" in df_active.columns else int(has_mail.sum())
 
-    row_total = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
-    if row_total.sum() == 0 and "Total" in df.columns:
-        row_total = df["Total"]
-
-    monto_contactable = float(row_total[has_contact].sum())
+    monto_contactable = float(df_active.loc[has_contact, "_Tot"].sum())
 
     pct_tel = round((clientes_con_tel / total_clientes * 100), 1) if total_clientes > 0 else 0.0
     pct_mail = round((clientes_con_mail / total_clientes * 100), 1) if total_clientes > 0 else 0.0
@@ -531,8 +573,8 @@ def get_modules_summary() -> dict:
         if df_mod is not None and not df_mod.empty:
             df_act = resolve_active_debt_df(df_mod)
             monto = round(float(df_act["_Tot"].sum()), 2)
-            cuotas = len(df_mod)
-            clientes = int(df_mod["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_mod.columns else cuotas
+            cuotas = len(df_act)
+            clientes = int(df_act["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_act.columns else cuotas
             summary[mod_id] = {
                 "id": mod_id,
                 "label": slot.get("label", mod_id),
@@ -575,21 +617,22 @@ def get_metadata(df: pd.DataFrame):
             "contacts_filename": DATA_STORE["contacts_filename"]
         }
 
-    programas = sorted([p for p in df["Programa"].dropna().unique().tolist() if str(p).strip()]) if "Programa" in df.columns else []
-    tipos_campana = sorted([t for t in df["Tipo_Campana"].dropna().unique().tolist() if str(t).strip()]) if "Tipo_Campana" in df.columns else []
-    tipos = sorted([t for t in df["Tipo"].dropna().unique().tolist() if str(t).strip()]) if "Tipo" in df.columns else []
-    canales = sorted([c for c in df["Canal"].dropna().unique().tolist() if str(c).strip()]) if "Canal" in df.columns else []
+    df_act = resolve_active_debt_df(df)
+    programas = sorted([p for p in df_act["Programa"].dropna().unique().tolist() if str(p).strip()]) if "Programa" in df_act.columns else []
+    tipos_campana = sorted([t for t in df_act["Tipo_Campana"].dropna().unique().tolist() if str(t).strip()]) if "Tipo_Campana" in df_act.columns else []
+    tipos = sorted([t for t in df_act["Tipo"].dropna().unique().tolist() if str(t).strip()]) if "Tipo" in df_act.columns else []
+    canales = sorted([c for c in df_act["Canal"].dropna().unique().tolist() if str(c).strip()]) if "Canal" in df_act.columns else []
 
-    tramos_counts = df["Tramo_Mora"].value_counts().to_dict() if "Tramo_Mora" in df.columns else {}
+    tramos_counts = df_act["Tramo_Mora"].value_counts().to_dict() if "Tramo_Mora" in df_act.columns else {}
 
-    min_dias = int(df["Dias de Mora"].min()) if "Dias de Mora" in df.columns and not df.empty else 0
-    max_dias = int(df["Dias de Mora"].max()) if "Dias de Mora" in df.columns and not df.empty else 0
+    min_dias = int(df_act["Dias de Mora"].min()) if "Dias de Mora" in df_act.columns and not df_act.empty else 0
+    max_dias = int(df_act["Dias de Mora"].max()) if "Dias de Mora" in df_act.columns and not df_act.empty else 0
 
     return {
         "active_module": active_mod,
         "enable_mora_avila": enable_avila,
-        "total_rows": len(df),
-        "total_clientes": int(df["Cedula Cliente"].nunique()) if "Cedula Cliente" in df.columns else 0,
+        "total_rows": len(df_act),
+        "total_clientes": int(df_act["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_act.columns else 0,
         "programas": programas,
         "tipos_campana": tipos_campana,
         "tipos": tipos,
@@ -619,7 +662,7 @@ def build_dashboard_payload(df: Optional[pd.DataFrame], cartera_activa: Optional
 
 
 def ingest_uploaded_file(contents: bytes, filename: str, preferred_role: str = "cartera") -> dict:
-    """Procesa un archivo subido (Cartera o Contactos/Campañas) con detección automática de tipo."""
+    """Procesa un archivo subido (Cartera o Contactos/Campañas) con detección automática de tipo y de módulo (Ubi vs. Ávila)."""
     raw_df = parse_bytes_to_dataframe(contents, filename)
     detected = detect_file_type(raw_df)
 
@@ -653,6 +696,13 @@ def ingest_uploaded_file(contents: bytes, filename: str, preferred_role: str = "
 
     # Rol efectivo: cartera
     df = standardize_cartera_dataframe(raw_df)
+
+    # Auto-detectar si el archivo corresponde a Mora Ubi ('general') o Mora Ávila ('avila')
+    # para cambiar automáticamente al módulo correcto y no mezclar fórmulas de cálculo
+    detected_mod = detect_cartera_module(df, filename)
+    if DATA_STORE.get("active_module") != detected_mod:
+        switch_active_module(detected_mod)
+
     DATA_STORE["df_cartera_raw"] = df
     DATA_STORE["cartera_filename"] = filename
 
@@ -662,15 +712,16 @@ def ingest_uploaded_file(contents: bytes, filename: str, preferred_role: str = "
 
     active_df = DATA_STORE["df_original"]
     payload = build_dashboard_payload(active_df)
+    mod_label = "Mora Ávila" if detected_mod == "avila" else "Mora Ubi"
 
     if preferred_role == "contacts":
         return {
             "auto_routed": "cartera",
-            "message": f"Detección inteligente: '{filename}' es el Archivo de Cartera ({len(df):,} cuotas) y fue procesado automáticamente.",
+            "message": f"Detección inteligente: '{filename}' es el Archivo de Cartera ({mod_label}, {len(df):,} cuotas) y fue procesado automáticamente.",
             **payload
         }
 
     return {
-        "message": f"Archivo de cartera '{filename}' procesado y cruzado con la Base de Datos con éxito.",
+        "message": f"Archivo de cartera '{filename}' ({mod_label}) procesado y cruzado con la Base de Datos con éxito.",
         **payload
     }

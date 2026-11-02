@@ -30,14 +30,19 @@ def clean_excel_formula_str(val) -> str:
 
 def normalize_cedula_str(val) -> str:
     """Limpia fórmulas de Excel y normaliza la cédula al formato estándar con guion (ej. V13934746 -> V-13934746)."""
-    s = clean_excel_formula_str(val).upper().replace(".", "").replace(" ", "")
+    s = clean_excel_formula_str(val).upper().strip()
+    if s.endswith(".0"):
+        s = s[:-2]
+    s = s.replace(".", "").replace(",", "").replace(" ", "")
     if not s or s in ("NAN", "NONE", "NULL"):
         return ""
     m = re.match(r"^([VEJGP])-?(\d+)$", s)
     if m:
-        return f"{m.group(1)}-{m.group(2)}"
+        num = m.group(2).lstrip("0") or "0"
+        return f"{m.group(1)}-{num}"
     if s.isdigit():
-        return f"V-{s}"
+        num = s.lstrip("0") or "0"
+        return f"V-{num}"
     return s
 
 
@@ -253,6 +258,7 @@ def parse_bytes_to_dataframe(contents: bytes, filename: str) -> pd.DataFrame:
 
 def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     """Valida, estandariza y asegura tipos numericos para la cartera."""
+    df = df.drop_duplicates().copy()
     df = map_column_names(df)
 
     req_cols = ["Dias de Mora", "Cedula Cliente"]
@@ -265,7 +271,8 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         )
 
     df["Dias de Mora"] = df["Dias de Mora"].apply(parse_number_value).fillna(0).astype(int)
-    df["Tramo_Mora"] = df["Dias de Mora"].apply(assign_tramo_mora)
+    if (df["Dias de Mora"] >= 1).any():
+        df = df[df["Dias de Mora"] >= 1].copy()
 
     for c in ["Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora", "Total"]:
         if c in df.columns:
@@ -299,7 +306,15 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
             df[clean_target] = df[clean_target].apply(clean_excel_formula_str)
 
     df["Cedula Cliente"] = df["Cedula Cliente"].apply(normalize_cedula_str)
+    df = df[df["Cedula Cliente"] != ""].copy()
     df["Cedula_Key"] = df["Cedula Cliente"].str.upper()
+
+    # Asignar Tramo_Mora consolidado por cliente (según su máximo día de mora) para no duplicar cédulas entre tramos
+    if not df.empty:
+        max_dias_cliente = df.groupby("Cedula_Key")["Dias de Mora"].transform("max")
+        df["Tramo_Mora"] = max_dias_cliente.apply(assign_tramo_mora)
+    else:
+        df["Tramo_Mora"] = pd.Series(dtype=str)
 
     if "Nombre Cliente" not in df.columns:
         df["Nombre Cliente"] = "Cliente Sin Nombre"

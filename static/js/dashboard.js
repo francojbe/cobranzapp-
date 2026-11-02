@@ -653,6 +653,11 @@ function updateUIState(data) {
   const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
   if (globalSummary) {
     currentGlobalSummary = globalSummary;
+    currentCarteraActivaManual = globalSummary.cartera_activa_usd ? Number(globalSummary.cartera_activa_usd) : null;
+    const inputCa = document.getElementById('input-cartera-activa-manual');
+    if (inputCa) {
+      inputCa.value = currentCarteraActivaManual ? currentCarteraActivaManual.toLocaleString('es-CL') : '';
+    }
     updateQuickFilterBadges(globalSummary);
   }
   if (fibexSummary) currentFibexSummary = fibexSummary;

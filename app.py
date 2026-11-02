@@ -11,6 +11,7 @@ from core.analytics import (
     calculate_fibex_summary,
     calculate_global_tramos_summary,
     calculate_totals,
+    detect_cartera_module,
     enrich_and_merge_datasets,
     get_metadata,
     get_modules_summary,
@@ -193,13 +194,14 @@ def api_save_manual_snapshot(request: Request):
 
     user = _get_current_user(request)
     user_email = user.get("email") if user else "admin@credix.com"
-    active_mod = DATA_STORE.get("active_module", "general")
+    fname = DATA_STORE.get("cartera_filename") or "corte_manual.csv"
+    active_mod = detect_cartera_module(active_df, fname)
     ca_manual = DATA_STORE.get("cartera_activa_manual")
     payload = build_dashboard_payload(active_df, ca_manual)
 
     saved = save_history_snapshot(
         modulo=active_mod,
-        nombre_archivo=DATA_STORE.get("cartera_filename") or "corte_manual.csv",
+        nombre_archivo=fname,
         origen="web_manual",
         usuario_email=user_email,
         cartera_activa_usd=ca_manual,
@@ -373,6 +375,9 @@ def process_data(req: FilterRequest, request: Request):
         enrich_and_merge_datasets()
 
     df_master = DATA_STORE["df_original"].copy()
+    fname = DATA_STORE.get("cartera_filename") or "mora.csv"
+    detected_mod = detect_cartera_module(df_master, fname)
+    df_master["_Modulo"] = detected_mod
 
     if req.cartera_activa is not None:
         DATA_STORE["cartera_activa_manual"] = req.cartera_activa
@@ -408,8 +413,8 @@ def process_data(req: FilterRequest, request: Request):
         origen_efectivo = req.origen or ("web" if user else "n8n")
         email_efectivo = user.get("email") if user else "automatizacion@n8n.credix"
         save_history_snapshot(
-            modulo=DATA_STORE.get("active_module", "general"),
-            nombre_archivo=DATA_STORE.get("cartera_filename") or "mora.csv",
+            modulo=detected_mod,
+            nombre_archivo=fname,
             origen=origen_efectivo,
             usuario_email=email_efectivo,
             cartera_activa_usd=DATA_STORE.get("cartera_activa_manual"),
