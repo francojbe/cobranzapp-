@@ -474,6 +474,13 @@ def process_data(req: FilterRequest, request: Request):
 def set_cartera_activa_endpoint(req: SetCarteraActivaRequest, request: Request):
     """Guarda o actualiza el monto manual de Cartera Activa y recalcula el resumen de tramos y fibex."""
     DATA_STORE["cartera_activa_manual"] = req.cartera_activa
+    try:
+        active_mod = DATA_STORE.get("active_module", "general")
+        curr_cfg = DATA_STORE.get("cartera_activa_campanas") or load_cartera_activa_campanas(active_mod)
+        curr_cfg["global_cartera_activa"] = req.cartera_activa
+        DATA_STORE["cartera_activa_campanas"] = save_cartera_activa_campanas(active_mod, curr_cfg)
+    except Exception:
+        pass
     sync_active_module_to_slot()
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is not None and not active_df.empty:

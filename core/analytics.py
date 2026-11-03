@@ -866,6 +866,14 @@ def get_metadata(df: pd.DataFrame):
 
 def build_dashboard_payload(df: Optional[pd.DataFrame], cartera_activa: Optional[float] = None) -> dict:
     """Construye el paquete estándar de indicadores del dashboard para evitar duplicación en los endpoints."""
+    active_mod = DATA_STORE.get("active_module", "general")
+    if DATA_STORE.get("cartera_activa_campanas") is None:
+        DATA_STORE["cartera_activa_campanas"] = load_cartera_activa_campanas(active_mod)
+    if cartera_activa is None and DATA_STORE.get("cartera_activa_manual") is None:
+        ca_cfg = DATA_STORE.get("cartera_activa_campanas") or {}
+        saved_global = ca_cfg.get("global_cartera_activa")
+        if saved_global and float(saved_global) > 0:
+            DATA_STORE["cartera_activa_manual"] = float(saved_global)
     return {
         "active_module": DATA_STORE.get("active_module", "general"),
         "enable_mora_avila": bool(DATA_STORE.get("enable_mora_avila", True)),

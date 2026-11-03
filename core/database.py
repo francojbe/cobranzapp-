@@ -973,6 +973,7 @@ def load_cartera_activa_campanas(modulo: str = "general") -> dict:
                 res = {
                     "label_fin_mes": str(raw_cfg.get("label_fin_mes") or "Fin de Mes"),
                     "label_dia_anterior": str(raw_cfg.get("label_dia_anterior") or "Día Anterior"),
+                    "global_cartera_activa": raw_cfg.get("global_cartera_activa"),
                     "campanas": raw_cfg.get("campanas") or {},
                 }
                 try:
@@ -1004,6 +1005,7 @@ def load_cartera_activa_campanas(modulo: str = "general") -> dict:
                 return {
                     "label_fin_mes": str(parsed.get("label_fin_mes") or "Fin de Mes"),
                     "label_dia_anterior": str(parsed.get("label_dia_anterior") or "Día Anterior"),
+                    "global_cartera_activa": parsed.get("global_cartera_activa"),
                     "campanas": parsed.get("campanas") or {},
                 }
     except Exception:
@@ -1031,9 +1033,14 @@ def save_cartera_activa_campanas(modulo: str, config_data: dict) -> dict:
                 "dia_anterior": round(da, 2) if da > 0 else 0.0,
             }
 
+    gca = (config_data or {}).get("global_cartera_activa")
+    if gca is None:
+        tot_da = sum(v.get("dia_anterior", 0.0) for v in clean_camps.values())
+        gca = round(tot_da, 2) if tot_da > 0 else DATA_STORE.get("cartera_activa_manual")
     cleaned = {
         "label_fin_mes": str((config_data or {}).get("label_fin_mes") or "Fin de Mes").strip() or "Fin de Mes",
         "label_dia_anterior": str((config_data or {}).get("label_dia_anterior") or "Día Anterior").strip() or "Día Anterior",
+        "global_cartera_activa": round(float(gca), 2) if (gca is not None and float(gca) > 0) else None,
         "campanas": clean_camps,
     }
 
