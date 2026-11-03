@@ -513,6 +513,49 @@ def create_or_update_user(email: str, nombre: str, password: str, rol: str = "an
 # HISTÓRICO DE CARGAS DE MORA (SUPABASE public.historial_cargas)
 # -------------------------------------------------------------
 
+def check_existing_cutoff_snapshot(
+    modulo: str,
+    fecha_corte: str,
+    total_cuotas: int,
+    total_mora_usd: float,
+    total_clientes: int,
+    nombre_archivo: str = "",
+) -> Optional[dict]:
+    """Verifica si ya existe un registro en Supabase para la misma (fecha_corte, modulo) con datos distintos."""
+    mod_clean = "avila" if modulo == "avila" else "general"
+    mod_label = "Mora Ávila" if mod_clean == "avila" else "Mora Ubi"
+    try:
+        encoded_date = urllib.parse.quote(str(fecha_corte))
+        existing_matches = _supabase_request(
+            "GET",
+            f"historial_cargas?modulo=eq.{mod_clean}&fecha_corte=eq.{encoded_date}&order=id.desc&limit=5",
+            timeout=8,
+        )
+        if existing_matches:
+            em = existing_matches[0]
+            same_cuotas = (int(em.get("total_cuotas") or 0) == int(total_cuotas))
+            same_mora = abs(float(em.get("total_mora_usd") or 0.0) - float(total_mora_usd)) < 0.1
+            same_clientes = (int(em.get("total_clientes") or 0) == int(total_clientes))
+            if not (same_cuotas and same_mora and same_clientes):
+                return {
+                    "existing_id": em.get("id"),
+                    "fecha_corte": fecha_corte,
+                    "modulo": mod_clean,
+                    "modulo_label": mod_label,
+                    "existing_archivo": em.get("nombre_archivo") or "corte_anterior.csv",
+                    "existing_mora_usd": round(float(em.get("total_mora_usd") or 0.0), 2),
+                    "existing_cuotas": int(em.get("total_cuotas") or 0),
+                    "existing_clientes": int(em.get("total_clientes") or 0),
+                    "new_archivo": nombre_archivo or "nuevo_archivo.csv",
+                    "new_mora_usd": round(float(total_mora_usd), 2),
+                    "new_cuotas": int(total_cuotas),
+                    "new_clientes": int(total_clientes),
+                }
+    except Exception as e:
+        print("Aviso al verificar corte existente:", e)
+    return None
+
+
 def save_history_snapshot(
     modulo: str,
     nombre_archivo: str,
@@ -523,6 +566,7 @@ def save_history_snapshot(
     resumen_tramos: Optional[dict] = None,
     resumen_fibex: Optional[dict] = None,
     filtros: Optional[dict] = None,
+    overwrite_existing: bool = False,
 ) -> Optional[dict]:
     """Guarda una instantánea histórica del corte de mora en Supabase public.historial_cargas (y respaldo SQLite)."""
     kpis = kpis or {}
@@ -580,20 +624,45 @@ def save_history_snapshot(
             timeout=8,
         )
         if existing_matches:
-            for em in existing_matches:
-                same_cuotas = (int(em.get("total_cuotas") or 0) == record["total_cuotas"])
-                same_mora = abs(float(em.get("total_mora_usd") or 0) - record["total_mora_usd"]) < 0.1
-                same_clientes = (int(em.get("total_clientes") or 0) == record["total_clientes"])
-                if same_cuotas and same_mora and same_clientes:
-                    # Corte idéntico detectado: actualizar en lugar de duplicar
-                    updated = _supabase_request(
-                        "PATCH",
-                        f"historial_cargas?id=eq.{em['id']}",
-                        data=record,
-                        prefer="return=representation",
-                        timeout=8,
-                    )
-                    return updated[0] if updated else em
+            em = existing_matches[0]
+            same_cuotas = (int(em.get("total_cuotas") or 0) == record["total_cuotas"])
+            same_mora = abs(float(em.get("total_mora_usd") or 0) - record["total_mora_usd"]) < 0.1
+            same_clientes = (int(em.get("total_clientes") or 0) == record["total_clientes"])
+
+            if (same_cuotas and same_mora and same_clientes) or overwrite_existing:
+                # Actualizar el registro existente de esa fecha de corte (y limpiar duplicados previos si los hubiera)
+                updated = _supabase_request(
+                    "PATCH",
+                    f"historial_cargas?id=eq.{em['id']}",
+                    data=record,
+                    prefer="return=representation",
+                    timeout=8,
+                )
+                for extra in existing_matches[1:]:
+                    try:
+                        _supabase_request("DELETE", f"historial_cargas?id=eq.{extra['id']}", prefer="return=minimal", timeout=5)
+                    except Exception:
+                        pass
+                return updated[0] if updated else em
+            else:
+                # Existe un corte de la misma fecha y módulo pero con datos diferentes y aún no se ha confirmado sobrescribir
+                return {
+                    "status": "conflict",
+                    "conflict": {
+                        "existing_id": em.get("id"),
+                        "fecha_corte": fecha_corte,
+                        "modulo": mod_clean,
+                        "modulo_label": mod_label,
+                        "existing_archivo": em.get("nombre_archivo") or "corte_anterior.csv",
+                        "existing_mora_usd": round(float(em.get("total_mora_usd") or 0.0), 2),
+                        "existing_cuotas": int(em.get("total_cuotas") or 0),
+                        "existing_clientes": int(em.get("total_clientes") or 0),
+                        "new_archivo": record["nombre_archivo"],
+                        "new_mora_usd": record["total_mora_usd"],
+                        "new_cuotas": record["total_cuotas"],
+                        "new_clientes": record["total_clientes"],
+                    },
+                }
 
         inserted = _supabase_request(
             "POST",

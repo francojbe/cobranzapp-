@@ -747,6 +747,7 @@ async function handleContactsUpload(e) {
 
 async function processSingleFile(file) {
   if (!file) return;
+  userDismissedCutoffConflict = false;
 
   const promptDiv = document.getElementById('unified-prompt');
   const loadDiv = document.getElementById('unified-loading');
@@ -807,6 +808,9 @@ async function processSingleFile(file) {
         });
         ProgressController.complete('¡Cartera procesada y cruzada con BD!', () => {
           showToast('success', '¡Cartera Lista para Procesar!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas) y vinculada con Supabase.`);
+          if (data.cutoff_conflict) {
+            showCutoffConflictModal(data.cutoff_conflict);
+          }
         });
       }
     } else {
@@ -984,6 +988,9 @@ async function processFilters() {
       renderResults(data, minDias, maxDias);
       showToast('success', 'Filtros Aplicados', `${Number(data.total_filtered).toLocaleString()} cuotas coincidentes encontradas.`);
       switchTab('tab-results', true);
+      if (data.cutoff_conflict && !userDismissedCutoffConflict) {
+        showCutoffConflictModal(data.cutoff_conflict);
+      }
     } else {
       showToast('error', 'Error al filtrar', data.detail || 'Ocurrió un error al aplicar los filtros.');
     }
@@ -1794,7 +1801,19 @@ function renderHistoryChart(items) {
     historyChartInstance.destroy();
   }
 
-  const chronological = [...items].reverse().slice(-20);
+  const parseCutoffSortKey = (dStr) => {
+    const parts = String(dStr || '').trim().split('-');
+    if (parts.length === 3 && parts[2].length === 4) {
+      return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+    }
+    return String(dStr || '');
+  };
+  const chronological = [...items].sort((a, b) => {
+    const ka = parseCutoffSortKey(a.fecha_corte);
+    const kb = parseCutoffSortKey(b.fecha_corte);
+    if (ka !== kb) return ka.localeCompare(kb);
+    return (a.id || 0) - (b.id || 0);
+  }).slice(-20);
   const labels = chronological.map(x => {
     const modShort = x.modulo === 'avila' ? 'Ávila' : 'Ubi';
     return `${x.fecha_corte || '-'} (${modShort})`;
@@ -2054,5 +2073,89 @@ async function deleteHistorySnapshot(id) {
     }
   } catch (err) {
     showToast('error', 'Error', 'No se pudo eliminar: ' + err.message);
+  }
+}
+
+
+// ==============================================================
+// CONTROLADOR DE CONFIRMACIÓN DE CORTE DUPLICADO CON DATOS DISTINTOS
+// ==============================================================
+let pendingCutoffConflict = null;
+let userDismissedCutoffConflict = false;
+
+function showCutoffConflictModal(conflict) {
+  if (!conflict) return;
+  pendingCutoffConflict = conflict;
+  const modal = document.getElementById('cutoff-conflict-modal');
+  if (!modal) return;
+
+  const badge = document.getElementById('conflict-fecha-badge');
+  const sub = document.getElementById('conflict-modal-subtitle');
+  const oldFile = document.getElementById('conflict-old-file');
+  const oldMora = document.getElementById('conflict-old-mora');
+  const oldMeta = document.getElementById('conflict-old-meta');
+  const newFile = document.getElementById('conflict-new-file');
+  const newMora = document.getElementById('conflict-new-mora');
+  const newMeta = document.getElementById('conflict-new-meta');
+
+  if (badge) badge.textContent = `${conflict.fecha_corte || '-'} (${conflict.modulo_label || 'Mora Ubi'})`;
+  if (sub) sub.textContent = `${conflict.modulo_label || 'Cartera'} · Corte al ${conflict.fecha_corte || '-'}`;
+
+  if (oldFile) {
+    oldFile.textContent = conflict.existing_archivo || 'Corte anterior';
+    oldFile.title = conflict.existing_archivo || '';
+  }
+  if (oldMora) oldMora.textContent = '$' + Number(conflict.existing_mora_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' USD';
+  if (oldMeta) oldMeta.textContent = `${Number(conflict.existing_cuotas || 0).toLocaleString()} cuotas · ${Number(conflict.existing_clientes || 0).toLocaleString()} clientes`;
+
+  if (newFile) {
+    newFile.textContent = conflict.new_archivo || 'Nuevo archivo';
+    newFile.title = conflict.new_archivo || '';
+  }
+  if (newMora) newMora.textContent = '$' + Number(conflict.new_mora_usd || 0).toLocaleString('en-US', { minimumFractionDigits: 2 }) + ' USD';
+  if (newMeta) newMeta.textContent = `${Number(conflict.new_cuotas || 0).toLocaleString()} cuotas · ${Number(conflict.new_clientes || 0).toLocaleString()} clientes`;
+
+  modal.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeCutoffConflictModal(markDismissed = true) {
+  if (markDismissed) userDismissedCutoffConflict = true;
+  const modal = document.getElementById('cutoff-conflict-modal');
+  if (modal) {
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+  }
+  pendingCutoffConflict = null;
+}
+
+async function confirmOverwriteCutoff() {
+  const btn = document.getElementById('btn-confirm-overwrite-cutoff');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Sobrescribiendo...`;
+  }
+  try {
+    const res = await fetch('/api/history/snapshot?overwrite=true', { method: 'POST' });
+    const data = await res.json();
+    if (res.ok) {
+      const fCorte = pendingCutoffConflict?.fecha_corte || '';
+      closeCutoffConflictModal(false);
+      showToast('success', '¡Corte Sobrescrito!', `El registro histórico del ${fCorte} fue actualizado en Supabase con los nuevos datos.`);
+      const histTab = document.getElementById('tab-history');
+      if (histTab && !histTab.classList.contains('hidden')) {
+        loadHistoryData();
+      }
+    } else {
+      showToast('error', 'Error al sobrescribir', data.detail || 'No se pudo actualizar el corte.');
+    }
+  } catch (err) {
+    showToast('error', 'Error de conexión', err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
   }
 }

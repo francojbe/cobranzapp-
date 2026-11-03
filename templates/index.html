@@ -1342,7 +1342,67 @@
     </div>
   </div>
 
+  <!-- ============================================== -->
+  <!-- MODAL DE CONFIRMACIÓN DE CORTE EXISTENTE       -->
+  <!-- ============================================== -->
+  <div id="cutoff-conflict-modal" class="hidden fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-amber-200 flex flex-col overflow-hidden">
+      <div class="px-6 py-4 border-b border-amber-100 flex items-center justify-between bg-amber-50/70">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center text-lg shadow-xs shrink-0">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-extrabold text-slate-900">Ya existe un corte para esta fecha</h3>
+            <p id="conflict-modal-subtitle" class="text-xs text-amber-800 font-medium">Se detectaron datos diferentes para la misma fecha de corte</p>
+          </div>
+        </div>
+        <button onclick="closeCutoffConflictModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-amber-100/60 flex items-center justify-center transition cursor-pointer">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-4 text-xs text-slate-600">
+        <p class="leading-relaxed text-slate-700">
+          Ya existe un archivo guardado en el <strong>Histórico de Supabase</strong> para la fecha de corte
+          <span id="conflict-fecha-badge" class="font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">-</span>
+          con montos o cantidades distintas:
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
+            <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Registro Actual en BD</div>
+            <div id="conflict-old-file" class="font-bold text-slate-800 truncate" title="">-</div>
+            <div id="conflict-old-mora" class="text-sm font-extrabold font-mono text-slate-900">$0.00 USD</div>
+            <div id="conflict-old-meta" class="text-[11px] text-slate-500">0 cuotas · 0 clientes</div>
+          </div>
+
+          <div class="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200 space-y-1">
+            <div class="text-[10px] font-bold uppercase text-blue-600 tracking-wider">Nuevo Archivo Subido</div>
+            <div id="conflict-new-file" class="font-bold text-blue-950 truncate" title="">-</div>
+            <div id="conflict-new-mora" class="text-sm font-extrabold font-mono text-blue-700">$0.00 USD</div>
+            <div id="conflict-new-meta" class="text-[11px] text-blue-800">0 cuotas · 0 clientes</div>
+          </div>
+        </div>
+
+        <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+          <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i>
+          <strong>¿Deseas sobrescribir el registro histórico de esta fecha?</strong> Si aceptas, el nuevo archivo reemplazará al corte anterior en la gráfica histórica sin duplicar la barra.
+        </p>
+      </div>
+
+      <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-end gap-2.5">
+        <button onclick="closeCutoffConflictModal()" class="w-full sm:w-auto px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer">
+          No sobrescribir (Conservar anterior)
+        </button>
+        <button id="btn-confirm-overwrite-cutoff" onclick="confirmOverwriteCutoff()" class="w-full sm:w-auto px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
+          <i class="fa-solid fa-arrows-rotate"></i> Sí, sobrescribir corte
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261101_v6"></script>
+  <script src="/static/js/dashboard.js?v=20261102_v7"></script>
 </body>
 </html>

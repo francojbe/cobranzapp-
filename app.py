@@ -186,7 +186,7 @@ def api_get_history_detail(item_id: int):
 
 
 @app.post("/api/history/snapshot")
-def api_save_manual_snapshot(request: Request):
+def api_save_manual_snapshot(request: Request, overwrite: bool = True):
     """Permite guardar manualmente en Supabase una instantánea de la cartera actualmente cargada."""
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is None or active_df.empty:
@@ -209,6 +209,7 @@ def api_save_manual_snapshot(request: Request):
         resumen_tramos=payload["resumen_global_tramos"],
         resumen_fibex=payload["resumen_fibex"],
         filtros=DATA_STORE.get("filter_info") or {},
+        overwrite_existing=overwrite,
     )
     return {"status": "ok", "snapshot": saved}
 
@@ -407,12 +408,13 @@ def process_data(req: FilterRequest, request: Request):
     sync_active_module_to_slot()
     kpis = calculate_totals(df)
 
-    # Registrar automáticamente en el Histórico de Mora en Supabase
+    # Registrar automáticamente en el Histórico de Mora en Supabase (si hay conflicto de fecha, avisar sin duplicar)
+    cutoff_conflict = None
     try:
         user = _get_current_user(request)
         origen_efectivo = req.origen or ("web" if user else "n8n")
         email_efectivo = user.get("email") if user else "automatizacion@n8n.credix"
-        save_history_snapshot(
+        saved_res = save_history_snapshot(
             modulo=detected_mod,
             nombre_archivo=fname,
             origen=origen_efectivo,
@@ -422,7 +424,10 @@ def process_data(req: FilterRequest, request: Request):
             resumen_tramos=payload["resumen_global_tramos"],
             resumen_fibex=payload["resumen_fibex"],
             filtros=req.dict(),
+            overwrite_existing=False,
         )
+        if isinstance(saved_res, dict) and saved_res.get("status") == "conflict":
+            cutoff_conflict = saved_res.get("conflict")
     except Exception as _hist_err:
         print("Aviso al registrar instantánea en historial:", _hist_err)
 
@@ -451,7 +456,8 @@ def process_data(req: FilterRequest, request: Request):
         "group_by_used": "Tramo Oficial de Mora",
         "preview_count": len(preview),
         "total_filtered": len(df),
-        "preview": preview
+        "preview": preview,
+        "cutoff_conflict": cutoff_conflict,
     }
 
 

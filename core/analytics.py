@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 import pandas as pd
 from core.config import DATA_STORE, OFFICIAL_TRAMOS_CONFIG, switch_active_module, sync_active_module_to_slot
-from core.database import load_contacts_from_db, upsert_contacts_to_db
+from core.database import check_existing_cutoff_snapshot, load_contacts_from_db, upsert_contacts_to_db
 from core.parsers import (
     assign_tramo_mora,
     detect_file_type,
@@ -713,6 +713,18 @@ def ingest_uploaded_file(contents: bytes, filename: str, preferred_role: str = "
     active_df = DATA_STORE["df_original"]
     payload = build_dashboard_payload(active_df)
     mod_label = "Mora Ávila" if detected_mod == "avila" else "Mora Ubi"
+
+    rt = payload.get("resumen_global_tramos") or {}
+    cutoff_conflict = check_existing_cutoff_snapshot(
+        modulo=detected_mod,
+        fecha_corte=str(rt.get("cutoff_date") or ""),
+        total_cuotas=int(rt.get("total_cuotas") or 0),
+        total_mora_usd=float(rt.get("total_cartera_usd") or 0.0),
+        total_clientes=int(rt.get("total_clientes") or 0),
+        nombre_archivo=filename,
+    )
+    if cutoff_conflict:
+        payload["cutoff_conflict"] = cutoff_conflict
 
     if preferred_role == "contacts":
         return {
