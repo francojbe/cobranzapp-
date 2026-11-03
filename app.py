@@ -8,6 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from core.analytics import (
     build_dashboard_payload,
     build_debtor_matched_dataset,
+    calculate_3_tramos_summary,
     calculate_fibex_summary,
     calculate_global_tramos_summary,
     calculate_totals,
@@ -58,6 +59,8 @@ from core.reports import (
     generate_fibex_pdf,
     generate_filtered_excel,
     generate_filtered_pdf,
+    generate_tramos_3_excel,
+    generate_tramos_3_pdf,
     generate_tramos_excel,
     generate_tramos_pdf,
 )
@@ -450,6 +453,7 @@ def process_data(req: FilterRequest, request: Request):
         "modules_summary": get_modules_summary(),
         "kpis": kpis,
         "resumen_global_tramos": payload["resumen_global_tramos"],
+        "resumen_3_tramos": payload["resumen_3_tramos"],
         "resumen_fibex": payload["resumen_fibex"],
         "matriz_campanas_tramos": payload["matriz_campanas_tramos"],
         "agrupacion": payload["resumen_global_tramos"]["tramos"],
@@ -469,6 +473,7 @@ def set_cartera_activa_endpoint(req: SetCarteraActivaRequest, request: Request):
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is not None and not active_df.empty:
         tramos_sum = calculate_global_tramos_summary(active_df, req.cartera_activa)
+        tramos_3_sum = calculate_3_tramos_summary(active_df, req.cartera_activa)
         fibex_sum = calculate_fibex_summary(active_df, req.cartera_activa)
         try:
             user = _get_current_user(request)
@@ -489,12 +494,14 @@ def set_cartera_activa_endpoint(req: SetCarteraActivaRequest, request: Request):
             "status": "ok",
             "cartera_activa": req.cartera_activa,
             "summary": tramos_sum,
+            "tramos_3_summary": tramos_3_sum,
             "fibex_summary": fibex_sum
         }
     return {
         "status": "ok",
         "cartera_activa": req.cartera_activa,
         "summary": None,
+        "tramos_3_summary": None,
         "fibex_summary": None
     }
 
@@ -521,6 +528,16 @@ def download_tramos_excel(cartera_activa: Optional[float] = None):
 @app.get("/api/tramos/download/pdf")
 def download_tramos_pdf(cartera_activa: Optional[float] = None):
     return generate_tramos_pdf(cartera_activa)
+
+
+@app.get("/api/tramos-3/download/excel")
+def download_tramos_3_excel(cartera_activa: Optional[float] = None):
+    return generate_tramos_3_excel(cartera_activa)
+
+
+@app.get("/api/tramos-3/download/pdf")
+def download_tramos_3_pdf(cartera_activa: Optional[float] = None):
+    return generate_tramos_3_pdf(cartera_activa)
 
 
 @app.get("/api/fibex/download/excel")

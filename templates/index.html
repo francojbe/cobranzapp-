@@ -698,11 +698,15 @@
                 Indicador Macro Directivo
               </span>
               
-              <!-- Selector de Pestañas de Vista Ejecutiva: Tramos vs Fibex -->
-              <div class="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl shadow-2xs">
-                <button type="button" id="tab-btn-tramos" onclick="switchExecutiveView('tramos')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer" title="Ver resumen dividido por los 5 tramos de morosidad oficiales">
+              <!-- Selector de Pestañas de Vista Ejecutiva: 5 Tramos vs 3 Tramos Contables vs Fibex -->
+              <div class="inline-flex flex-wrap items-center p-1 bg-slate-100 border border-slate-200 rounded-xl shadow-2xs gap-0.5">
+                <button type="button" id="tab-btn-tramos" onclick="switchExecutiveView('tramos')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer" title="Ver resumen dividido por los 5 tramos operativos de morosidad">
                   <i class="fa-solid fa-layer-group text-blue-600"></i>
-                  <span>Tramos de Mora</span>
+                  <span>5 Tramos (Operativo)</span>
+                </button>
+                <button type="button" id="tab-btn-tramos3" onclick="switchExecutiveView('tramos3')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer" title="Ver resumen ejecutivo contable en 3 categorías (Irregular, Vencido Gestión, Vencido Contable)">
+                  <i class="fa-solid fa-scale-balanced text-rose-600"></i>
+                  <span>3 Tramos (Contable)</span>
                 </button>
                 <button type="button" id="tab-btn-fibex" onclick="switchExecutiveView('fibex')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer" title="Ver comparación entre clientes sin suscripción Fibex (NO Fibex) y clientes Fibex / Resto">
                   <i class="fa-solid fa-network-wired text-amber-500"></i>
@@ -1403,6 +1407,6 @@
   </div>
 
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261102_v7"></script>
+  <script src="/static/js/dashboard.js?v=20261102_v8"></script>
 </body>
 </html>

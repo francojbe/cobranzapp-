@@ -116,6 +116,16 @@ def assign_tramo_mora(dias: int) -> str:
         return "181+ días (Castigo / cartera pesada)"
 
 
+def assign_tramo_3_mora(dias: int) -> str:
+    """Asigna el tramo contable en 3 categorías según la antigüedad de la deuda."""
+    if dias <= 15:
+        return "Irregular (Desde el día 1 hasta el 15)"
+    elif dias <= 30:
+        return "Vencido Gestión (Desde el día 16 al 30)"
+    else:
+        return "Vencido contable (Más de 30 días)"
+
+
 def safe_read_bytes(path: str) -> bytes:
     """Lee un archivo en bytes de forma segura, con fallback para archivos bloqueados por Excel en Windows."""
     try:
@@ -313,8 +323,10 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     if not df.empty:
         max_dias_cliente = df.groupby("Cedula_Key")["Dias de Mora"].transform("max")
         df["Tramo_Mora"] = max_dias_cliente.apply(assign_tramo_mora)
+        df["Tramo_3_Mora"] = max_dias_cliente.apply(assign_tramo_3_mora)
     else:
         df["Tramo_Mora"] = pd.Series(dtype=str)
+        df["Tramo_3_Mora"] = pd.Series(dtype=str)
 
     if "Nombre Cliente" not in df.columns:
         df["Nombre Cliente"] = "Cliente Sin Nombre"

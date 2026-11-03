@@ -650,6 +650,7 @@ function updateUIState(data) {
   }
 
   const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
+  const tramos3Summary = data.resumen_3_tramos || (data.metadata && data.metadata.resumen_3_tramos);
   const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
   if (globalSummary) {
     currentGlobalSummary = globalSummary;
@@ -660,10 +661,13 @@ function updateUIState(data) {
     }
     updateQuickFilterBadges(globalSummary);
   }
+  if (tramos3Summary) currentTramos3Summary = tramos3Summary;
   if (fibexSummary) currentFibexSummary = fibexSummary;
 
   if (currentExecutiveView === 'fibex' && currentFibexSummary) {
     renderFibexScorecard(currentFibexSummary);
+  } else if (currentExecutiveView === 'tramos3' && currentTramos3Summary) {
+    renderTramos3Scorecard(currentTramos3Summary);
   } else if (currentGlobalSummary) {
     renderGlobalTramosScorecard(currentGlobalSummary);
   }
@@ -779,6 +783,7 @@ async function processSingleFile(file) {
           metadata: data.metadata,
           totals: data.totals,
           resumen_global_tramos: data.resumen_global_tramos,
+          resumen_3_tramos: data.resumen_3_tramos,
           resumen_fibex: data.resumen_fibex,
           matriz_campanas_tramos: data.matriz_campanas_tramos
         });
@@ -803,6 +808,7 @@ async function processSingleFile(file) {
           metadata: data.metadata,
           totals: data.totals,
           resumen_global_tramos: data.resumen_global_tramos,
+          resumen_3_tramos: data.resumen_3_tramos,
           resumen_fibex: data.resumen_fibex,
           matriz_campanas_tramos: data.matriz_campanas_tramos
         });
@@ -1017,15 +1023,19 @@ function renderResults(data, minDias, maxDias) {
   document.getElementById('kpi-pct-monto').textContent = `${k.pct_monto_contactable}% de la deuda`;
 
   const globalSummary = data.resumen_global_tramos || (data.metadata && data.metadata.resumen_global_tramos);
+  const tramos3Summary = data.resumen_3_tramos || (data.metadata && data.metadata.resumen_3_tramos);
   const fibexSummary = data.resumen_fibex || (data.metadata && data.metadata.resumen_fibex);
   if (globalSummary) {
     currentGlobalSummary = globalSummary;
     updateQuickFilterBadges(globalSummary);
   }
+  if (tramos3Summary) currentTramos3Summary = tramos3Summary;
   if (fibexSummary) currentFibexSummary = fibexSummary;
 
   if (currentExecutiveView === 'fibex' && currentFibexSummary) {
     renderFibexScorecard(currentFibexSummary);
+  } else if (currentExecutiveView === 'tramos3' && currentTramos3Summary) {
+    renderTramos3Scorecard(currentTramos3Summary);
   } else if (currentGlobalSummary) {
     renderGlobalTramosScorecard(currentGlobalSummary);
   }
@@ -1043,22 +1053,29 @@ function renderResults(data, minDias, maxDias) {
 // ==============================================================
 let currentCarteraActivaManual = null;
 let currentGlobalSummary = null;
+let currentTramos3Summary = null;
 let currentFibexSummary = null;
 let currentExecutiveView = 'tramos';
 
 function switchExecutiveView(viewType) {
   currentExecutiveView = viewType;
   const btnTramos = document.getElementById('tab-btn-tramos');
+  const btnTramos3 = document.getElementById('tab-btn-tramos3');
   const btnFibex = document.getElementById('tab-btn-fibex');
 
-  if (viewType === 'tramos') {
-    if (btnTramos) btnTramos.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer';
-    if (btnFibex) btnFibex.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
-    if (currentGlobalSummary) renderGlobalTramosScorecard(currentGlobalSummary);
-  } else {
-    if (btnTramos) btnTramos.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
-    if (btnFibex) btnFibex.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer';
+  const activeCls = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer';
+  const inactiveCls = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
+
+  if (btnTramos) btnTramos.className = viewType === 'tramos' ? activeCls : inactiveCls;
+  if (btnTramos3) btnTramos3.className = viewType === 'tramos3' ? activeCls : inactiveCls;
+  if (btnFibex) btnFibex.className = viewType === 'fibex' ? activeCls : inactiveCls;
+
+  if (viewType === 'tramos3') {
+    if (currentTramos3Summary) renderTramos3Scorecard(currentTramos3Summary);
+  } else if (viewType === 'fibex') {
     if (currentFibexSummary) renderFibexScorecard(currentFibexSummary);
+  } else {
+    if (currentGlobalSummary) renderGlobalTramosScorecard(currentGlobalSummary);
   }
 }
 
@@ -1091,6 +1108,9 @@ function handleCarteraActivaManualInput(val) {
   if (currentExecutiveView === 'fibex') {
     if (excelBtn) excelBtn.href = `/api/fibex/download/excel${qParam}`;
     if (pdfBtn) pdfBtn.href = `/api/fibex/download/pdf${qParam}`;
+  } else if (currentExecutiveView === 'tramos3') {
+    if (excelBtn) excelBtn.href = `/api/tramos-3/download/excel${qParam}`;
+    if (pdfBtn) pdfBtn.href = `/api/tramos-3/download/pdf${qParam}`;
   } else {
     if (excelBtn) excelBtn.href = `/api/tramos/download/excel${qParam}`;
     if (pdfBtn) pdfBtn.href = `/api/tramos/download/pdf${qParam}`;
@@ -1107,6 +1127,8 @@ function handleCarteraActivaManualInput(val) {
 
   if (currentExecutiveView === 'fibex' && currentFibexSummary) {
     renderFibexScorecard(currentFibexSummary);
+  } else if (currentExecutiveView === 'tramos3' && currentTramos3Summary) {
+    renderTramos3Scorecard(currentTramos3Summary);
   } else if (currentGlobalSummary) {
     renderGlobalTramosScorecard(currentGlobalSummary);
   }
@@ -1239,13 +1261,21 @@ function renderExecutiveScorecard(cfg) {
     let pctBadge = '';
     if (currentCarteraActivaManual && currentCarteraActivaManual > 0) {
       const pct = (item.total_monto / currentCarteraActivaManual) * 100;
-      const isHigh = pct >= 8.0;
-      pctBadge = isHigh
-        ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs">${pct.toFixed(2)}%</span>`
-        : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">${pct.toFixed(2)}%</span>`;
+      if (item.pct_badge_class) {
+        pctBadge = `<span class="${item.pct_badge_class}">${pct.toFixed(2)}%</span>`;
+      } else {
+        const isHigh = pct >= 8.0;
+        pctBadge = isHigh
+          ? `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 shadow-2xs">${pct.toFixed(2)}%</span>`
+          : `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">${pct.toFixed(2)}%</span>`;
+      }
     } else {
       const pctMora = summary.total_cartera_usd > 0 ? ((item.total_monto / summary.total_cartera_usd) * 100) : 0;
-      pctBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title="% sobre la mora cargada">${pctMora.toFixed(1)}%</span>`;
+      if (item.pct_badge_class) {
+        pctBadge = `<span class="${item.pct_badge_class}" title="% sobre la mora cargada (ingresa Cartera Activa para calcular % sobre Cartera Activa)">${pctMora.toFixed(2)}%</span>`;
+      } else {
+        pctBadge = `<span class="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-200" title="% sobre la mora cargada">${pctMora.toFixed(1)}%</span>`;
+      }
     }
 
     const tr = document.createElement('tr');
@@ -1331,6 +1361,41 @@ function renderGlobalTramosScorecard(globalSummary) {
       col2Text: t.etiqueta,
       onClick: () => {
         setMoraRange(t.min_dias, Math.min(t.max_dias, 999), t.etiqueta);
+        processFilters();
+      }
+    })
+  });
+}
+
+function renderTramos3Scorecard(tramos3Summary) {
+  if (!tramos3Summary || !tramos3Summary.tramos || tramos3Summary.tramos.length === 0) return;
+  currentTramos3Summary = tramos3Summary;
+
+  renderExecutiveScorecard({
+    summary: tramos3Summary,
+    rows: tramos3Summary.tramos,
+    title: 'Resumen de Cartera en Mora (3 Tramos Contables)',
+    subtitle: 'Clasificación contable ejecutiva: Irregular (1 a 15 días), Vencido Gestión (16 a 30 días) y Vencido Contable (Más de 30 días).',
+    col1Header: 'Categoría Contable',
+    col2Header: 'Tramo / Días de Mora',
+    chartTitleText: 'Distribución Contable (3 Tramos)',
+    chartTagClass: 'text-[10px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded font-semibold border border-rose-200',
+    chartTagText: '3 Tramos Contables',
+    excelBaseUrl: '/api/tramos-3/download/excel',
+    excelLabel: 'Excel 3 Tramos',
+    excelTitle: 'Descargar Resumen de 3 Tramos Contables en formato Excel',
+    pdfBaseUrl: '/api/tramos-3/download/pdf',
+    pdfLabel: 'PDF 3 Tramos',
+    pdfTitle: 'Descargar Reporte PDF de 3 Tramos Contables',
+    footerLabel: 'Total',
+    footerSublabel: 'Gestión total',
+    buildRowMeta: (t) => ({
+      chartLabel: `${t.fase} (${t.rango_corto || t.etiqueta})`,
+      rowTitle: `Clic para filtrar rápido de ${t.min_dias} a ${t.max_dias} días (${t.fase})`,
+      col1InnerHtml: `<span class="font-bold text-slate-900">${t.fase}</span>`,
+      col2Text: t.etiqueta,
+      onClick: () => {
+        setMoraRange(t.min_dias, Math.min(t.max_dias, 999), `${t.fase} (${t.rango_corto || t.etiqueta})`);
         processFilters();
       }
     })

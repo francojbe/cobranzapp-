@@ -15,6 +15,7 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, Tabl
 
 from core.analytics import (
     build_debtor_matched_dataset,
+    calculate_3_tramos_summary,
     calculate_campanas_tramos_matrix,
     calculate_fibex_summary,
     calculate_global_tramos_summary,
@@ -628,6 +629,308 @@ def generate_tramos_pdf(cartera_activa: Optional[float] = None) -> StreamingResp
     doc.build(story)
     buf.seek(0)
     filename = f"resumen_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    return StreamingResponse(
+        buf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+def generate_tramos_3_excel(cartera_activa: Optional[float] = None) -> StreamingResponse:
+    """Descarga el Resumen Agrupado por 3 Tramos Contables de Mora (Irregular, Vencido Gestión, Vencido Contable) en un archivo Excel."""
+    active_df = _get_active_df_or_400()
+    if cartera_activa is not None and cartera_activa > 0:
+        DATA_STORE["cartera_activa_manual"] = cartera_activa
+    manual_ca = cartera_activa or DATA_STORE.get("cartera_activa_manual")
+    summary_3 = calculate_3_tramos_summary(active_df, manual_ca)
+    cutoff = summary_3.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = summary_3.get("total_cartera_usd", 0.0)
+    total_pct = summary_3.get("total_porcentaje")
+
+    th = get_openpyxl_theme()
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Resumen 3 Tramos"
+    ws.views.sheetView[0].showGridLines = True
+
+    ws["A1"] = "COBRANZAPP - RESUMEN DE CARTERA EN MORA (3 TRAMOS CONTABLES)"
+    ws["A1"].font = th["font_title"]
+
+    ws["A2"] = f"Fecha de corte: al {cutoff} | Tarifa Pendiente Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws["A2"].font = th["font_subtitle"]
+
+    # Banner Ejecutivo
+    ws.merge_cells("A4:B4")
+    ws["A4"] = "TARIFA PENDIENTE TOTAL (USD)"
+    ws["A4"].font = Font(name="Calibri", size=10, bold=True, color="1E3A8A")
+    ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["A4"].fill = th["fill_banner"]
+
+    ws["C4"] = total_usd
+    ws["C4"].font = Font(name="Calibri", size=14, bold=True, color="047857")
+    ws["C4"].number_format = '$#,##0.00'
+    ws["C4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["C4"].fill = th["fill_banner"]
+
+    ws["D4"] = "CARTERA ACTIVA (USD):"
+    ws["D4"].font = Font(name="Calibri", size=10, bold=True, color="92400E")
+    ws["D4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["D4"].fill = th["fill_ca_label"]
+
+    ws.merge_cells("E4:F4")
+    if manual_ca and manual_ca > 0:
+        ws["E4"] = manual_ca
+        ws["E4"].font = Font(name="Calibri", size=14, bold=True, color="B45309")
+        ws["E4"].number_format = '$#,##0.00'
+    else:
+        ws["E4"] = "No especificada"
+        ws["E4"].font = Font(name="Calibri", size=11, italic=True, color="64748B")
+    ws["E4"].alignment = Alignment(horizontal="center", vertical="center")
+    ws["E4"].fill = th["fill_ca_label"]
+
+    headers = ["Categoría", "Tramo / Días de Mora", "Cant. Cuotas", "Clientes", "Monto (USD)", "% Cartera Activa"]
+    start_row = 6
+    for col_idx, h_text in enumerate(headers, start=1):
+        cell = ws.cell(row=start_row, column=col_idx, value=h_text)
+        cell.font = th["font_header"]
+        cell.fill = th["fill_header"]
+        cell.alignment = Alignment(horizontal="center" if col_idx in [2, 6] else ("right" if col_idx in [3, 4, 5] else "left"), vertical="center")
+        cell.border = th["thin_border"]
+    ws.row_dimensions[start_row].height = 24
+
+    fill_yellow_pct = PatternFill(start_color="FEF08A", end_color="FEF08A", fill_type="solid")
+    fill_red_pct = PatternFill(start_color="DC2626", end_color="DC2626", fill_type="solid")
+    font_red_pct = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+
+    curr_row = start_row + 1
+    for idx, t in enumerate(summary_3.get("tramos", [])):
+        r = curr_row + idx
+        ws.row_dimensions[r].height = 22
+        c1 = ws.cell(row=r, column=1, value=t["fase"])
+        c2 = ws.cell(row=r, column=2, value=t["etiqueta"])
+        c3 = ws.cell(row=r, column=3, value=t["cuotas"])
+        c4 = ws.cell(row=r, column=4, value=t["clientes"])
+        c5 = ws.cell(row=r, column=5, value=t["total_monto"])
+        if t["porcentaje"] is not None:
+            c6 = ws.cell(row=r, column=6, value=t["porcentaje"] / 100.0)
+            c6.number_format = '0.00%'
+        else:
+            c6 = ws.cell(row=r, column=6, value="-")
+
+        c1.font = th["font_data_bold"]
+        c2.font = th["font_data"]
+        c3.font = th["font_data"]
+        c4.font = th["font_data"]
+        c5.font = th["font_data_bold"]
+        c6.font = th["font_data_bold"]
+
+        c1.alignment = Alignment(horizontal="left", vertical="center")
+        c2.alignment = Alignment(horizontal="center", vertical="center")
+        c3.alignment = Alignment(horizontal="right", vertical="center")
+        c4.alignment = Alignment(horizontal="right", vertical="center")
+        c5.alignment = Alignment(horizontal="right", vertical="center")
+        c6.alignment = Alignment(horizontal="right" if t["porcentaje"] is not None else "center", vertical="center")
+
+        c3.number_format = '#,##0'
+        c4.number_format = '#,##0'
+        c5.number_format = '$#,##0.00'
+
+        row_fill = th["fill_alt"] if idx % 2 == 1 else None
+        for col_idx in range(1, 7):
+            cell = ws.cell(row=r, column=col_idx)
+            cell.border = th["thin_border"]
+            if row_fill:
+                cell.fill = row_fill
+
+        # Semáforo en la columna % según categoría contable
+        if t.get("key") in ("1-15", "16-30"):
+            c6.fill = fill_yellow_pct
+        elif t.get("key") == "31+":
+            c6.fill = fill_red_pct
+            c6.font = font_red_pct
+
+    tot_row = curr_row + len(summary_3.get("tramos", []))
+    ws.row_dimensions[tot_row].height = 24
+
+    tc1 = ws.cell(row=tot_row, column=1, value="Total")
+    tc2 = ws.cell(row=tot_row, column=2, value="Gestión total")
+    tc3 = ws.cell(row=tot_row, column=3, value=summary_3.get("total_cuotas", 0))
+    tc4 = ws.cell(row=tot_row, column=4, value=summary_3.get("total_clientes", 0))
+    tc5 = ws.cell(row=tot_row, column=5, value=total_usd)
+    if total_pct is not None:
+        tc6 = ws.cell(row=tot_row, column=6, value=total_pct / 100.0)
+        tc6.number_format = '0.00%'
+    else:
+        tc6 = ws.cell(row=tot_row, column=6, value="-")
+
+    for cell in [tc1, tc2, tc3, tc4, tc5, tc6]:
+        cell.font = th["font_total"]
+        cell.fill = th["fill_total"]
+        cell.border = th["total_border"]
+
+    tc1.alignment = Alignment(horizontal="left", vertical="center")
+    tc2.alignment = Alignment(horizontal="center", vertical="center")
+    tc3.alignment = Alignment(horizontal="right", vertical="center")
+    tc4.alignment = Alignment(horizontal="right", vertical="center")
+    tc5.alignment = Alignment(horizontal="right", vertical="center")
+    tc6.alignment = Alignment(horizontal="right" if total_pct is not None else "center", vertical="center")
+
+    tc3.number_format = '#,##0'
+    tc4.number_format = '#,##0'
+    tc5.number_format = '$#,##0.00'
+
+    col_widths = {1: 24, 2: 28, 3: 16, 4: 16, 5: 22, 6: 16}
+    for col_idx, width in col_widths.items():
+        ws.column_dimensions[get_column_letter(col_idx)].width = width
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"resumen_3_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+
+def generate_tramos_3_pdf(cartera_activa: Optional[float] = None) -> StreamingResponse:
+    """Genera un reporte PDF ejecutivo del Resumen Agrupado en 3 Tramos Contables de Mora."""
+    active_df = _get_active_df_or_400()
+    if cartera_activa is not None and cartera_activa > 0:
+        DATA_STORE["cartera_activa_manual"] = cartera_activa
+    manual_ca = cartera_activa or DATA_STORE.get("cartera_activa_manual")
+    summary_3 = calculate_3_tramos_summary(active_df, manual_ca)
+    cutoff = summary_3.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
+    total_usd = summary_3.get("total_cartera_usd", 0.0)
+    total_cuotas = summary_3.get("total_cuotas", 0)
+    total_clientes = summary_3.get("total_clientes", 0)
+    total_pct = summary_3.get("total_porcentaje")
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=letter, leftMargin=36, rightMargin=36, topMargin=36, bottomMargin=36)
+    rt = get_reportlab_theme()
+    styles = rt["base"]
+
+    story = [
+        Paragraph("COBRANZAPP | RESUMEN DE CARTERA EN MORA (3 TRAMOS CONTABLES)", rt["title"]),
+        Paragraph(
+            f"<b>Fecha de corte:</b> al {cutoff} &nbsp;|&nbsp; <b>Fecha de emisión:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')} &nbsp;|&nbsp; <b>Cartera:</b> {html.escape(str(DATA_STORE.get('cartera_filename', 'Cartera Activa')))}",
+            rt["subtitle"]
+        ),
+        Spacer(1, 8)
+    ]
+
+    if manual_ca and manual_ca > 0:
+        kpi_cards = [
+            [
+                Paragraph("TARIFA PENDIENTE TOTAL", rt["banner_label"]),
+                Paragraph("CARTERA ACTIVA TOTAL", rt["banner_label"]),
+                Paragraph("% MORA SOBRE CARTERA", rt["banner_label"]),
+                Paragraph("TOTAL CLIENTES", rt["banner_label"])
+            ],
+            [
+                Paragraph(f"${total_usd:,.2f} USD", rt["banner_val"]),
+                Paragraph(f"${manual_ca:,.2f} USD", rt["banner_val"]),
+                Paragraph(f"{total_pct:.2f}%" if total_pct is not None else "-", rt["banner_val"]),
+                Paragraph(f"{total_clientes:,}", rt["banner_val"])
+            ]
+        ]
+    else:
+        kpi_cards = [
+            [
+                Paragraph("TARIFA PENDIENTE TOTAL", rt["banner_label"]),
+                Paragraph("CARTERA ACTIVA TOTAL", rt["banner_label"]),
+                Paragraph("TOTAL CLIENTES", rt["banner_label"]),
+                Paragraph("CANTIDAD DE CUOTAS", rt["banner_label"])
+            ],
+            [
+                Paragraph(f"${total_usd:,.2f} USD", rt["banner_val"]),
+                Paragraph("No especificada", rt["banner_val"]),
+                Paragraph(f"{total_clientes:,}", rt["banner_val"]),
+                Paragraph(f"{total_cuotas:,}", rt["banner_val"])
+            ]
+        ]
+
+    story.append(build_pdf_kpi_card_grid(kpi_cards))
+    story.append(Spacer(1, 16))
+    story.append(Paragraph("<b>Distribución de Cartera en Mora por Clasificación Contable (3 Tramos):</b>", styles['Normal']))
+    story.append(Spacer(1, 6))
+
+    table_rows = [[
+        Paragraph("Categoría", rt["table_header"]),
+        Paragraph("Tramo / Días de Mora", rt["table_header_center"]),
+        Paragraph("Cant. Cuotas", rt["table_header_right"]),
+        Paragraph("Clientes", rt["table_header_right"]),
+        Paragraph("Monto (USD)", rt["table_header_right"]),
+        Paragraph("% Cartera Activa", rt["table_header_right"])
+    ]]
+
+    white_bold_right = ParagraphStyle(
+        "TableCellWhiteBoldRight",
+        parent=rt["table_cell_right"],
+        textColor=colors.white,
+    )
+
+    tramos_list = summary_3.get("tramos", [])
+    for t in tramos_list:
+        pct_display = f"<b>{t['porcentaje']:.2f}%</b>" if t["porcentaje"] is not None else "-"
+        pct_style = white_bold_right if (t.get("key") == "31+" and t["porcentaje"] is not None) else (
+            rt["table_cell_right"] if t["porcentaje"] is not None else rt["table_cell_center"]
+        )
+        table_rows.append([
+            Paragraph(f"<b>{html.escape(t['fase'])}</b>", rt["table_cell"]),
+            Paragraph(html.escape(t["etiqueta"]), rt["table_cell_center"]),
+            Paragraph(f"{t['cuotas']:,}", rt["table_cell_right"]),
+            Paragraph(f"{t['clientes']:,}", rt["table_cell_right"]),
+            Paragraph(f"${t['total_monto']:,.2f}", rt["table_cell_right"]),
+            Paragraph(pct_display, pct_style)
+        ])
+
+    total_pct_display = f"<b>{total_pct:.2f}%</b>" if total_pct is not None else "-"
+    table_rows.append([
+        Paragraph("<b>Total</b>", rt["table_cell"]),
+        Paragraph("<b>Gestión total</b>", rt["table_cell_center"]),
+        Paragraph(f"<b>{total_cuotas:,}</b>", rt["table_cell_right"]),
+        Paragraph(f"<b>{total_clientes:,}</b>", rt["table_cell_right"]),
+        Paragraph(f"<b>${total_usd:,.2f}</b>", rt["table_cell_right"]),
+        Paragraph(total_pct_display, rt["table_cell_right"] if total_pct is not None else rt["table_cell_center"])
+    ])
+
+    t_table = Table(table_rows, colWidths=[115, 130, 75, 75, 95, 50])
+    style_cmds = [
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#1e293b")),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]
+    for idx, t in enumerate(tramos_list, start=1):
+        if t.get("key") in ("1-15", "16-30"):
+            style_cmds.append(('BACKGROUND', (5, idx), (5, idx), colors.HexColor("#fef08a")))
+        elif t.get("key") == "31+":
+            style_cmds.append(('BACKGROUND', (5, idx), (5, idx), colors.HexColor("#dc2626")))
+
+    t_table.setStyle(TableStyle(style_cmds))
+    story.append(t_table)
+    story.append(Spacer(1, 16))
+
+    vencido_contable = next((x for x in tramos_list if x.get("key") == "31+"), None)
+    if vencido_contable:
+        pct_note = f" situándose en <b>{vencido_contable['porcentaje']:.2f}%</b> sobre la cartera activa" if vencido_contable.get("porcentaje") is not None else ""
+        notes_text = (
+            f"<b>Observación Contable:</b> El tramo <b>Vencido contable (Más de 30 días)</b> concentra "
+            f"<b>${vencido_contable['total_monto']:,.2f} USD</b>{pct_note}, "
+            f"con {vencido_contable['cuotas']:,} cuotas pendientes y {vencido_contable['clientes']:,} clientes únicos. "
+            f"Este indicador refleja la morosidad contable mayor a 30 días sobre el total de la cartera activa."
+        )
+        story.append(build_pdf_strategic_note(notes_text, styles['Normal']))
+
+    doc.build(story)
+    buf.seek(0)
+    filename = f"resumen_3_tramos_mora_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",

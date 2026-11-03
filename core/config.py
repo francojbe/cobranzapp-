@@ -154,6 +154,43 @@ OFFICIAL_TRAMOS_CONFIG = [
     }
 ]
 
+# Configuración fija de los 3 Tramos Contables de Mora (Irregular, Vencido Gestión, Vencido Contable)
+OFFICIAL_3_TRAMOS_CONFIG = [
+    {
+        "id": "1-15",
+        "grupo": "Irregular (Desde el día 1 hasta el 15)",
+        "etiqueta": "Desde el día 1 hasta el 15",
+        "fase": "Irregular",
+        "min": 1,
+        "max": 15,
+        "color": "#eab308",
+        "badge_class": "bg-amber-50 text-amber-800 border-amber-200 border text-[10px] font-bold px-2.5 py-0.5 rounded-full",
+        "pct_badge_class": "inline-block px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-200/90 text-amber-950 border border-amber-300 shadow-2xs"
+    },
+    {
+        "id": "16-30",
+        "grupo": "Vencido Gestión (Desde el día 16 al 30)",
+        "etiqueta": "Desde el día 16 al 30",
+        "fase": "Vencido Gestión",
+        "min": 16,
+        "max": 30,
+        "color": "#f59e0b",
+        "badge_class": "bg-amber-50 text-amber-800 border-amber-200 border text-[10px] font-bold px-2.5 py-0.5 rounded-full",
+        "pct_badge_class": "inline-block px-2.5 py-0.5 rounded-md text-[11px] font-bold bg-amber-200/90 text-amber-950 border border-amber-300 shadow-2xs"
+    },
+    {
+        "id": "31+",
+        "grupo": "Vencido contable (Más de 30 días)",
+        "etiqueta": "Más de 30 días",
+        "fase": "Vencido contable",
+        "min": 31,
+        "max": 9999,
+        "color": "#dc2626",
+        "badge_class": "bg-rose-50 text-rose-800 border-rose-200 border text-[10px] font-bold px-2.5 py-0.5 rounded-full",
+        "pct_badge_class": "inline-block px-2.5 py-0.5 rounded-md text-[11px] font-extrabold bg-rose-600 text-white border border-rose-700 shadow-2xs"
+    }
+]
+
 # Diccionario de patrones para mapear columnas de Cartera
 TARGET_PATTERNS = {
     "Dias de Mora": [

@@ -1,9 +1,10 @@
 from datetime import datetime
 from typing import Optional
 import pandas as pd
-from core.config import DATA_STORE, OFFICIAL_TRAMOS_CONFIG, switch_active_module, sync_active_module_to_slot
+from core.config import DATA_STORE, OFFICIAL_3_TRAMOS_CONFIG, OFFICIAL_TRAMOS_CONFIG, switch_active_module, sync_active_module_to_slot
 from core.database import check_existing_cutoff_snapshot, load_contacts_from_db, upsert_contacts_to_db
 from core.parsers import (
+    assign_tramo_3_mora,
     assign_tramo_mora,
     detect_file_type,
     parse_bytes_to_dataframe,
@@ -82,6 +83,7 @@ def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
         if "Dias de Mora" in df_act.columns:
             max_dias_cliente = df_act.groupby("Cedula_Key")["Dias de Mora"].transform("max")
             df_act["Tramo_Mora"] = max_dias_cliente.apply(assign_tramo_mora)
+            df_act["Tramo_3_Mora"] = max_dias_cliente.apply(assign_tramo_3_mora)
         if "Tipo_Campana" in df_act.columns:
             df_act["Tipo_Campana"] = df_act.groupby("Cedula_Key")["Tipo_Campana"].transform("first")
         if "Programa" in df_act.columns:
@@ -150,6 +152,7 @@ def enrich_and_merge_datasets():
         merged["Programa"] = merged.groupby("Cedula_Key")["Programa"].transform("first")
         max_dias = merged.groupby("Cedula_Key")["Dias de Mora"].transform("max")
         merged["Tramo_Mora"] = max_dias.apply(assign_tramo_mora)
+        merged["Tramo_3_Mora"] = max_dias.apply(assign_tramo_3_mora)
 
     DATA_STORE["df_original"] = merged
     DATA_STORE["df_filtered"] = merged
@@ -318,6 +321,71 @@ def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[f
             "grupo": t_cfg["grupo"],
             "color": t_cfg["color"],
             "badge_class": t_cfg["badge_class"],
+            "min_dias": t_cfg["min"],
+            "max_dias": t_cfg["max"],
+            "cuotas": cuotas_cnt,
+            "clientes": clientes_cnt,
+            "pendiente_tarifa": p_tarifa,
+            "pendiente_cuota": p_cuota,
+            "pendiente_mora": p_mora,
+            "cuota_mas_mora": round(p_cuota + p_mora, 2),
+            "total_monto": monto_grp,
+            "porcentaje": pct
+        })
+
+    return {
+        "cutoff_date": get_cutoff_date(df),
+        "total_cartera_usd": total_cartera_usd,
+        "total_cuotas": total_cuotas,
+        "total_clientes": total_clientes,
+        "cartera_activa_usd": denom,
+        "total_porcentaje": total_pct,
+        "tramos": tramos
+    }
+
+
+def calculate_3_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
+    """Calcula el Resumen Ejecutivo en 3 Categorías Contables (Irregular 1-15d, Vencido Gestión 16-30d, Vencido contable +30d)."""
+    if df is None or df.empty:
+        return {
+            "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
+            "total_cartera_usd": 0.0,
+            "total_cuotas": 0,
+            "total_clientes": 0,
+            "cartera_activa_usd": None,
+            "total_porcentaje": None,
+            "tramos": []
+        }
+
+    df_active = resolve_active_debt_df(df)
+
+    total_cartera_usd = round(float(df_active["_Tot"].sum()), 2)
+    total_cuotas = len(df_active)
+    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else total_cuotas
+
+    target_ca = cartera_activa if (cartera_activa is not None and cartera_activa > 0) else DATA_STORE.get("cartera_activa_manual")
+    denom = float(target_ca) if (target_ca is not None and target_ca > 0) else None
+    total_pct = round((total_cartera_usd / denom * 100), 2) if denom else None
+
+    tramos = []
+    for t_cfg in OFFICIAL_3_TRAMOS_CONFIG:
+        sub = df_active[df_active["Tramo_3_Mora"] == t_cfg["grupo"]]
+        cuotas_cnt = len(sub)
+        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else cuotas_cnt
+        p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
+        p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
+        p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
+        monto_grp = round(float(sub["_Tot"].sum()), 2)
+        pct = round((monto_grp / denom * 100), 2) if denom else None
+
+        tramos.append({
+            "id": t_cfg["id"],
+            "fase": t_cfg["fase"],
+            "etiqueta": t_cfg["etiqueta"],
+            "grupo": t_cfg["grupo"],
+            "color": t_cfg["color"],
+            "badge_class": t_cfg["badge_class"],
+            "pct_badge_class": t_cfg["pct_badge_class"],
             "min_dias": t_cfg["min"],
             "max_dias": t_cfg["max"],
             "cuotas": cuotas_cnt,
@@ -656,6 +724,7 @@ def build_dashboard_payload(df: Optional[pd.DataFrame], cartera_activa: Optional
         "metadata": get_metadata(df),
         "totals": calculate_totals(df),
         "resumen_global_tramos": calculate_global_tramos_summary(df, cartera_activa),
+        "resumen_3_tramos": calculate_3_tramos_summary(df, cartera_activa),
         "resumen_fibex": calculate_fibex_summary(df, cartera_activa),
         "matriz_campanas_tramos": calculate_campanas_tramos_matrix(df)
     }
