@@ -41,6 +41,7 @@ def _empty_module_slot(name: str, label: str) -> dict:
         "filter_info": {},
         "df_matched": None,
         "cartera_activa_manual": None,
+        "cartera_activa_campanas": None,
     }
 
 # Almacén en memoria del estado activo de la sesión (soporta múltiples módulos de mora)
@@ -56,6 +57,7 @@ DATA_STORE = {
     "filter_info": {},
     "df_matched": None,           # Agregada a nivel deudor para Call Center del módulo activo
     "cartera_activa_manual": None,# Monto manual de cartera activa del módulo activo
+    "cartera_activa_campanas": None, # Cartera activa por campaña (Fin de Mes y Día Anterior)
     "modules": {
         "general": _empty_module_slot("general", "Mora Ubi"),
         "avila": _empty_module_slot("avila", "Mora Ávila"),
@@ -70,6 +72,7 @@ _MODULE_KEYS = [
     "filter_info",
     "df_matched",
     "cartera_activa_manual",
+    "cartera_activa_campanas",
 ]
 
 
@@ -271,3 +274,11 @@ class CreateUserRequest(BaseModel):
     nombre: str
     password: str
     rol: str = "analista"
+
+
+class SetCarteraActivaCampanasRequest(BaseModel):
+    module_id: Optional[str] = None
+    label_fin_mes: Optional[str] = "Fin de Mes"
+    label_dia_anterior: Optional[str] = "Día Anterior"
+    campanas: dict = {}
+    sync_global_cartera: bool = False

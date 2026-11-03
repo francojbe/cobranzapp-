@@ -743,9 +743,9 @@ def generate_tramos_3_excel(cartera_activa: Optional[float] = None) -> Streaming
                 cell.fill = row_fill
 
         # Semáforo en la columna % según categoría contable
-        if t.get("key") in ("1-15", "16-30"):
+        if (t.get("id") or t.get("key")) in ("1-15", "16-30"):
             c6.fill = fill_yellow_pct
-        elif t.get("key") == "31+":
+        elif (t.get("id") or t.get("key")) == "31+":
             c6.fill = fill_red_pct
             c6.font = font_red_pct
 
@@ -876,7 +876,7 @@ def generate_tramos_3_pdf(cartera_activa: Optional[float] = None) -> StreamingRe
     tramos_list = summary_3.get("tramos", [])
     for t in tramos_list:
         pct_display = f"<b>{t['porcentaje']:.2f}%</b>" if t["porcentaje"] is not None else "-"
-        pct_style = white_bold_right if (t.get("key") == "31+" and t["porcentaje"] is not None) else (
+        pct_style = white_bold_right if ((t.get("id") or t.get("key")) == "31+" and t["porcentaje"] is not None) else (
             rt["table_cell_right"] if t["porcentaje"] is not None else rt["table_cell_center"]
         )
         table_rows.append([
@@ -908,16 +908,16 @@ def generate_tramos_3_pdf(cartera_activa: Optional[float] = None) -> StreamingRe
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]
     for idx, t in enumerate(tramos_list, start=1):
-        if t.get("key") in ("1-15", "16-30"):
+        if (t.get("id") or t.get("key")) in ("1-15", "16-30"):
             style_cmds.append(('BACKGROUND', (5, idx), (5, idx), colors.HexColor("#fef08a")))
-        elif t.get("key") == "31+":
+        elif (t.get("id") or t.get("key")) == "31+":
             style_cmds.append(('BACKGROUND', (5, idx), (5, idx), colors.HexColor("#dc2626")))
 
     t_table.setStyle(TableStyle(style_cmds))
     story.append(t_table)
     story.append(Spacer(1, 16))
 
-    vencido_contable = next((x for x in tramos_list if x.get("key") == "31+"), None)
+    vencido_contable = next((x for x in tramos_list if (x.get("id") or x.get("key")) == "31+"), None)
     if vencido_contable:
         pct_note = f" situándose en <b>{vencido_contable['porcentaje']:.2f}%</b> sobre la cartera activa" if vencido_contable.get("porcentaje") is not None else ""
         notes_text = (
@@ -1370,34 +1370,36 @@ def generate_fibex_pdf(cartera_activa: Optional[float] = None) -> StreamingRespo
 
 
 # -------------------------------------------------------------
-# 4. REPORTE MATRIZ DE CAMPAÑAS VS 5 TRAMOS (EXCEL Y PDF)
+# 4. REPORTE MATRIZ DE CAMPAÑAS VS TRAMOS (5 Y 3 TRAMOS + % CARTERA ACTIVA)
 # -------------------------------------------------------------
 
-def generate_campanas_matrix_excel() -> StreamingResponse:
-    """Descarga la Matriz Completa de Campañas vs 5 Tramos Oficiales en Excel con formato corporativo."""
+def generate_campanas_matrix_excel(mode: str = "5tramos") -> StreamingResponse:
+    """Descarga la Matriz Completa de Campañas vs 5 Tramos Oficiales o 3 Tramos Contables en Excel,
+    incluyendo las 3 columnas de Morosidad contra Cartera Activa (Fin de Mes, Día Anterior y Variación)."""
     active_df = _get_active_df_or_400()
     matrix_data = calculate_campanas_tramos_matrix(active_df)
     cutoff = matrix_data.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
     total_usd = matrix_data.get("total_cartera_usd", 0.0)
+    lbl_fm = matrix_data.get("label_fin_mes", "Fin de Mes")
+    lbl_da = matrix_data.get("label_dia_anterior", "Día Anterior")
+    is_3 = (str(mode or "").lower() in ("3", "3tramos", "tramos3"))
 
     th = get_openpyxl_theme()
     wb = openpyxl.Workbook()
     ws = wb.active
-    ws.title = "Desglose Tramos y Campañas"
+    ws.title = "Matriz 3 Tramos" if is_3 else "Matriz 5 Tramos"
     ws.views.sheetView[0].showGridLines = True
 
-    fill_tramo_hdrs = [
-        PatternFill(start_color="065F46", end_color="065F46", fill_type="solid"),
-        PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid"),
-        PatternFill(start_color="92400E", end_color="92400E", fill_type="solid"),
-        PatternFill(start_color="9A3412", end_color="9A3412", fill_type="solid"),
-        PatternFill(start_color="991B1B", end_color="991B1B", fill_type="solid"),
-        PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
-    ]
+    fill_orange_hdr = PatternFill(start_color="C2410C", end_color="C2410C", fill_type="solid")
+    fill_orange_sub = PatternFill(start_color="FFEDD5", end_color="FFEDD5", fill_type="solid")
+    fill_amber_cell = PatternFill(start_color="FEF3C7", end_color="FEF3C7", fill_type="solid")
+    font_var_pos = Font(name="Calibri", size=10, bold=True, color="B91C1C")
+    font_var_neg = Font(name="Calibri", size=10, bold=True, color="15803D")
 
-    ws["A1"] = "COBRANZAPP - DESGLOSE POR TRAMOS Y CATEGORÍAS (CAMPAÑAS)"
+    title_mode = "3 TRAMOS CONTABLES" if is_3 else "5 TRAMOS OPERATIVOS"
+    ws["A1"] = f"COBRANZAPP - RESUMEN CARTERA EN MORA POR CAMPAÑA ({title_mode})"
     ws["A1"].font = th["font_title"]
-    ws["A2"] = f"Fecha de corte: al {cutoff} | Tarifa Pendiente Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
+    ws["A2"] = f"Fecha de corte: al {cutoff} | Mora Total: ${total_usd:,.2f} USD | Emisión: {datetime.now().strftime('%d/%m/%Y %H:%M')}"
     ws["A2"].font = th["font_subtitle"]
 
     ws.merge_cells("A4:A5")
@@ -1407,44 +1409,83 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
     ws["A4"].alignment = Alignment(horizontal="center", vertical="center")
     ws["A4"].border = th["thin_border"]
 
-    tramo_spans = [
-        ("B4:C4", "B", "C", "1 a 30 días (Preventiva)", fill_tramo_hdrs[0]),
-        ("D4:E4", "D", "E", "31 a 60 días (Administrativa)", fill_tramo_hdrs[1]),
-        ("F4:G4", "F", "G", "61 a 90 días (Negociación)", fill_tramo_hdrs[2]),
-        ("H4:I4", "H", "I", "91 a 180 días (Pre-jurídica)", fill_tramo_hdrs[3]),
-        ("J4:K4", "J", "K", "181+ días (Castigo)", fill_tramo_hdrs[4]),
-        ("L4:N4", "L", "N", "Total Tarifa Consolidada", fill_tramo_hdrs[5]),
-    ]
+    if is_3:
+        tramo_defs = [
+            ("31+", "Vencido contable (+30 días)", PatternFill(start_color="991B1B", end_color="991B1B", fill_type="solid")),
+            ("16-30", "Vencido Gestión (16 a 30 días)", PatternFill(start_color="B45309", end_color="B45309", fill_type="solid")),
+            ("1-15", "Vencido Irregular (1 a 15 días)", PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")),
+        ]
+    else:
+        tramo_defs = [
+            ("1-30", "1 a 30 días (Preventiva)", PatternFill(start_color="065F46", end_color="065F46", fill_type="solid")),
+            ("31-60", "31 a 60 días (Administrativa)", PatternFill(start_color="1E40AF", end_color="1E40AF", fill_type="solid")),
+            ("61-90", "61 a 90 días (Negociación)", PatternFill(start_color="92400E", end_color="92400E", fill_type="solid")),
+            ("91-180", "91 a 180 días (Pre-jurídica)", PatternFill(start_color="9A3412", end_color="9A3412", fill_type="solid")),
+            ("181+", "181+ días (Castigo)", PatternFill(start_color="991B1B", end_color="991B1B", fill_type="solid")),
+        ]
 
-    for span, col_start, _, title, fill in tramo_spans:
-        ws.merge_cells(span)
-        cell = ws[f"{col_start}4"]
-        cell.value = title
+    col_cursor = 2
+    for _, t_title, t_fill in tramo_defs:
+        c_start = get_column_letter(col_cursor)
+        c_end = get_column_letter(col_cursor + 1)
+        ws.merge_cells(f"{c_start}4:{c_end}4")
+        cell = ws[f"{c_start}4"]
+        cell.value = t_title
         cell.font = th["font_group_hdr"]
-        cell.fill = fill
+        cell.fill = t_fill
         cell.alignment = Alignment(horizontal="center", vertical="center")
 
-    sub_headers = [
-        ("B5", "Tarifa ($)", "right"), ("C5", "Clientes", "right"),
-        ("D5", "Tarifa ($)", "right"), ("E5", "Clientes", "right"),
-        ("F5", "Tarifa ($)", "right"), ("G5", "Clientes", "right"),
-        ("H5", "Tarifa ($)", "right"), ("I5", "Clientes", "right"),
-        ("J5", "Tarifa ($)", "right"), ("K5", "Clientes", "right"),
-        ("L5", "Total Tarifa ($)", "right"), ("M5", "Total Clientes", "right"),
-        ("N5", "% Tarifa", "right")
-    ]
-    for cell_id, text, align in sub_headers:
-        c = ws[cell_id]
-        c.value = text
-        c.font = th["font_sub_hdr"]
-        c.fill = th["fill_sub_hdr"]
-        c.alignment = Alignment(horizontal=align, vertical="center")
-        c.border = th["thin_border"]
+        for sub_idx, sub_txt in enumerate(["Monto (USD)", "Nro. Clientes"]):
+            sc = ws.cell(row=5, column=col_cursor + sub_idx, value=sub_txt)
+            sc.font = th["font_sub_hdr"]
+            sc.fill = th["fill_sub_hdr"]
+            sc.alignment = Alignment(horizontal="right", vertical="center")
+            sc.border = th["thin_border"]
+        col_cursor += 2
+
+    # Bloque Total Mora Consolidada (3 columnas: Total Monto, Total Clientes, % Mora)
+    tot_start_col = col_cursor
+    c_tot_s = get_column_letter(tot_start_col)
+    c_tot_e = get_column_letter(tot_start_col + 2)
+    ws.merge_cells(f"{c_tot_s}4:{c_tot_e}4")
+    c_tot_hdr = ws[f"{c_tot_s}4"]
+    c_tot_hdr.value = "Total Mora Consolidada"
+    c_tot_hdr.font = th["font_group_hdr"]
+    c_tot_hdr.fill = PatternFill(start_color="0F172A", end_color="0F172A", fill_type="solid")
+    c_tot_hdr.alignment = Alignment(horizontal="center", vertical="center")
+
+    for sub_idx, sub_txt in enumerate(["Total Monto (USD)", "Total Clientes", "% del Total Mora"]):
+        sc = ws.cell(row=5, column=tot_start_col + sub_idx, value=sub_txt)
+        sc.font = th["font_sub_hdr"]
+        sc.fill = th["fill_sub_hdr"]
+        sc.alignment = Alignment(horizontal="right", vertical="center")
+        sc.border = th["thin_border"]
+    col_cursor += 3
+
+    # Bloque Naranja Final: Morosidad vs. Cartera Activa (Fin de Mes, Día Anterior y Variación)
+    ca_start_col = col_cursor
+    c_ca_s = get_column_letter(ca_start_col)
+    c_ca_e = get_column_letter(ca_start_col + 2)
+    ws.merge_cells(f"{c_ca_s}4:{c_ca_e}4")
+    c_ca_hdr = ws[f"{c_ca_s}4"]
+    c_ca_hdr.value = "% Morosidad sobre Cartera Activa"
+    c_ca_hdr.font = th["font_group_hdr"]
+    c_ca_hdr.fill = fill_orange_hdr
+    c_ca_hdr.alignment = Alignment(horizontal="center", vertical="center")
+
+    for sub_idx, sub_txt in enumerate([f"Morosidad al {lbl_fm}", f"Morosidad al {lbl_da}", "Variación"]):
+        sc = ws.cell(row=5, column=ca_start_col + sub_idx, value=sub_txt)
+        sc.font = Font(name="Calibri", size=9, bold=True, color="7C2D12")
+        sc.fill = fill_orange_sub
+        sc.alignment = Alignment(horizontal="right", vertical="center")
+        sc.border = th["thin_border"]
+    total_cols = ca_start_col + 2
 
     ws.row_dimensions[4].height = 22
     ws.row_dimensions[5].height = 20
 
     curr_row = 6
+    row_dict_key = "tramos_3" if is_3 else "tramos"
     for idx, row in enumerate(matrix_data.get("matrix", [])):
         r = curr_row + idx
         ws.row_dimensions[r].height = 19
@@ -1453,11 +1494,12 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
         c_camp.font = th["font_data_bold_sm"]
         c_camp.alignment = Alignment(horizontal="left", vertical="center")
 
-        col_idx = 2
-        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-            t_data = row["tramos"].get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
-            cm = ws.cell(row=r, column=col_idx, value=t_data["monto"])
-            cc = ws.cell(row=r, column=col_idx + 1, value=t_data["clientes"])
+        c_idx = 2
+        row_tramos = row.get(row_dict_key, {})
+        for t_key, _, _ in tramo_defs:
+            t_data = row_tramos.get(t_key, {"monto": 0.0, "clientes": 0})
+            cm = ws.cell(row=r, column=c_idx, value=t_data["monto"])
+            cc = ws.cell(row=r, column=c_idx + 1, value=t_data["clientes"])
 
             cm.font = th["font_data_sm"]
             cc.font = th["font_data_sm"]
@@ -1465,11 +1507,11 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
             cc.alignment = Alignment(horizontal="right", vertical="center")
             cm.number_format = '$#,##0.00' if t_data["monto"] > 0 else '"-"'
             cc.number_format = '#,##0' if t_data["clientes"] > 0 else '"-"'
-            col_idx += 2
+            c_idx += 2
 
-        c_tot_m = ws.cell(row=r, column=12, value=row["total_monto"])
-        c_tot_c = ws.cell(row=r, column=13, value=row["total_clientes"])
-        c_tot_p = ws.cell(row=r, column=14, value=row["porcentaje"] / 100.0)
+        c_tot_m = ws.cell(row=r, column=tot_start_col, value=row["total_monto"])
+        c_tot_c = ws.cell(row=r, column=tot_start_col + 1, value=row["total_clientes"])
+        c_tot_p = ws.cell(row=r, column=tot_start_col + 2, value=row["porcentaje"] / 100.0)
 
         for c in (c_tot_m, c_tot_c, c_tot_p):
             c.font = th["font_data_bold_sm"]
@@ -1479,11 +1521,31 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
         c_tot_c.number_format = '#,##0'
         c_tot_p.number_format = '0.00%'
 
+        # 3 Columnas Naranjas: % Fin de Mes, % Día Anterior, Variación
+        pfm = row.get("pct_fin_mes")
+        pda = row.get("pct_dia_anterior")
+        pvar = row.get("variacion_pct")
+
+        c_fm = ws.cell(row=r, column=ca_start_col, value=(pfm / 100.0) if pfm is not None else "-")
+        c_da = ws.cell(row=r, column=ca_start_col + 1, value=(pda / 100.0) if pda is not None else "-")
+        c_var = ws.cell(row=r, column=ca_start_col + 2, value=(pvar / 100.0) if pvar is not None else "-")
+
+        for c, val in [(c_fm, pfm), (c_da, pda), (c_var, pvar)]:
+            c.font = th["font_data_bold_sm"]
+            c.alignment = Alignment(horizontal="right" if val is not None else "center", vertical="center")
+            if val is not None:
+                c.number_format = '0.00%'
+
+        if pvar is not None:
+            c_var.font = font_var_neg if pvar <= 0 else font_var_pos
+
         row_fill = th["fill_alt"] if idx % 2 == 1 else None
-        for c_i in range(1, 15):
+        for c_i in range(1, total_cols + 1):
             cell = ws.cell(row=r, column=c_i)
             cell.border = th["thin_border"]
-            if row_fill:
+            if c_i >= ca_start_col:
+                cell.fill = fill_amber_cell
+            elif row_fill:
                 cell.fill = row_fill
 
     tot_row = curr_row + len(matrix_data.get("matrix", []))
@@ -1493,12 +1555,12 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
     tc_camp.font = th["font_total_sm"]
     tc_camp.alignment = Alignment(horizontal="left", vertical="center")
 
-    totals_tramos = matrix_data.get("totals_by_tramo", {})
-    col_idx = 2
-    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        t_data = totals_tramos.get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
-        cm = ws.cell(row=tot_row, column=col_idx, value=t_data["monto"])
-        cc = ws.cell(row=tot_row, column=col_idx + 1, value=t_data["clientes"])
+    totals_tramos = matrix_data.get("totals_by_tramo_3" if is_3 else "totals_by_tramo", {})
+    c_idx = 2
+    for t_key, _, _ in tramo_defs:
+        t_data = totals_tramos.get(t_key, {"monto": 0.0, "clientes": 0})
+        cm = ws.cell(row=tot_row, column=c_idx, value=t_data["monto"])
+        cc = ws.cell(row=tot_row, column=c_idx + 1, value=t_data["clientes"])
 
         cm.font = th["font_total_sm"]
         cc.font = th["font_total_sm"]
@@ -1506,11 +1568,11 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
         cc.alignment = Alignment(horizontal="right", vertical="center")
         cm.number_format = '$#,##0.00'
         cc.number_format = '#,##0'
-        col_idx += 2
+        c_idx += 2
 
-    tc_tot_m = ws.cell(row=tot_row, column=12, value=total_usd)
-    tc_tot_c = ws.cell(row=tot_row, column=13, value=matrix_data.get("total_clientes", 0))
-    tc_tot_p = ws.cell(row=tot_row, column=14, value=1.0)
+    tc_tot_m = ws.cell(row=tot_row, column=tot_start_col, value=total_usd)
+    tc_tot_c = ws.cell(row=tot_row, column=tot_start_col + 1, value=matrix_data.get("total_clientes", 0))
+    tc_tot_p = ws.cell(row=tot_row, column=tot_start_col + 2, value=1.0)
 
     for c in [tc_tot_m, tc_tot_c, tc_tot_p]:
         c.font = th["font_total_sm"]
@@ -1520,23 +1582,37 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
     tc_tot_c.number_format = '#,##0'
     tc_tot_p.number_format = '0.00%'
 
-    for c_i in range(1, 15):
+    t_pfm = matrix_data.get("total_pct_fin_mes")
+    t_pda = matrix_data.get("total_pct_dia_anterior")
+    t_pvar = matrix_data.get("total_variacion_pct")
+
+    tc_fm = ws.cell(row=tot_row, column=ca_start_col, value=(t_pfm / 100.0) if t_pfm is not None else "-")
+    tc_da = ws.cell(row=tot_row, column=ca_start_col + 1, value=(t_pda / 100.0) if t_pda is not None else "-")
+    tc_var = ws.cell(row=tot_row, column=ca_start_col + 2, value=(t_pvar / 100.0) if t_pvar is not None else "-")
+
+    for c, val in [(tc_fm, t_pfm), (tc_da, t_pda), (tc_var, t_pvar)]:
+        c.font = th["font_total_sm"]
+        c.alignment = Alignment(horizontal="right" if val is not None else "center", vertical="center")
+        if val is not None:
+            c.number_format = '0.00%'
+    if t_pvar is not None:
+        tc_var.font = font_var_neg if t_pvar <= 0 else font_var_pos
+
+    for c_i in range(1, total_cols + 1):
         cell = ws.cell(row=tot_row, column=c_i)
         cell.fill = th["fill_total"]
         cell.border = th["total_border"]
 
-    widths = {
-        1: 32, 2: 15, 3: 11, 4: 15, 5: 11, 6: 15, 7: 11,
-        8: 15, 9: 11, 10: 15, 11: 11, 12: 17, 13: 13, 14: 12
-    }
-    for col_idx, width in widths.items():
-        ws.column_dimensions[get_column_letter(col_idx)].width = width
+    ws.column_dimensions["A"].width = 32
+    for c_i in range(2, total_cols + 1):
+        ws.column_dimensions[get_column_letter(c_i)].width = 14
 
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
 
-    filename = f"desglose_campanas_tramos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    suffix = "3_tramos" if is_3 else "5_tramos"
+    filename = f"matriz_campanas_{suffix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     return StreamingResponse(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -1544,30 +1620,33 @@ def generate_campanas_matrix_excel() -> StreamingResponse:
     )
 
 
-def generate_campanas_matrix_pdf() -> StreamingResponse:
-    """Genera reporte ejecutivo en PDF en formato apaisado (Landscape) con la Matriz de Campañas vs 5 Tramos."""
+def generate_campanas_matrix_pdf(mode: str = "5tramos") -> StreamingResponse:
+    """Genera reporte ejecutivo en PDF apaisado (Landscape) con la Matriz de Campañas (5 o 3 Tramos + % Cartera Activa)."""
     active_df = _get_active_df_or_400()
     matrix_data = calculate_campanas_tramos_matrix(active_df)
     cutoff = matrix_data.get("cutoff_date", datetime.now().strftime("%d-%m-%Y"))
     total_usd = matrix_data.get("total_cartera_usd", 0.0)
     total_clientes = matrix_data.get("total_clientes", 0)
+    lbl_fm = matrix_data.get("label_fin_mes", "Fin de Mes")
+    lbl_da = matrix_data.get("label_dia_anterior", "Día Anterior")
+    is_3 = (str(mode or "").lower() in ("3", "3tramos", "tramos3"))
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf,
         pagesize=landscape(letter),
-        leftMargin=20,
-        rightMargin=20,
-        topMargin=20,
-        bottomMargin=20
+        leftMargin=16,
+        rightMargin=16,
+        topMargin=18,
+        bottomMargin=18
     )
     styles = getSampleStyleSheet()
 
     title_style = ParagraphStyle(
         'MatTitle',
         parent=styles['Heading1'],
-        fontSize=15,
-        leading=18,
+        fontSize=13,
+        leading=16,
         textColor=colors.HexColor("#0f172a"),
         fontName="Helvetica-Bold",
         spaceAfter=2
@@ -1575,16 +1654,16 @@ def generate_campanas_matrix_pdf() -> StreamingResponse:
     subtitle_style = ParagraphStyle(
         'MatSubtitle',
         parent=styles['Normal'],
-        fontSize=8.5,
-        leading=11,
+        fontSize=8,
+        leading=10,
         textColor=colors.HexColor("#64748b"),
-        spaceAfter=10
+        spaceAfter=8
     )
     hdr_group = ParagraphStyle(
         'HdrGroup',
         parent=styles['Normal'],
-        fontSize=7.5,
-        leading=9,
+        fontSize=6.8,
+        leading=8,
         textColor=colors.white,
         fontName="Helvetica-Bold",
         alignment=1
@@ -1592,8 +1671,8 @@ def generate_campanas_matrix_pdf() -> StreamingResponse:
     hdr_sub = ParagraphStyle(
         'HdrSub',
         parent=styles['Normal'],
-        fontSize=7,
-        leading=8,
+        fontSize=6.3,
+        leading=7.5,
         textColor=colors.HexColor("#334155"),
         fontName="Helvetica-Bold",
         alignment=2
@@ -1601,66 +1680,80 @@ def generate_campanas_matrix_pdf() -> StreamingResponse:
     cell_camp = ParagraphStyle(
         'CellCamp',
         parent=styles['Normal'],
-        fontSize=7.5,
-        leading=9,
+        fontSize=6.8,
+        leading=8,
         textColor=colors.HexColor("#0f172a"),
         fontName="Helvetica-Bold"
     )
     cell_val = ParagraphStyle(
         'CellVal',
         parent=styles['Normal'],
-        fontSize=7,
-        leading=8.5,
+        fontSize=6.5,
+        leading=8,
         textColor=colors.HexColor("#1e293b"),
         alignment=2
     )
     cell_tot = ParagraphStyle(
         'CellTot',
         parent=styles['Normal'],
-        fontSize=7,
-        leading=8.5,
+        fontSize=6.5,
+        leading=8,
         textColor=colors.HexColor("#0f172a"),
         fontName="Helvetica-Bold",
         alignment=2
     )
 
+    title_mode = "3 TRAMOS CONTABLES" if is_3 else "5 TRAMOS OPERATIVOS"
     story = [
-        Paragraph("COBRANZAPP | DESGLOSE POR TRAMOS Y CATEGORÍAS (CAMPAÑAS)", title_style),
+        Paragraph(f"COBRANZAPP | RESUMEN CARTERA EN MORA POR CAMPAÑA ({title_mode})", title_style),
         Paragraph(
             f"<b>Fecha de corte:</b> al {cutoff} &nbsp;|&nbsp; "
-            f"<b>Tarifa Pendiente Total:</b> ${total_usd:,.2f} USD &nbsp;|&nbsp; "
-            f"<b>Clientes con Tarifa:</b> {total_clientes:,} &nbsp;|&nbsp; "
+            f"<b>Mora Total:</b> ${total_usd:,.2f} USD &nbsp;|&nbsp; "
+            f"<b>Clientes en Mora:</b> {total_clientes:,} &nbsp;|&nbsp; "
             f"<b>Emisión:</b> {datetime.now().strftime('%d/%m/%Y %H:%M')}",
             subtitle_style
         )
     ]
 
-    table_data = [
-        [
-            Paragraph("<b>Campaña Comercial</b>", hdr_group),
-            Paragraph("<b>1 a 30 días</b>", hdr_group), "",
-            Paragraph("<b>31 a 60 días</b>", hdr_group), "",
-            Paragraph("<b>61 a 90 días</b>", hdr_group), "",
-            Paragraph("<b>91 a 180 días</b>", hdr_group), "",
-            Paragraph("<b>181+ días</b>", hdr_group), "",
-            Paragraph("<b>Total Tarifa</b>", hdr_group), "", ""
-        ],
-        [
-            "",
-            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("Tarifa ($)", hdr_sub), Paragraph("Ctes", hdr_sub),
-            Paragraph("% Tarifa", hdr_sub)
+    if is_3:
+        tramo_defs = [
+            ("31+", "Vencido contable (+30d)", "#991b1b"),
+            ("16-30", "Vencido Gestión (16-30d)", "#b45309"),
+            ("1-15", "Vencido Irregular (1-15d)", "#1e40af"),
         ]
-    ]
+    else:
+        tramo_defs = [
+            ("1-30", "1 a 30 días", "#065f46"),
+            ("31-60", "31 a 60 días", "#1e40af"),
+            ("61-90", "61 a 90 días", "#92400e"),
+            ("91-180", "91 a 180 días", "#9a3412"),
+            ("181+", "181+ días", "#991b1b"),
+        ]
+
+    hdr_row_1 = [Paragraph("<b>Campaña</b>", hdr_group)]
+    hdr_row_2 = [""]
+    for _, t_label, _ in tramo_defs:
+        hdr_row_1.extend([Paragraph(f"<b>{t_label}</b>", hdr_group), ""])
+        hdr_row_2.extend([Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub)])
+
+    hdr_row_1.extend([Paragraph("<b>Total Mora</b>", hdr_group), "", ""])
+    hdr_row_2.extend([Paragraph("Monto ($)", hdr_sub), Paragraph("Ctes", hdr_sub), Paragraph("% Mora", hdr_sub)])
+
+    hdr_row_1.extend([Paragraph("<b>% vs. Cartera Activa</b>", hdr_group), "", ""])
+    hdr_row_2.extend([
+        Paragraph(f"Al {html.escape(lbl_fm)}", hdr_sub),
+        Paragraph(f"Al {html.escape(lbl_da)}", hdr_sub),
+        Paragraph("Variación", hdr_sub),
+    ])
+
+    table_data = [hdr_row_1, hdr_row_2]
+    row_dict_key = "tramos_3" if is_3 else "tramos"
 
     for row in matrix_data.get("matrix", []):
         row_cells = [Paragraph(html.escape(row["campana"]), cell_camp)]
-        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-            t_data = row["tramos"].get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
+        r_tramos = row.get(row_dict_key, {})
+        for t_key, _, _ in tramo_defs:
+            t_data = r_tramos.get(t_key, {"monto": 0.0, "clientes": 0})
             m_str = f"${t_data['monto']:,.2f}" if t_data["monto"] > 0 else "-"
             c_str = f"{t_data['clientes']:,}" if t_data["clientes"] > 0 else "-"
             row_cells.append(Paragraph(m_str, cell_val))
@@ -1668,53 +1761,75 @@ def generate_campanas_matrix_pdf() -> StreamingResponse:
         row_cells.append(Paragraph(f"${row['total_monto']:,.2f}", cell_tot))
         row_cells.append(Paragraph(f"{row['total_clientes']:,}", cell_tot))
         row_cells.append(Paragraph(f"{row['porcentaje']:.2f}%", cell_tot))
+
+        pfm = row.get("pct_fin_mes")
+        pda = row.get("pct_dia_anterior")
+        pvar = row.get("variacion_pct")
+        row_cells.append(Paragraph(f"{pfm:.2f}%" if pfm is not None else "-", cell_tot))
+        row_cells.append(Paragraph(f"{pda:.2f}%" if pda is not None else "-", cell_tot))
+        row_cells.append(Paragraph(f"{pvar:+.2f}%" if pvar is not None else "-", cell_tot))
         table_data.append(row_cells)
 
-    totals_tramos = matrix_data.get("totals_by_tramo", {})
-    total_row_cells = [Paragraph("<b>TOTAL CONSOLIDADO</b>", cell_camp)]
-    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        t_data = totals_tramos.get(t_cfg["id"], {"monto": 0.0, "clientes": 0})
+    totals_tramos = matrix_data.get("totals_by_tramo_3" if is_3 else "totals_by_tramo", {})
+    total_row_cells = [Paragraph("<b>TOTAL</b>", cell_camp)]
+    for t_key, _, _ in tramo_defs:
+        t_data = totals_tramos.get(t_key, {"monto": 0.0, "clientes": 0})
         total_row_cells.append(Paragraph(f"<b>${t_data['monto']:,.2f}</b>", cell_tot))
         total_row_cells.append(Paragraph(f"<b>{t_data['clientes']:,}</b>", cell_tot))
     total_row_cells.append(Paragraph(f"<b>${total_usd:,.2f}</b>", cell_tot))
     total_row_cells.append(Paragraph(f"<b>{total_clientes:,}</b>", cell_tot))
     total_row_cells.append(Paragraph("<b>100.0%</b>", cell_tot))
+
+    t_pfm = matrix_data.get("total_pct_fin_mes")
+    t_pda = matrix_data.get("total_pct_dia_anterior")
+    t_pvar = matrix_data.get("total_variacion_pct")
+    total_row_cells.append(Paragraph(f"<b>{t_pfm:.2f}%</b>" if t_pfm is not None else "-", cell_tot))
+    total_row_cells.append(Paragraph(f"<b>{t_pda:.2f}%</b>" if t_pda is not None else "-", cell_tot))
+    total_row_cells.append(Paragraph(f"<b>{t_pvar:+.2f}%</b>" if t_pvar is not None else "-", cell_tot))
     table_data.append(total_row_cells)
 
-    col_widths = [140, 48, 28, 48, 28, 48, 28, 52, 28, 48, 28, 56, 32, 38]
+    if is_3:
+        col_widths = [125, 58, 34, 58, 34, 58, 34, 62, 36, 38, 48, 48, 45]
+    else:
+        col_widths = [105, 42, 24, 42, 24, 42, 24, 44, 24, 42, 24, 48, 26, 32, 40, 40, 38]
+
     t_mat = Table(table_data, colWidths=col_widths, repeatRows=2)
-    t_mat.setStyle(TableStyle([
+    style_cmds = [
         ('SPAN', (0, 0), (0, 1)),
-        ('SPAN', (1, 0), (2, 0)),
-        ('SPAN', (3, 0), (4, 0)),
-        ('SPAN', (5, 0), (6, 0)),
-        ('SPAN', (7, 0), (8, 0)),
-        ('SPAN', (9, 0), (10, 0)),
-        ('SPAN', (11, 0), (13, 0)),
-
         ('BACKGROUND', (0, 0), (0, 1), colors.HexColor("#0f172a")),
-        ('BACKGROUND', (1, 0), (2, 0), colors.HexColor("#065f46")),
-        ('BACKGROUND', (3, 0), (4, 0), colors.HexColor("#1e40af")),
-        ('BACKGROUND', (5, 0), (6, 0), colors.HexColor("#92400e")),
-        ('BACKGROUND', (7, 0), (8, 0), colors.HexColor("#9a3412")),
-        ('BACKGROUND', (9, 0), (10, 0), colors.HexColor("#991b1b")),
-        ('BACKGROUND', (11, 0), (13, 0), colors.HexColor("#0f172a")),
+    ]
+    c_cursor = 1
+    for _, _, hex_bg in tramo_defs:
+        style_cmds.append(('SPAN', (c_cursor, 0), (c_cursor + 1, 0)))
+        style_cmds.append(('BACKGROUND', (c_cursor, 0), (c_cursor + 1, 0), colors.HexColor(hex_bg)))
+        c_cursor += 2
+
+    style_cmds.append(('SPAN', (c_cursor, 0), (c_cursor + 2, 0)))
+    style_cmds.append(('BACKGROUND', (c_cursor, 0), (c_cursor + 2, 0), colors.HexColor("#0f172a")))
+    c_cursor += 3
+
+    style_cmds.append(('SPAN', (c_cursor, 0), (c_cursor + 2, 0)))
+    style_cmds.append(('BACKGROUND', (c_cursor, 0), (c_cursor + 2, 0), colors.HexColor("#c2410c")))
+    style_cmds.append(('BACKGROUND', (c_cursor, 2), (c_cursor + 2, -2), colors.HexColor("#fef3c7")))
+
+    style_cmds.extend([
         ('BACKGROUND', (1, 1), (-1, 1), colors.HexColor("#f1f5f9")),
-
         ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
-        ('ROWBACKGROUNDS', (0, 2), (-1, -2), [colors.white, colors.HexColor("#f8fafc")]),
+        ('ROWBACKGROUNDS', (0, 2), (c_cursor - 1, -2), [colors.white, colors.HexColor("#f8fafc")]),
         ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor("#e2e8f0")),
+        ('TOPPADDING', (0, 0), (-1, -1), 2.5),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5),
+        ('LEFTPADDING', (0, 0), (-1, -1), 2.5),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 2.5),
+    ])
 
-        ('TOPPADDING', (0, 0), (-1, -1), 3),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
-        ('LEFTPADDING', (0, 0), (-1, -1), 3),
-        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-    ]))
+    t_mat.setStyle(TableStyle(style_cmds))
     story.append(t_mat)
 
     doc.build(story)
     buf.seek(0)
-    filename = f"desglose_campanas_tramos_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+    suffix = "3_tramos" if is_3 else "5_tramos"
+    filename = f"matriz_campanas_{suffix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     return StreamingResponse(
         buf,
         media_type="application/pdf",

@@ -1462,21 +1462,108 @@ function filterMatrixTable(query) {
   });
 }
 
+let currentMatrixData = null;
+let currentMatrixMode = '5tramos'; // '5tramos' | '3tramos'
+
+function switchMatrixMode(mode) {
+  currentMatrixMode = (mode === '3tramos') ? '3tramos' : '5tramos';
+  const btn5 = document.getElementById('btn-matrix-mode-5');
+  const btn3 = document.getElementById('btn-matrix-mode-3');
+  const activeCls = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer';
+  const inactiveCls = 'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer';
+
+  if (btn5) btn5.className = currentMatrixMode === '5tramos' ? activeCls : inactiveCls;
+  if (btn3) btn3.className = currentMatrixMode === '3tramos' ? activeCls : inactiveCls;
+
+  const excelBtn = document.getElementById('btn-download-matrix-excel');
+  const pdfBtn = document.getElementById('btn-download-matrix-pdf');
+  if (excelBtn) {
+    excelBtn.href = `/api/campanas-tramos/download/excel?mode=${currentMatrixMode}`;
+    excelBtn.innerHTML = `<i class="fa-solid fa-file-excel text-emerald-600"></i> ${currentMatrixMode === '3tramos' ? 'Excel Matriz (3T)' : 'Excel Matriz (5T)'}`;
+  }
+  if (pdfBtn) {
+    pdfBtn.href = `/api/campanas-tramos/download/pdf?mode=${currentMatrixMode}`;
+    pdfBtn.innerHTML = `<i class="fa-solid fa-file-pdf text-rose-600"></i> ${currentMatrixMode === '3tramos' ? 'PDF Matriz (3T)' : 'PDF Matriz (5T)'}`;
+  }
+
+  if (currentMatrixData) {
+    renderCampanasMatrix(currentMatrixData);
+  }
+}
+
 function renderCampanasMatrix(matrixData) {
   if (!matrixData || !matrixData.matrix) return;
+  currentMatrixData = matrixData;
+
+  const is3 = (currentMatrixMode === '3tramos');
+  const lblFm = matrixData.label_fin_mes || 'Fin de Mes';
+  const lblDa = matrixData.label_dia_anterior || 'Día Anterior';
 
   const countElem = document.getElementById('matrix-campaigns-count');
   if (countElem) {
     countElem.textContent = `${matrixData.matrix.length} campañas analizadas`;
   }
 
+  const thead = document.getElementById('matrix-campaigns-thead');
   const tbody = document.getElementById('matrix-campaigns-tbody');
   const tfoot = document.getElementById('matrix-campaigns-tfoot');
   if (!tbody) return;
 
-  tbody.innerHTML = '';
+  const tramoDefs = is3
+    ? [
+        { id: '31+', title: 'Vencido contable', sub: '(Más de 30 días)', hdrBg: 'bg-rose-50/95 text-rose-900 border-emerald-200', subBg: 'bg-rose-50/40' },
+        { id: '16-30', title: 'Vencido Gestión', sub: '(16 a 30 días)', hdrBg: 'bg-amber-50/95 text-amber-900 border-amber-200', subBg: 'bg-amber-50/40' },
+        { id: '1-15', title: 'Vencido Irregular', sub: '(1 a 15 días)', hdrBg: 'bg-blue-50/95 text-blue-900 border-blue-200', subBg: 'bg-blue-50/40' },
+      ]
+    : [
+        { id: '1-30', title: '1 a 30 días', sub: '(Preventiva)', hdrBg: 'bg-emerald-50/90 text-emerald-900 border-emerald-200', subBg: 'bg-emerald-50/40' },
+        { id: '31-60', title: '31 a 60 días', sub: '(Administrativa)', hdrBg: 'bg-blue-50/90 text-blue-900 border-blue-200', subBg: 'bg-blue-50/40' },
+        { id: '61-90', title: '61 a 90 días', sub: '(Negociación)', hdrBg: 'bg-amber-50/90 text-amber-900 border-amber-200', subBg: 'bg-amber-50/40' },
+        { id: '91-180', title: '91 a 180 días', sub: '(Pre-jurídica)', hdrBg: 'bg-orange-50/90 text-orange-900 border-orange-200', subBg: 'bg-orange-50/40' },
+        { id: '181+', title: '181+ días', sub: '(Castigo)', hdrBg: 'bg-rose-50/90 text-rose-900 border-rose-200', subBg: 'bg-rose-50/40' },
+      ];
 
-  const tramoIds = ['1-30', '31-60', '61-90', '91-180', '181+'];
+  if (thead) {
+    let topTramosHtml = '';
+    let subTramosHtml = '';
+    tramoDefs.forEach(td => {
+      topTramosHtml += `
+        <th class="py-2 px-3 text-center ${td.hdrBg} border-r border-slate-200" colspan="2">
+          ${td.title} <span class="text-[9px] font-normal opacity-80">${td.sub}</span>
+        </th>
+      `;
+      subTramosHtml += `
+        <th class="py-1.5 px-2.5 text-right font-mono ${td.subBg} border-r border-slate-100">Monto ($)</th>
+        <th class="py-1.5 px-2 text-right font-mono ${td.subBg} border-r border-slate-200">Nro. Ctes</th>
+      `;
+    });
+
+    thead.innerHTML = `
+      <tr class="text-[10px] uppercase font-bold tracking-wider text-slate-700 border-b border-slate-200">
+        <th class="py-2.5 px-3.5 bg-slate-100 sticky left-0 z-30 border-r border-slate-200 min-w-[200px]" rowspan="2">
+          Campaña Comercial
+        </th>
+        ${topTramosHtml}
+        <th class="py-2 px-3 text-center bg-slate-900 text-white border-r border-slate-700" colspan="3">
+          Total Mora Consolidada
+        </th>
+        <th class="py-2 px-3 text-center bg-orange-700 text-white cursor-pointer hover:bg-orange-800 transition" colspan="3" onclick="openCampaignCarteraModal()" title="Clic para configurar Cartera Activa de Fin de Mes y Día Anterior por campaña">
+          <i class="fa-solid fa-calculator mr-1"></i> % Morosidad vs. Cartera Activa
+        </th>
+      </tr>
+      <tr class="text-[10px] uppercase font-semibold text-slate-600 bg-slate-50 border-b border-slate-200">
+        ${subTramosHtml}
+        <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Total Monto ($)</th>
+        <th class="py-1.5 px-2 text-right font-mono bg-slate-800 text-slate-100 border-r border-slate-700">Total Ctes</th>
+        <th class="py-1.5 px-2.5 text-right font-mono bg-slate-800 text-blue-300 border-r border-slate-700">% Mora</th>
+        <th class="py-1.5 px-2.5 text-right font-mono bg-orange-100 text-orange-950 border-r border-orange-200" title="Mora de Hoy / Cartera Activa Fin de Mes">Morosidad al ${lblFm}</th>
+        <th class="py-1.5 px-2.5 text-right font-mono bg-orange-100 text-orange-950 border-r border-orange-200" title="Mora de Hoy / Cartera Activa Día Anterior">Morosidad al ${lblDa}</th>
+        <th class="py-1.5 px-2.5 text-right font-mono bg-orange-200/80 text-orange-950">Variación</th>
+      </tr>
+    `;
+  }
+
+  tbody.innerHTML = '';
 
   function fmtMonto(val) {
     const n = Number(val || 0);
@@ -1490,14 +1577,33 @@ function renderCampanasMatrix(matrixData) {
     return n.toLocaleString();
   }
 
+  function fmtPctCell(val, caAmount) {
+    if (val === null || val === undefined) {
+      return `<button type="button" onclick="openCampaignCarteraModal()" class="text-[10px] text-orange-600/80 hover:text-orange-800 underline decoration-dotted cursor-pointer" title="Clic para ingresar Cartera Activa de esta campaña">Cargar</button>`;
+    }
+    const caTip = caAmount ? `Cartera Activa: $${Number(caAmount).toLocaleString('en-US', {minimumFractionDigits: 2})}` : '';
+    return `<span class="font-bold text-slate-900" title="${caTip}">${Number(val).toFixed(2)}%</span>`;
+  }
+
+  function fmtVarCell(val) {
+    if (val === null || val === undefined) {
+      return '<span class="text-slate-400 font-normal">-</span>';
+    }
+    const n = Number(val);
+    const sign = n > 0 ? '+' : '';
+    const cls = n <= 0 ? 'text-emerald-700 font-extrabold' : 'text-rose-700 font-extrabold';
+    return `<span class="${cls}">${sign}${n.toFixed(2)}%</span>`;
+  }
+
   matrixData.matrix.forEach(r => {
     const tr = document.createElement('tr');
     tr.className = 'hover:bg-slate-50/80 transition-colors border-b border-slate-100 group';
     tr.dataset.campana = r.campana;
 
+    const sourceDict = is3 ? (r.tramos_3 || {}) : (r.tramos || {});
     let tramosHtml = '';
-    tramoIds.forEach(tId => {
-      const t = r.tramos[tId] || { monto: 0, clientes: 0 };
+    tramoDefs.forEach(td => {
+      const t = sourceDict[td.id] || { monto: 0, clientes: 0 };
       tramosHtml += `
         <td class="py-2 px-2.5 text-right font-mono border-r border-slate-100/70 text-slate-800">${fmtMonto(t.monto)}</td>
         <td class="py-2 px-2 text-right font-mono border-r border-slate-200 text-slate-600">${fmtCant(t.clientes)}</td>
@@ -1509,35 +1615,312 @@ function renderCampanasMatrix(matrixData) {
         <span class="truncate max-w-[210px] inline-block align-middle" title="${r.campana}">${r.campana}</span>
       </td>
       ${tramosHtml}
-      <td class="py-2 px-2.5 text-right font-mono font-bold text-slate-900 bg-slate-50/60 border-r border-slate-100">$${Number(r.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-      <td class="py-2 px-2 text-right font-mono font-bold text-slate-800 bg-slate-50/60 border-r border-slate-100">${Number(r.total_clientes).toLocaleString()}</td>
-      <td class="py-2 px-2.5 text-right font-mono font-semibold text-blue-700 bg-slate-50/60">${Number(r.porcentaje).toFixed(2)}%</td>
+      <td class="py-2 px-2.5 text-right font-mono font-bold text-slate-900 bg-slate-50/80 border-r border-slate-100">$${Number(r.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+      <td class="py-2 px-2 text-right font-mono font-bold text-slate-800 bg-slate-50/80 border-r border-slate-100">${Number(r.total_clientes).toLocaleString()}</td>
+      <td class="py-2 px-2.5 text-right font-mono font-semibold text-blue-700 bg-slate-50/80 border-r border-slate-200">${Number(r.porcentaje).toFixed(2)}%</td>
+      <td class="py-2 px-2.5 text-right font-mono bg-amber-50/70 border-r border-amber-200/80">${fmtPctCell(r.pct_fin_mes, r.ca_fin_mes)}</td>
+      <td class="py-2 px-2.5 text-right font-mono bg-amber-50/70 border-r border-amber-200/80">${fmtPctCell(r.pct_dia_anterior, r.ca_dia_anterior)}</td>
+      <td class="py-2 px-2.5 text-right font-mono bg-amber-100/50">${fmtVarCell(r.variacion_pct)}</td>
     `;
     tbody.appendChild(tr);
   });
 
   if (tfoot) {
-    const totTramos = matrixData.totals_by_tramo || {};
+    const totTramos = is3 ? (matrixData.totals_by_tramo_3 || {}) : (matrixData.totals_by_tramo || {});
     let footTramosHtml = '';
-    tramoIds.forEach(tId => {
-      const t = totTramos[tId] || { monto: 0, clientes: 0 };
+    tramoDefs.forEach(td => {
+      const t = totTramos[td.id] || { monto: 0, clientes: 0 };
       footTramosHtml += `
         <td class="py-2.5 px-2.5 text-right font-mono text-xs border-r border-slate-200 text-slate-900">$${Number(t.monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="py-2.5 px-2 text-right font-mono text-xs border-r border-slate-300 text-slate-800">${Number(t.clientes).toLocaleString()}</td>
       `;
     });
 
+    const totFmStr = (matrixData.total_pct_fin_mes !== null && matrixData.total_pct_fin_mes !== undefined)
+      ? `${Number(matrixData.total_pct_fin_mes).toFixed(2)}%`
+      : '-';
+    const totDaStr = (matrixData.total_pct_dia_anterior !== null && matrixData.total_pct_dia_anterior !== undefined)
+      ? `${Number(matrixData.total_pct_dia_anterior).toFixed(2)}%`
+      : '-';
+
     tfoot.innerHTML = `
       <tr class="bg-slate-100 border-t-2 border-slate-300 text-slate-900 font-bold text-xs">
         <td class="py-2.5 px-3.5 sticky left-0 bg-slate-100 border-r border-slate-300 text-slate-900 uppercase tracking-wider text-[11px]">
-          <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> TOTAL TARIFA CONSOLIDADA
+          <i class="fa-solid fa-layer-group mr-1.5 text-blue-600"></i> TOTAL CONSOLIDADO
         </td>
         ${footTramosHtml}
         <td class="py-2.5 px-2.5 text-right font-mono text-xs text-emerald-700 font-black border-r border-slate-200">$${Number(matrixData.total_cartera_usd).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
         <td class="py-2.5 px-2 text-right font-mono text-xs text-slate-900 font-bold border-r border-slate-200">${Number(matrixData.total_clientes).toLocaleString()}</td>
-        <td class="py-2.5 px-2.5 text-right font-mono text-xs text-blue-700 font-black">100.00%</td>
+        <td class="py-2.5 px-2.5 text-right font-mono text-xs text-blue-700 font-black border-r border-slate-300">100.00%</td>
+        <td class="py-2.5 px-2.5 text-right font-mono text-xs bg-amber-100/90 text-orange-950 font-black border-r border-amber-300">${totFmStr}</td>
+        <td class="py-2.5 px-2.5 text-right font-mono text-xs bg-amber-100/90 text-orange-950 font-black border-r border-amber-300">${totDaStr}</td>
+        <td class="py-2.5 px-2.5 text-right font-mono text-xs bg-amber-200/80">${fmtVarCell(matrixData.total_variacion_pct)}</td>
       </tr>
     `;
+  }
+}
+
+// ==============================================================
+// MODAL DE CARTERA ACTIVA POR CAMPAÑA (FIN DE MES Y DÍA ANTERIOR)
+// ==============================================================
+function openCampaignCarteraModal() {
+  const modal = document.getElementById('modal-cartera-campanas');
+  if (!modal) return;
+  if (!currentMatrixData || !currentMatrixData.matrix || currentMatrixData.matrix.length === 0) {
+    showToast('warning', 'Sin cartera cargada', 'Primero carga o procesa una cartera para ver las campañas disponibles.');
+    return;
+  }
+
+  const lblFmInput = document.getElementById('input-ca-label-fin-mes');
+  const lblDaInput = document.getElementById('input-ca-label-dia-anterior');
+  if (lblFmInput) lblFmInput.value = currentMatrixData.label_fin_mes || 'Fin de Mes';
+  if (lblDaInput) lblDaInput.value = currentMatrixData.label_dia_anterior || 'Día Anterior';
+
+  const tbody = document.getElementById('modal-ca-campanas-tbody');
+  tbody.innerHTML = '';
+
+  currentMatrixData.matrix.forEach((r, idx) => {
+    const fmVal = r.ca_fin_mes && r.ca_fin_mes > 0 ? r.ca_fin_mes : '';
+    const daVal = r.ca_dia_anterior && r.ca_dia_anterior > 0 ? r.ca_dia_anterior : '';
+    const tr = document.createElement('tr');
+    tr.className = 'hover:bg-slate-50 border-b border-slate-100';
+    tr.dataset.campana = r.campana;
+    tr.dataset.mora = r.total_monto;
+
+    tr.innerHTML = `
+      <td class="py-2 px-3.5 font-bold text-slate-800">${r.campana}</td>
+      <td class="py-2 px-3 text-right font-semibold text-slate-700">$${Number(r.total_monto).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+      <td class="py-1.5 px-3 text-right bg-orange-50/40">
+        <input type="text" data-role="fin_mes" data-idx="${idx}" value="${fmVal}" placeholder="0.00" oninput="recalcModalCampaignCarteraRow()" class="w-32 text-right font-mono text-xs font-bold px-2 py-1 bg-white border border-orange-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:outline-none">
+      </td>
+      <td class="py-2 px-2.5 text-right font-bold text-orange-900 bg-orange-50/40" id="modal-row-pct-fm-${idx}">-</td>
+      <td class="py-1.5 px-3 text-right bg-amber-50/40">
+        <input type="text" data-role="dia_anterior" data-idx="${idx}" value="${daVal}" placeholder="0.00" oninput="recalcModalCampaignCarteraRow()" class="w-32 text-right font-mono text-xs font-bold px-2 py-1 bg-white border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:outline-none">
+      </td>
+      <td class="py-2 px-2.5 text-right font-bold text-amber-900 bg-amber-50/40" id="modal-row-pct-da-${idx}">-</td>
+      <td class="py-2 px-2.5 text-right font-bold" id="modal-row-var-${idx}">-</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  recalcModalCampaignCarteraRow();
+  modal.classList.remove('hidden');
+}
+
+function closeCampaignCarteraModal() {
+  const modal = document.getElementById('modal-cartera-campanas');
+  if (modal) modal.classList.add('hidden');
+}
+
+function togglePasteCampaignCarteraBox() {
+  const box = document.getElementById('paste-ca-campanas-box');
+  if (box) box.classList.toggle('hidden');
+}
+
+function recalcModalCampaignCarteraRow() {
+  const rows = document.querySelectorAll('#modal-ca-campanas-tbody tr');
+  let totMora = 0;
+  let totFm = 0;
+  let totDa = 0;
+
+  rows.forEach((tr, idx) => {
+    const mora = parseFloat(tr.dataset.mora || '0') || 0;
+    totMora += mora;
+
+    const inpFm = tr.querySelector('input[data-role="fin_mes"]');
+    const inpDa = tr.querySelector('input[data-role="dia_anterior"]');
+    const fm = parseManualNumber(inpFm ? inpFm.value : '') || 0;
+    const da = parseManualNumber(inpDa ? inpDa.value : '') || 0;
+
+    totFm += fm;
+    totDa += da;
+
+    const pctFm = fm > 0 ? (mora / fm) * 100 : null;
+    const pctDa = da > 0 ? (mora / da) * 100 : null;
+    const varPct = (pctFm !== null && pctDa !== null) ? (pctDa - pctFm) : null;
+
+    const elFm = document.getElementById(`modal-row-pct-fm-${idx}`);
+    const elDa = document.getElementById(`modal-row-pct-da-${idx}`);
+    const elVar = document.getElementById(`modal-row-var-${idx}`);
+
+    if (elFm) elFm.textContent = pctFm !== null ? `${pctFm.toFixed(2)}%` : '-';
+    if (elDa) elDa.textContent = pctDa !== null ? `${pctDa.toFixed(2)}%` : '-';
+    if (elVar) {
+      if (varPct === null) {
+        elVar.className = 'py-2 px-2.5 text-right text-slate-400';
+        elVar.textContent = '-';
+      } else {
+        const sign = varPct > 0 ? '+' : '';
+        elVar.className = `py-2 px-2.5 text-right font-extrabold ${varPct <= 0 ? 'text-emerald-700' : 'text-rose-700'}`;
+        elVar.textContent = `${sign}${varPct.toFixed(2)}%`;
+      }
+    }
+  });
+
+  const elTotMora = document.getElementById('modal-ca-tot-mora');
+  const elTotFm = document.getElementById('modal-ca-tot-fm');
+  const elTotDa = document.getElementById('modal-ca-tot-da');
+  const elTotPctFm = document.getElementById('modal-ca-tot-pct-fm');
+  const elTotPctDa = document.getElementById('modal-ca-tot-pct-da');
+  const elTotVar = document.getElementById('modal-ca-tot-var');
+
+  if (elTotMora) elTotMora.textContent = '$' + totMora.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (elTotFm) elTotFm.textContent = '$' + totFm.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  if (elTotDa) elTotDa.textContent = '$' + totDa.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  const gPctFm = totFm > 0 ? (totMora / totFm) * 100 : null;
+  const gPctDa = totDa > 0 ? (totMora / totDa) * 100 : null;
+  const gVar = (gPctFm !== null && gPctDa !== null) ? (gPctDa - gPctFm) : null;
+
+  if (elTotPctFm) elTotPctFm.textContent = gPctFm !== null ? `${gPctFm.toFixed(2)}%` : '-';
+  if (elTotPctDa) elTotPctDa.textContent = gPctDa !== null ? `${gPctDa.toFixed(2)}%` : '-';
+  if (elTotVar) {
+    if (gVar === null) {
+      elTotVar.textContent = '-';
+    } else {
+      const sign = gVar > 0 ? '+' : '';
+      elTotVar.className = `py-2.5 px-2.5 text-right font-black ${gVar <= 0 ? 'text-emerald-700' : 'text-rose-700'}`;
+      elTotVar.textContent = `${sign}${gVar.toFixed(2)}%`;
+    }
+  }
+}
+
+function applyPastedCampaignCartera() {
+  const txt = (document.getElementById('textarea-paste-ca-campanas')?.value || '').trim();
+  if (!txt) return;
+
+  const lines = txt.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+  const trs = Array.from(document.querySelectorAll('#modal-ca-campanas-tbody tr'));
+  let matched = 0;
+
+  lines.forEach((line, lineIdx) => {
+    const parts = line.split(/\t|;/).map(p => p.trim());
+    if (parts.length >= 3) {
+      const namePart = parts[0].toLowerCase();
+      const vFm = parseManualNumber(parts[1]);
+      const vDa = parseManualNumber(parts[2]);
+      const targetTr = trs.find(tr => (tr.dataset.campana || '').toLowerCase().includes(namePart) || namePart.includes((tr.dataset.campana || '').toLowerCase()));
+      if (targetTr) {
+        if (vFm !== null) targetTr.querySelector('input[data-role="fin_mes"]').value = vFm;
+        if (vDa !== null) targetTr.querySelector('input[data-role="dia_anterior"]').value = vDa;
+        matched++;
+      }
+    } else if (parts.length === 2) {
+      const n1 = parseManualNumber(parts[0]);
+      const n2 = parseManualNumber(parts[1]);
+      if (n1 !== null && n2 !== null && trs[lineIdx]) {
+        trs[lineIdx].querySelector('input[data-role="fin_mes"]').value = n1;
+        trs[lineIdx].querySelector('input[data-role="dia_anterior"]').value = n2;
+        matched++;
+      } else {
+        const namePart = parts[0].toLowerCase();
+        const vDa = parseManualNumber(parts[1]);
+        const targetTr = trs.find(tr => (tr.dataset.campana || '').toLowerCase().includes(namePart) || namePart.includes((tr.dataset.campana || '').toLowerCase()));
+        if (targetTr && vDa !== null) {
+          targetTr.querySelector('input[data-role="dia_anterior"]').value = vDa;
+          matched++;
+        }
+      }
+    }
+  });
+
+  recalcModalCampaignCarteraRow();
+  showToast('success', 'Datos aplicados', `Se actualizaron ${matched} campañas desde el portapapeles.`);
+}
+
+async function handleUploadCampaignCarteraFile(e) {
+  const file = e.target?.files?.[0];
+  if (!file) return;
+  e.target.value = '';
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    showToast('info', 'Procesando archivo...', `Leyendo Cartera Activa por campaña desde ${file.name}...`);
+    const res = await fetch('/api/campanas-tramos/upload-cartera-activa', {
+      method: 'POST',
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'Error al procesar archivo');
+
+    if (data.matriz_campanas_tramos) {
+      renderCampanasMatrix(data.matriz_campanas_tramos);
+      openCampaignCarteraModal();
+    }
+    showToast('success', '¡Archivo de Contabilidad cargado!', `Se detectaron y cruzaron ${data.matched_campaigns || 0} campañas automáticamente.`);
+  } catch (err) {
+    showToast('error', 'Error al subir archivo', err.message);
+  }
+}
+
+async function saveCampaignCarteraActiva() {
+  const btn = document.getElementById('btn-save-ca-campanas');
+  const origHtml = btn ? btn.innerHTML : '';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando...`;
+  }
+
+  const lblFm = (document.getElementById('input-ca-label-fin-mes')?.value || 'Fin de Mes').trim();
+  const lblDa = (document.getElementById('input-ca-label-dia-anterior')?.value || 'Día Anterior').trim();
+  const syncGlobal = Boolean(document.getElementById('check-sync-global-ca')?.checked);
+
+  const campanasPayload = {};
+  document.querySelectorAll('#modal-ca-campanas-tbody tr').forEach(tr => {
+    const camp = tr.dataset.campana;
+    const fm = parseManualNumber(tr.querySelector('input[data-role="fin_mes"]')?.value || '') || 0;
+    const da = parseManualNumber(tr.querySelector('input[data-role="dia_anterior"]')?.value || '') || 0;
+    if (camp && (fm > 0 || da > 0)) {
+      campanasPayload[camp] = { fin_mes: fm, dia_anterior: da };
+    }
+  });
+
+  try {
+    const res = await fetch('/api/campanas-tramos/set-cartera-activa', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        label_fin_mes: lblFm,
+        label_dia_anterior: lblDa,
+        campanas: campanasPayload,
+        sync_global_cartera: syncGlobal
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || 'No se pudo guardar');
+
+    if (data.cartera_activa_global && syncGlobal) {
+      currentCarteraActivaManual = Number(data.cartera_activa_global);
+      const inputCa = document.getElementById('input-cartera-activa-manual');
+      if (inputCa) inputCa.value = currentCarteraActivaManual.toLocaleString('es-CL');
+    }
+    if (data.resumen_global_tramos) currentGlobalSummary = data.resumen_global_tramos;
+    if (data.resumen_3_tramos) currentTramos3Summary = data.resumen_3_tramos;
+    if (data.resumen_fibex) currentFibexSummary = data.resumen_fibex;
+
+    if (currentExecutiveView === 'fibex' && currentFibexSummary) {
+      renderFibexScorecard(currentFibexSummary);
+    } else if (currentExecutiveView === 'tramos3' && currentTramos3Summary) {
+      renderTramos3Scorecard(currentTramos3Summary);
+    } else if (currentGlobalSummary) {
+      renderGlobalTramosScorecard(currentGlobalSummary);
+    }
+
+    if (data.matriz_campanas_tramos) {
+      renderCampanasMatrix(data.matriz_campanas_tramos);
+    }
+
+    closeCampaignCarteraModal();
+    showToast('success', '¡Cartera Activa por Campaña Guardada!', 'Los porcentajes de morosidad de Fin de Mes, Día Anterior y Variación se actualizaron y guardaron en Supabase.');
+  } catch (err) {
+    showToast('error', 'Error al guardar', err.message);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = origHtml;
+    }
   }
 }
 

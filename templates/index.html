@@ -813,21 +813,39 @@
       <!-- Sección: Desglose por Tramos y Categorías (Matriz de Campañas) -->
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
         
-        <!-- Header de la Matriz con Buscador y Botones de Descarga -->
+        <!-- Header de la Matriz con Selector 5/3 Tramos, Cartera Activa por Campaña, Buscador y Botones de Descarga -->
         <div class="flex flex-col xl:flex-row xl:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
-            <div class="flex items-center gap-2">
+            <div class="flex flex-wrap items-center gap-2">
               <span class="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">
                 Análisis Matricial
               </span>
               <span class="text-xs font-semibold text-slate-500" id="matrix-campaigns-count">0 campañas analizadas</span>
+
+              <!-- Selector 5 Tramos vs 3 Tramos Contables para la Matriz de Campañas -->
+              <div class="inline-flex items-center p-1 bg-slate-100 border border-slate-200 rounded-xl shadow-2xs gap-0.5">
+                <button type="button" id="btn-matrix-mode-5" onclick="switchMatrixMode('5tramos')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all shadow-xs bg-white text-slate-900 cursor-pointer" title="Ver matriz de campañas en los 5 tramos operativos">
+                  <i class="fa-solid fa-table-columns text-blue-600"></i>
+                  <span>5 Tramos</span>
+                </button>
+                <button type="button" id="btn-matrix-mode-3" onclick="switchMatrixMode('3tramos')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold transition-all text-slate-500 hover:text-slate-800 cursor-pointer" title="Ver matriz de campañas en los 3 tramos contables (Vencido contable, Vencido Gestión, Irregular)">
+                  <i class="fa-solid fa-scale-balanced text-rose-600"></i>
+                  <span>3 Tramos (Contable)</span>
+                </button>
+              </div>
             </div>
-            <h3 class="text-lg font-bold text-slate-900 mt-1">Desglose por Tramos y Categorías</h3>
-            <p class="text-xs text-slate-500">Distribución de monto pendiente de tarifa (USD) y número de clientes en los 5 tramos oficiales por cada campaña comercial.</p>
+            <h3 class="text-lg font-bold text-slate-900 mt-1" id="matrix-section-title">Desglose por Tramos y Categorías (Campañas)</h3>
+            <p class="text-xs text-slate-500" id="matrix-section-subtitle">Distribución de mora (USD), clientes únicos y % de morosidad contra Cartera Activa de Fin de Mes y Día Anterior por campaña.</p>
           </div>
 
-          <!-- Barra de Acciones: Buscador de Campaña + Botones Exportar -->
+          <!-- Barra de Acciones: Cartera Activa por Campaña + Buscador + Botones Exportar -->
           <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Botón Configurar Cartera Activa por Campaña (Fin de Mes y Día Anterior) -->
+            <button type="button" onclick="openCampaignCarteraModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-300 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Cargar o editar la Cartera Activa de Fin de Mes y del Día Anterior por campaña para calcular el % de morosidad">
+              <i class="fa-solid fa-calculator text-orange-600"></i>
+              <span>Cartera Activa por Campaña</span>
+            </button>
+
             <!-- Buscador en tiempo real de la tabla -->
             <div class="relative">
               <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-xs"></i>
@@ -836,17 +854,17 @@
                 id="matrix-search-input" 
                 placeholder="Buscar campaña..." 
                 oninput="filterMatrixTable(this.value)" 
-                class="text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-44 sm:w-52"
+                class="text-xs pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all w-44 sm:w-48"
               >
             </div>
 
             <!-- Botón Descargar Excel Matriz -->
-            <a href="/api/campanas-tramos/download/excel" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar matriz en formato Excel">
+            <a id="btn-download-matrix-excel" href="/api/campanas-tramos/download/excel?mode=5tramos" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar matriz en formato Excel">
               <i class="fa-solid fa-file-excel text-emerald-600"></i> Excel Matriz
             </a>
 
             <!-- Botón Descargar PDF Matriz -->
-            <a href="/api/campanas-tramos/download/pdf" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar matriz en reporte PDF apaisado">
+            <a id="btn-download-matrix-pdf" href="/api/campanas-tramos/download/pdf?mode=5tramos" target="_blank" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200/80 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Descargar matriz en reporte PDF apaisado">
               <i class="fa-solid fa-file-pdf text-rose-600"></i> PDF Matriz
             </a>
           </div>
@@ -856,7 +874,7 @@
         <div class="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs max-h-[560px] relative">
           <table class="w-full text-left text-xs whitespace-nowrap">
             <!-- Encabezados agrupados por tramo -->
-            <thead class="sticky top-0 z-20 shadow-xs">
+            <thead id="matrix-campaigns-thead" class="sticky top-0 z-20 shadow-xs">
               <!-- Nivel 1: Nombres de los Tramos -->
               <tr class="text-[10px] uppercase font-bold tracking-wider text-slate-700 border-b border-slate-200">
                 <th class="py-2.5 px-3.5 bg-slate-100 sticky left-0 z-30 border-r border-slate-200 min-w-[200px]" rowspan="2">
@@ -1406,7 +1424,117 @@
     </div>
   </div>
 
+  <!-- Modal: Configurar Cartera Activa por Campaña (Fin de Mes y Día Anterior) -->
+  <div id="modal-cartera-campanas" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+      <!-- Header Modal -->
+      <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-orange-50 via-amber-50/40 to-white">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-orange-100 text-orange-700 border border-orange-200 flex items-center justify-center text-base shrink-0">
+            <i class="fa-solid fa-scale-balanced"></i>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full border border-orange-200">
+              Cálculo de % Morosidad por Campaña
+            </span>
+            <h3 class="text-base font-extrabold text-slate-900 mt-0.5">Cartera Activa de Fin de Mes y Día Anterior por Campaña</h3>
+          </div>
+        </div>
+        <button type="button" onclick="closeCampaignCarteraModal()" class="w-8 h-8 rounded-lg bg-white hover:bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200 cursor-pointer">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Barra de Herramientas del Modal: Fechas de Encabezado + Subir Archivo Contabilidad + Pegar desde Excel -->
+      <div class="px-6 py-3.5 bg-slate-50 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-500">Etiqueta Fin de Mes</label>
+            <input type="text" id="input-ca-label-fin-mes" value="Fin de Mes" placeholder="Ej: 30-09 o Fin de Mes" class="mt-0.5 px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg w-36 focus:ring-2 focus:ring-orange-500 focus:outline-none">
+          </div>
+          <div>
+            <label class="block text-[10px] font-bold uppercase text-slate-500">Etiqueta Día Anterior</label>
+            <input type="text" id="input-ca-label-dia-anterior" value="Día Anterior" placeholder="Ej: 13-10 o Día Anterior" class="mt-0.5 px-2.5 py-1.5 text-xs font-bold text-slate-800 bg-white border border-slate-300 rounded-lg w-36 focus:ring-2 focus:ring-orange-500 focus:outline-none">
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2">
+          <!-- Subir Excel/CSV de Contabilidad -->
+          <input type="file" id="input-upload-ca-campanas" accept=".csv,.xlsx,.xls" class="hidden" onchange="handleUploadCampaignCarteraFile(event)">
+          <button type="button" onclick="document.getElementById('input-upload-ca-campanas').click()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs" title="Subir archivo Excel o CSV entregado por Contabilidad">
+            <i class="fa-solid fa-file-arrow-up text-emerald-600"></i> Subir Archivo Contabilidad
+          </button>
+          <button type="button" onclick="togglePasteCampaignCarteraBox()" class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-blue-50 text-blue-700 border border-blue-300 rounded-xl text-xs font-bold transition cursor-pointer shadow-2xs" title="Pegar filas directamente desde Excel">
+            <i class="fa-solid fa-paste text-blue-600"></i> Pegar desde Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- Panel desplegable para pegar desde Excel -->
+      <div id="paste-ca-campanas-box" class="hidden px-6 py-3 bg-blue-50/60 border-b border-blue-200 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-blue-900"><i class="fa-solid fa-table mr-1"></i> Pega aquí las celdas copiadas de Excel (<code class="bg-white px-1.5 py-0.5 rounded border">Campaña | Fin de Mes | Día Anterior</code>):</span>
+          <button type="button" onclick="applyPastedCampaignCartera()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-xs font-bold cursor-pointer">Aplicar Datos Pegados</button>
+        </div>
+        <textarea id="textarea-paste-ca-campanas" rows="3" placeholder="Ejemplo:&#10;Empleados&#9;120&#9;130&#10;Web no Fibex&#9;480000&#9;495000" class="w-full text-xs font-mono p-2.5 bg-white border border-blue-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+      </div>
+
+      <!-- Tabla Editable de Campañas -->
+      <div class="p-6 overflow-y-auto space-y-3 flex-1">
+        <p class="text-xs text-slate-500">
+          Ingresa o edita la <strong>Cartera Activa de Fin de Mes</strong> (queda guardada fija todo el mes en Supabase) y la <strong>Cartera Activa del Día Anterior</strong> para cada campaña. El sistema divide automáticamente la <strong>Mora de Hoy</strong> entre cada una:
+        </p>
+
+        <div class="overflow-x-auto border border-slate-200 rounded-xl">
+          <table class="w-full text-left text-xs whitespace-nowrap">
+            <thead class="bg-slate-800 text-white text-[10px] uppercase font-bold tracking-wider">
+              <tr>
+                <th class="py-2.5 px-3.5">Campaña Comercial</th>
+                <th class="py-2.5 px-3 text-right">Mora Hoy (USD)</th>
+                <th class="py-2.5 px-3 text-right bg-orange-900/80">Cartera Activa Fin de Mes (USD)</th>
+                <th class="py-2.5 px-2.5 text-right bg-orange-900/80">% Fin Mes</th>
+                <th class="py-2.5 px-3 text-right bg-amber-800/80">Cartera Activa Día Anterior (USD)</th>
+                <th class="py-2.5 px-2.5 text-right bg-amber-800/80">% Día Ant.</th>
+                <th class="py-2.5 px-2.5 text-right bg-slate-900">Variación</th>
+              </tr>
+            </thead>
+            <tbody id="modal-ca-campanas-tbody" class="divide-y divide-slate-100 font-mono text-xs">
+              <!-- Se llena dinámicamente con las campañas -->
+            </tbody>
+            <tfoot class="bg-slate-100 border-t-2 border-slate-300 font-mono font-bold text-xs text-slate-900">
+              <tr>
+                <td class="py-2.5 px-3.5 uppercase">TOTAL CONSOLIDADO</td>
+                <td class="py-2.5 px-3 text-right text-emerald-700" id="modal-ca-tot-mora">$0.00</td>
+                <td class="py-2.5 px-3 text-right text-orange-800" id="modal-ca-tot-fm">$0.00</td>
+                <td class="py-2.5 px-2.5 text-right text-orange-900" id="modal-ca-tot-pct-fm">-</td>
+                <td class="py-2.5 px-3 text-right text-amber-800" id="modal-ca-tot-da">$0.00</td>
+                <td class="py-2.5 px-2.5 text-right text-amber-900" id="modal-ca-tot-pct-da">-</td>
+                <td class="py-2.5 px-2.5 text-right" id="modal-ca-tot-var">-</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <!-- Footer del Modal -->
+      <div class="px-6 py-3.5 border-t border-slate-200 bg-slate-50 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <label class="inline-flex items-center gap-2 text-xs text-slate-700 cursor-pointer select-none">
+          <input type="checkbox" id="check-sync-global-ca" checked class="rounded border-slate-300 text-orange-600 focus:ring-orange-500">
+          <span>Sincronizar la suma del <strong>Día Anterior</strong> como Cartera Activa Total del primer cuadro</span>
+        </label>
+        <div class="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+          <button type="button" onclick="closeCampaignCarteraModal()" class="px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer">
+            Cancelar
+          </button>
+          <button type="button" id="btn-save-ca-campanas" onclick="saveCampaignCarteraActiva()" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar en Supabase y Calcular %
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261102_v9"></script>
+  <script src="/static/js/dashboard.js?v=20261102_v10"></script>
 </body>
 </html>

@@ -180,6 +180,13 @@ def ensure_db_table():
             filtros_aplicados TEXT DEFAULT '{}'
         )
     """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS cartera_activa_campanas_config (
+            modulo TEXT PRIMARY KEY,
+            config_json TEXT DEFAULT '{}',
+            updated_at TEXT DEFAULT ''
+        )
+    """)
     conn.commit()
 
     # Sembrar usuarios por defecto en SQLite si no existen
@@ -776,6 +783,8 @@ def get_history_list(modulo: Optional[str] = None, limit: int = 100) -> dict:
     query = f"historial_cargas?select={select_cols}&order=created_at.desc&limit={int(limit)}"
     if modulo in ("general", "avila"):
         query += f"&modulo=eq.{modulo}"
+    else:
+        query += "&modulo=in.(general,avila)"
 
     items = []
     source = "supabase"
@@ -802,6 +811,8 @@ def get_history_list(modulo: Optional[str] = None, limit: int = 100) -> dict:
         if modulo in ("general", "avila"):
             sql += " WHERE modulo = ?"
             params.append(modulo)
+        else:
+            sql += " WHERE modulo IN ('general', 'avila')"
         sql += " ORDER BY id DESC LIMIT ?"
         params.append(int(limit))
         cur.execute(sql, tuple(params))
@@ -839,7 +850,7 @@ def get_history_list(modulo: Optional[str] = None, limit: int = 100) -> dict:
         try:
             all_rows = _supabase_request(
                 "GET",
-                f"historial_cargas?select={select_cols}&order=created_at.desc&limit=100",
+                f"historial_cargas?select={select_cols}&modulo=in.(general,avila)&order=created_at.desc&limit=100",
                 timeout=8,
             )
             if all_rows is not None:
@@ -930,3 +941,163 @@ def delete_history_item(item_id: int) -> bool:
     except Exception:
         pass
     return deleted
+
+
+
+# -------------------------------------------------------------
+# CONFIGURACIÓN DE CARTERA ACTIVA POR CAMPAÑA (FIN DE MES Y DÍA ANTERIOR)
+# -------------------------------------------------------------
+
+def load_cartera_activa_campanas(modulo: str = "general") -> dict:
+    """Carga la configuración de Cartera Activa por Campaña (Fin de Mes y Día Anterior) desde Supabase o SQLite."""
+    mod_clean = "avila" if modulo == "avila" else "general"
+    config_mod_key = f"config_campanas_{mod_clean}"
+    default_cfg = {
+        "label_fin_mes": "Fin de Mes",
+        "label_dia_anterior": "Día Anterior",
+        "campanas": {},
+    }
+
+    # 1. Intentar desde Supabase
+    try:
+        rows = _supabase_request(
+            "GET",
+            f"historial_cargas?select=id,filtros_aplicados&modulo=eq.{config_mod_key}&order=id.desc&limit=1",
+            timeout=6,
+        )
+        if rows and len(rows) > 0:
+            raw_cfg = rows[0].get("filtros_aplicados")
+            if isinstance(raw_cfg, str):
+                raw_cfg = json.loads(raw_cfg)
+            if isinstance(raw_cfg, dict) and "campanas" in raw_cfg:
+                res = {
+                    "label_fin_mes": str(raw_cfg.get("label_fin_mes") or "Fin de Mes"),
+                    "label_dia_anterior": str(raw_cfg.get("label_dia_anterior") or "Día Anterior"),
+                    "campanas": raw_cfg.get("campanas") or {},
+                }
+                try:
+                    ensure_db_table()
+                    conn = sqlite3.connect(DB_PATH)
+                    conn.execute(
+                        "INSERT OR REPLACE INTO cartera_activa_campanas_config (modulo, config_json, updated_at) VALUES (?, ?, ?)",
+                        (mod_clean, json.dumps(res, ensure_ascii=False), datetime.now(timezone.utc).isoformat()),
+                    )
+                    conn.commit()
+                    conn.close()
+                except Exception:
+                    pass
+                return res
+    except Exception:
+        pass
+
+    # 2. Fallback desde SQLite local
+    try:
+        ensure_db_table()
+        conn = sqlite3.connect(DB_PATH)
+        cur = conn.cursor()
+        cur.execute("SELECT config_json FROM cartera_activa_campanas_config WHERE modulo = ?", (mod_clean,))
+        row = cur.fetchone()
+        conn.close()
+        if row and row[0]:
+            parsed = json.loads(row[0])
+            if isinstance(parsed, dict):
+                return {
+                    "label_fin_mes": str(parsed.get("label_fin_mes") or "Fin de Mes"),
+                    "label_dia_anterior": str(parsed.get("label_dia_anterior") or "Día Anterior"),
+                    "campanas": parsed.get("campanas") or {},
+                }
+    except Exception:
+        pass
+
+    return default_cfg
+
+
+def save_cartera_activa_campanas(modulo: str, config_data: dict) -> dict:
+    """Guarda la configuración de Cartera Activa por Campaña (Fin de Mes y Día Anterior) en Supabase y SQLite."""
+    mod_clean = "avila" if modulo == "avila" else "general"
+    config_mod_key = f"config_campanas_{mod_clean}"
+
+    raw_camps = (config_data or {}).get("campanas") or {}
+    clean_camps = {}
+    for k, v in raw_camps.items():
+        camp_name = str(k).strip()
+        if not camp_name:
+            continue
+        if isinstance(v, dict):
+            fm = float(v.get("fin_mes") or 0.0)
+            da = float(v.get("dia_anterior") or 0.0)
+            clean_camps[camp_name] = {
+                "fin_mes": round(fm, 2) if fm > 0 else 0.0,
+                "dia_anterior": round(da, 2) if da > 0 else 0.0,
+            }
+
+    cleaned = {
+        "label_fin_mes": str((config_data or {}).get("label_fin_mes") or "Fin de Mes").strip() or "Fin de Mes",
+        "label_dia_anterior": str((config_data or {}).get("label_dia_anterior") or "Día Anterior").strip() or "Día Anterior",
+        "campanas": clean_camps,
+    }
+
+    # 1. Guardar en SQLite local
+    try:
+        ensure_db_table()
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(
+            "INSERT OR REPLACE INTO cartera_activa_campanas_config (modulo, config_json, updated_at) VALUES (?, ?, ?)",
+            (mod_clean, json.dumps(cleaned, ensure_ascii=False), datetime.now(timezone.utc).isoformat()),
+        )
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print("Aviso al guardar cartera_activa_campanas en SQLite:", e)
+
+    # 2. Guardar en Supabase public.historial_cargas (fila de configuración persistente)
+    try:
+        existing = _supabase_request(
+            "GET",
+            f"historial_cargas?select=id&modulo=eq.{config_mod_key}&order=id.desc&limit=5",
+            timeout=6,
+        )
+        payload_row = {
+            "fecha_corte": "CONFIG",
+            "modulo": config_mod_key,
+            "modulo_label": f"Config Campañas ({mod_clean})",
+            "nombre_archivo": "cartera_activa_campanas.json",
+            "origen": "config",
+            "usuario_email": "admin@credix.com",
+            "total_mora_usd": 0.0,
+            "pendiente_tarifa_usd": 0.0,
+            "pendiente_cuota_usd": 0.0,
+            "pendiente_mora_usd": 0.0,
+            "total_cuotas": 0,
+            "total_clientes": len(clean_camps),
+            "clientes_con_telefono": 0,
+            "cobertura_contacto_pct": 0.0,
+            "resumen_tramos": {},
+            "resumen_fibex": {},
+            "filtros_aplicados": cleaned,
+        }
+        if existing and len(existing) > 0:
+            _supabase_request(
+                "PATCH",
+                f"historial_cargas?id=eq.{existing[0]['id']}",
+                data=payload_row,
+                prefer="return=minimal",
+                timeout=8,
+            )
+            for extra in existing[1:]:
+                try:
+                    _supabase_request("DELETE", f"historial_cargas?id=eq.{extra['id']}", prefer="return=minimal", timeout=5)
+                except Exception:
+                    pass
+        else:
+            _supabase_request(
+                "POST",
+                "historial_cargas",
+                data=[payload_row],
+                prefer="return=minimal",
+                timeout=8,
+            )
+    except Exception as e:
+        print("Aviso al sincronizar cartera_activa_campanas en Supabase:", e)
+
+    return cleaned

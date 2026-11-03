@@ -9,7 +9,9 @@ from core.analytics import (
     build_dashboard_payload,
     build_debtor_matched_dataset,
     calculate_3_tramos_summary,
+    calculate_campanas_tramos_matrix,
     calculate_fibex_summary,
+    parse_cartera_activa_campanas_file,
     calculate_global_tramos_summary,
     calculate_totals,
     detect_cartera_module,
@@ -28,6 +30,7 @@ from core.config import (
     FilterRequest,
     LoginRequest,
     SelectModuleRequest,
+    SetCarteraActivaCampanasRequest,
     SetCarteraActivaRequest,
     switch_active_module,
     sync_active_module_to_slot,
@@ -41,7 +44,9 @@ from core.database import (
     get_history_detail,
     get_history_list,
     list_users,
+    load_cartera_activa_campanas,
     load_contacts_from_db,
+    save_cartera_activa_campanas,
     save_history_snapshot,
     verify_session_token,
 )
@@ -550,14 +555,90 @@ def download_fibex_pdf(cartera_activa: Optional[float] = None):
     return generate_fibex_pdf(cartera_activa)
 
 
+@app.post("/api/campanas-tramos/set-cartera-activa")
+def set_cartera_activa_campanas_endpoint(req: SetCarteraActivaCampanasRequest):
+    """Guarda los montos de Cartera Activa de Fin de Mes y del Día Anterior por campaña en Supabase y SQLite."""
+    active_mod = req.module_id if req.module_id in ("general", "avila") else DATA_STORE.get("active_module", "general")
+    if active_mod != DATA_STORE.get("active_module"):
+        switch_active_module(active_mod)
+
+    saved_cfg = save_cartera_activa_campanas(
+        active_mod,
+        {
+            "label_fin_mes": req.label_fin_mes,
+            "label_dia_anterior": req.label_dia_anterior,
+            "campanas": req.campanas,
+        },
+    )
+    DATA_STORE["cartera_activa_campanas"] = saved_cfg
+
+    if req.sync_global_cartera:
+        tot_da = round(sum(float(v.get("dia_anterior") or 0.0) for v in saved_cfg.get("campanas", {}).values() if isinstance(v, dict)), 2)
+        if tot_da > 0:
+            DATA_STORE["cartera_activa_manual"] = tot_da
+
+    sync_active_module_to_slot()
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    matrix_data = calculate_campanas_tramos_matrix(active_df) if active_df is not None else None
+    tramos_sum = calculate_global_tramos_summary(active_df, DATA_STORE.get("cartera_activa_manual")) if active_df is not None else None
+    tramos_3_sum = calculate_3_tramos_summary(active_df, DATA_STORE.get("cartera_activa_manual")) if active_df is not None else None
+    fibex_sum = calculate_fibex_summary(active_df, DATA_STORE.get("cartera_activa_manual")) if active_df is not None else None
+
+    return {
+        "status": "ok",
+        "cartera_activa_campanas": saved_cfg,
+        "cartera_activa_global": DATA_STORE.get("cartera_activa_manual"),
+        "matriz_campanas_tramos": matrix_data,
+        "resumen_global_tramos": tramos_sum,
+        "resumen_3_tramos": tramos_3_sum,
+        "resumen_fibex": fibex_sum,
+    }
+
+
+@app.post("/api/campanas-tramos/upload-cartera-activa")
+async def upload_cartera_activa_campanas_endpoint(file: UploadFile = File(...), target_col: str = "auto"):
+    """Permite subir el archivo de Contabilidad (Excel o CSV) para poblar automáticamente la Cartera Activa por Campaña."""
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
+    parsed_map = parse_cartera_activa_campanas_file(contents, file.filename, target_col=target_col)
+    if not parsed_map:
+        raise HTTPException(status_code=400, detail="No se detectaron columnas numéricas de Cartera Activa por campaña en el archivo.")
+
+    active_mod = DATA_STORE.get("active_module", "general")
+    curr_cfg = DATA_STORE.get("cartera_activa_campanas") or load_cartera_activa_campanas(active_mod)
+    merged_camps = dict(curr_cfg.get("campanas") or {})
+    for camp_name, vals in parsed_map.items():
+        prev = dict(merged_camps.get(camp_name) or {"fin_mes": 0.0, "dia_anterior": 0.0})
+        if "fin_mes" in vals:
+            prev["fin_mes"] = vals["fin_mes"]
+        if "dia_anterior" in vals:
+            prev["dia_anterior"] = vals["dia_anterior"]
+        merged_camps[camp_name] = prev
+
+    curr_cfg["campanas"] = merged_camps
+    saved_cfg = save_cartera_activa_campanas(active_mod, curr_cfg)
+    DATA_STORE["cartera_activa_campanas"] = saved_cfg
+    sync_active_module_to_slot()
+
+    active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
+    matrix_data = calculate_campanas_tramos_matrix(active_df) if active_df is not None else None
+    return {
+        "status": "ok",
+        "matched_campaigns": len(parsed_map),
+        "cartera_activa_campanas": saved_cfg,
+        "matriz_campanas_tramos": matrix_data,
+    }
+
+
 @app.get("/api/campanas-tramos/download/excel")
-def download_campanas_tramos_excel():
-    return generate_campanas_matrix_excel()
+def download_campanas_tramos_excel(mode: Optional[str] = "5tramos"):
+    return generate_campanas_matrix_excel(mode=mode or "5tramos")
 
 
 @app.get("/api/campanas-tramos/download/pdf")
-def download_campanas_tramos_pdf():
-    return generate_campanas_matrix_pdf()
+def download_campanas_tramos_pdf(mode: Optional[str] = "5tramos"):
+    return generate_campanas_matrix_pdf(mode=mode or "5tramos")
 
 
 # -------------------------------------------------------------

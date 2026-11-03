@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 import pandas as pd
 from core.config import DATA_STORE, OFFICIAL_3_TRAMOS_CONFIG, OFFICIAL_TRAMOS_CONFIG, switch_active_module, sync_active_module_to_slot
-from core.database import check_existing_cutoff_snapshot, load_contacts_from_db, save_history_snapshot, upsert_contacts_to_db
+from core.database import check_existing_cutoff_snapshot, load_cartera_activa_campanas, load_contacts_from_db, save_history_snapshot, upsert_contacts_to_db
 from core.parsers import (
     assign_tramo_3_mora,
     assign_tramo_mora,
@@ -561,15 +561,42 @@ def normalize_campaign_name(name: str) -> str:
 
 
 def calculate_campanas_tramos_matrix(df: pd.DataFrame):
-    """Calcula la matriz bidimensional de Campañas vs 5 Tramos Oficiales de Mora."""
+    """Calcula la matriz bidimensional de Campañas vs 5 Tramos Oficiales y 3 Tramos Contables de Mora,
+    incluyendo el % de morosidad contra Cartera Activa de Fin de Mes y del Día Anterior por campaña."""
+    active_mod = DATA_STORE.get("active_module", "general")
+    ca_cfg = DATA_STORE.get("cartera_activa_campanas")
+    if not ca_cfg or not isinstance(ca_cfg, dict):
+        ca_cfg = load_cartera_activa_campanas(active_mod)
+        DATA_STORE["cartera_activa_campanas"] = ca_cfg
+
+    label_fin_mes = str(ca_cfg.get("label_fin_mes") or "Fin de Mes")
+    label_dia_anterior = str(ca_cfg.get("label_dia_anterior") or "Día Anterior")
+    raw_camp_map = ca_cfg.get("campanas") or {}
+
+    # Normalizar claves del mapa de cartera activa por campaña para cruce exacto e insensible a mayúsculas
+    norm_camp_map = {}
+    for k, v in raw_camp_map.items():
+        if isinstance(v, dict):
+            nk = normalize_campaign_name(k)
+            norm_camp_map[nk.lower()] = v
+            norm_camp_map[str(k).strip().lower()] = v
+
     if df is None or df.empty:
         return {
             "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
             "total_cartera_usd": 0.0,
             "total_clientes": 0,
             "total_cuotas": 0,
+            "label_fin_mes": label_fin_mes,
+            "label_dia_anterior": label_dia_anterior,
+            "total_ca_fin_mes": 0.0,
+            "total_ca_dia_anterior": 0.0,
+            "total_pct_fin_mes": None,
+            "total_pct_dia_anterior": None,
+            "total_variacion_pct": None,
             "matrix": [],
-            "totals_by_tramo": {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG}
+            "totals_by_tramo": {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG},
+            "totals_by_tramo_3": {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_3_TRAMOS_CONFIG},
         }
 
     df_active = resolve_active_debt_df(df)
@@ -583,13 +610,21 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
 
     matrix = []
     totals_by_tramo = {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG}
+    totals_by_tramo_3 = {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_3_TRAMOS_CONFIG}
 
-    # Totales globales por tramo
+    # Totales globales por 5 tramos operativos
     for t_cfg in OFFICIAL_TRAMOS_CONFIG:
         sub_t = df_active[df_active["Tramo_Mora"] == t_cfg["grupo"]]
         totals_by_tramo[t_cfg["id"]]["monto"] = round(float(sub_t["_Tot"].sum()), 2)
         totals_by_tramo[t_cfg["id"]]["cuotas"] = len(sub_t)
         totals_by_tramo[t_cfg["id"]]["clientes"] = int(sub_t["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t.columns else len(sub_t)
+
+    # Totales globales por 3 tramos contables
+    for t3_cfg in OFFICIAL_3_TRAMOS_CONFIG:
+        sub_t3 = df_active[df_active["Tramo_3_Mora"] == t3_cfg["grupo"]]
+        totals_by_tramo_3[t3_cfg["id"]]["monto"] = round(float(sub_t3["_Tot"].sum()), 2)
+        totals_by_tramo_3[t3_cfg["id"]]["cuotas"] = len(sub_t3)
+        totals_by_tramo_3[t3_cfg["id"]]["clientes"] = int(sub_t3["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t3.columns else len(sub_t3)
 
     # Detalle por campaña
     for camp, grp in df_active.groupby("_Macro_Campana"):
@@ -609,6 +644,26 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
                 "cuotas": cu
             }
 
+        tramos_3_dict = {}
+        for t3_cfg in OFFICIAL_3_TRAMOS_CONFIG:
+            sub3 = grp[grp["Tramo_3_Mora"] == t3_cfg["grupo"]]
+            m3 = float(sub3["_Tot"].sum())
+            cl3 = int(sub3["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub3.columns else len(sub3)
+            cu3 = len(sub3)
+            tramos_3_dict[t3_cfg["id"]] = {
+                "monto": round(m3, 2),
+                "clientes": cl3,
+                "cuotas": cu3
+            }
+
+        ca_entry = norm_camp_map.get(camp.lower(), {})
+        ca_fin_mes = round(float(ca_entry.get("fin_mes") or 0.0), 2)
+        ca_dia_anterior = round(float(ca_entry.get("dia_anterior") or 0.0), 2)
+
+        pct_fin_mes = round((camp_tot / ca_fin_mes) * 100, 2) if ca_fin_mes > 0 else None
+        pct_dia_anterior = round((camp_tot / ca_dia_anterior) * 100, 2) if ca_dia_anterior > 0 else None
+        variacion_pct = round(pct_dia_anterior - pct_fin_mes, 2) if (pct_fin_mes is not None and pct_dia_anterior is not None) else None
+
         pct = round(camp_tot / total_cartera * 100, 2) if total_cartera > 0 else 0.0
         matrix.append({
             "campana": camp,
@@ -616,20 +671,114 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
             "total_clientes": camp_cl,
             "total_cuotas": camp_cuotas,
             "porcentaje": pct,
-            "tramos": tramos_dict
+            "ca_fin_mes": ca_fin_mes,
+            "ca_dia_anterior": ca_dia_anterior,
+            "pct_fin_mes": pct_fin_mes,
+            "pct_dia_anterior": pct_dia_anterior,
+            "variacion_pct": variacion_pct,
+            "tramos": tramos_dict,
+            "tramos_3": tramos_3_dict,
         })
 
     # Ordenar por deuda descendente (las campañas más críticas primero)
     matrix.sort(key=lambda x: x["total_monto"], reverse=True)
+
+    total_ca_fin_mes = round(sum(float(v.get("fin_mes") or 0.0) for v in raw_camp_map.values() if isinstance(v, dict)), 2)
+    total_ca_dia_anterior = round(sum(float(v.get("dia_anterior") or 0.0) for v in raw_camp_map.values() if isinstance(v, dict)), 2)
+    if total_ca_dia_anterior <= 0 and DATA_STORE.get("cartera_activa_manual") and float(DATA_STORE["cartera_activa_manual"]) > 0:
+        total_ca_dia_anterior = round(float(DATA_STORE["cartera_activa_manual"]), 2)
+
+    total_pct_fin_mes = round((total_cartera / total_ca_fin_mes) * 100, 2) if total_ca_fin_mes > 0 else None
+    total_pct_dia_anterior = round((total_cartera / total_ca_dia_anterior) * 100, 2) if total_ca_dia_anterior > 0 else None
+    total_variacion_pct = (
+        round(total_pct_dia_anterior - total_pct_fin_mes, 2)
+        if (total_pct_fin_mes is not None and total_pct_dia_anterior is not None)
+        else None
+    )
 
     return {
         "cutoff_date": get_cutoff_date(df),
         "total_cartera_usd": round(total_cartera, 2),
         "total_clientes": total_clientes_global,
         "total_cuotas": total_cuotas_global,
+        "label_fin_mes": label_fin_mes,
+        "label_dia_anterior": label_dia_anterior,
+        "total_ca_fin_mes": total_ca_fin_mes,
+        "total_ca_dia_anterior": total_ca_dia_anterior,
+        "total_pct_fin_mes": total_pct_fin_mes,
+        "total_pct_dia_anterior": total_pct_dia_anterior,
+        "total_variacion_pct": total_variacion_pct,
+        "cartera_activa_campanas": ca_cfg,
         "matrix": matrix,
-        "totals_by_tramo": totals_by_tramo
+        "totals_by_tramo": totals_by_tramo,
+        "totals_by_tramo_3": totals_by_tramo_3,
     }
+
+
+def parse_cartera_activa_campanas_file(contents: bytes, filename: str, target_col: str = "auto") -> dict:
+    """Extrae los montos de Cartera Activa por Campaña desde un archivo Excel o CSV de Contabilidad."""
+    from core.parsers import clean_currency_series
+    raw_df = parse_bytes_to_dataframe(contents, filename)
+    if raw_df is None or raw_df.empty:
+        return {}
+
+    cols = list(raw_df.columns)
+    camp_col = None
+    for c in cols:
+        cl = str(c).lower()
+        if any(k in cl for k in ["campa", "segmento", "programa", "categoria", "categoría"]):
+            camp_col = c
+            break
+    if camp_col is None:
+        camp_col = cols[0]
+
+    # Detectar columnas numéricas / monetarias candidatas
+    num_cols = []
+    for c in cols:
+        if c == camp_col:
+            continue
+        cl = str(c).lower()
+        if any(k in cl for k in ["cedula", "cédula", "id", "telefono", "teléfono", "dias", "días", "cuotas", "clientes", "cantidad"]):
+            continue
+        s_num = clean_currency_series(raw_df[c])
+        if float(s_num.sum()) > 0:
+            num_cols.append((c, s_num))
+
+    if not num_cols:
+        return {}
+
+    df_work = pd.DataFrame()
+    df_work["_Camp"] = raw_df[camp_col].astype(str).apply(normalize_campaign_name)
+
+    result = {}
+    if len(num_cols) >= 2 and target_col == "auto" and len(raw_df) <= 150:
+        # El archivo trae ambas columnas (Fin de Mes y Día Anterior) resumidas por campaña
+        df_work["_Val1"] = num_cols[0][1]
+        df_work["_Val2"] = num_cols[1][1]
+        grouped = df_work.groupby("_Camp", as_index=False).agg(_Val1=("_Val1", "sum"), _Val2=("_Val2", "sum"))
+        for _, r in grouped.iterrows():
+            c_name = str(r["_Camp"]).strip()
+            if c_name and c_name.lower() not in ("total", "totales", "general"):
+                result[c_name] = {
+                    "fin_mes": round(float(r["_Val1"]), 2),
+                    "dia_anterior": round(float(r["_Val2"]), 2),
+                }
+    else:
+        # El archivo trae 1 columna de Cartera Activa (ej. archivo diario de Contabilidad o ESTATUS_CREDITOS)
+        chosen_series = num_cols[0][1]
+        for c_name, s_series in num_cols:
+            if any(k in str(c_name).lower() for k in ["solicitado", "activa", "monto", "saldo", "cartera", "usd"]):
+                chosen_series = s_series
+                break
+        df_work["_Val"] = chosen_series
+        grouped = df_work.groupby("_Camp", as_index=False)["_Val"].sum()
+        slot_key = "fin_mes" if target_col == "fin_mes" else "dia_anterior"
+        for _, r in grouped.iterrows():
+            c_name = str(r["_Camp"]).strip()
+            if c_name and c_name.lower() not in ("total", "totales", "general"):
+                result[c_name] = {slot_key: round(float(r["_Val"]), 2)}
+
+    return result
 
 
 def get_modules_summary() -> dict:
