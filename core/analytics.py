@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Optional
 import pandas as pd
 from core.config import DATA_STORE, OFFICIAL_3_TRAMOS_CONFIG, OFFICIAL_TRAMOS_CONFIG, switch_active_module, sync_active_module_to_slot
-from core.database import check_existing_cutoff_snapshot, load_contacts_from_db, upsert_contacts_to_db
+from core.database import check_existing_cutoff_snapshot, load_contacts_from_db, save_history_snapshot, upsert_contacts_to_db
 from core.parsers import (
     assign_tramo_3_mora,
     assign_tramo_mora,
@@ -783,17 +783,23 @@ def ingest_uploaded_file(contents: bytes, filename: str, preferred_role: str = "
     payload = build_dashboard_payload(active_df)
     mod_label = "Mora Ávila" if detected_mod == "avila" else "Mora Ubi"
 
-    rt = payload.get("resumen_global_tramos") or {}
-    cutoff_conflict = check_existing_cutoff_snapshot(
-        modulo=detected_mod,
-        fecha_corte=str(rt.get("cutoff_date") or ""),
-        total_cuotas=int(rt.get("total_cuotas") or 0),
-        total_mora_usd=float(rt.get("total_cartera_usd") or 0.0),
-        total_clientes=int(rt.get("total_clientes") or 0),
-        nombre_archivo=filename,
-    )
-    if cutoff_conflict:
-        payload["cutoff_conflict"] = cutoff_conflict
+    try:
+        saved_res = save_history_snapshot(
+            modulo=detected_mod,
+            nombre_archivo=filename,
+            origen="web",
+            usuario_email="admin@credix.com",
+            cartera_activa_usd=DATA_STORE.get("cartera_activa_manual"),
+            kpis=payload.get("totals"),
+            resumen_tramos=payload.get("resumen_global_tramos"),
+            resumen_fibex=payload.get("resumen_fibex"),
+            filtros=DATA_STORE.get("filter_info") or {},
+            overwrite_existing=False,
+        )
+        if isinstance(saved_res, dict) and saved_res.get("status") == "conflict":
+            payload["cutoff_conflict"] = saved_res.get("conflict")
+    except Exception as _hist_err:
+        print("Aviso al registrar instantánea al subir archivo:", _hist_err)
 
     if preferred_role == "contacts":
         return {

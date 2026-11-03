@@ -813,7 +813,10 @@ async function processSingleFile(file) {
           matriz_campanas_tramos: data.matriz_campanas_tramos
         });
         ProgressController.complete('¡Cartera procesada y cruzada con BD!', () => {
-          showToast('success', '¡Cartera Lista para Procesar!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas) y vinculada con Supabase.`);
+          showToast('success', '¡Cartera Lista y Registrada en Histórico!', `Cartera cargada (${Number(data.metadata?.total_rows || 0).toLocaleString()} cuotas) y vinculada con el Histórico.`);
+          if (typeof loadHistoryData === 'function') {
+            loadHistoryData();
+          }
           if (data.cutoff_conflict) {
             showCutoffConflictModal(data.cutoff_conflict);
           }

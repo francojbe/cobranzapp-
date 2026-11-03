@@ -781,8 +781,9 @@ def get_history_list(modulo: Optional[str] = None, limit: int = 100) -> dict:
     source = "supabase"
     try:
         rows = _supabase_request("GET", query, timeout=10)
-        if rows is not None:
-            items = rows
+        if rows is None:
+            raise RuntimeError("Supabase no disponible (verificar SUPABASE_SERVICE_KEY en variables de entorno)")
+        items = rows
     except Exception as e:
         print("Aviso al consultar historial en Supabase:", e)
         source = "sqlite"
