@@ -2131,6 +2131,10 @@ function setHistoryModuleFilter(mod) {
       btn.className = 'px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-slate-900 transition cursor-pointer';
     }
   });
+  if (mod === 'general' || mod === 'avila') {
+    currentHistoryChartModule = mod;
+    syncHistoryChartModuleButtons();
+  }
   loadHistoryData();
 }
 
@@ -2244,12 +2248,50 @@ async function loadHistoryData() {
   }
 }
 
+let currentHistoryChartModule = 'general'; // 'general' | 'avila' | 'both'
+let allCachedHistoryItems = [];
+
+function syncHistoryChartModuleButtons() {
+  const btnGen = document.getElementById('btn-chart-module-general');
+  const btnAvi = document.getElementById('btn-chart-module-avila');
+  const btnBoth = document.getElementById('btn-chart-module-both');
+
+  const activeGen = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-blue-600 text-white cursor-pointer';
+  const activeAvi = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-emerald-600 text-white cursor-pointer';
+  const activeBoth = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-indigo-600 text-white cursor-pointer';
+  const inactive = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
+
+  if (btnGen) btnGen.className = currentHistoryChartModule === 'general' ? activeGen : inactive;
+  if (btnAvi) btnAvi.className = currentHistoryChartModule === 'avila' ? activeAvi : inactive;
+  if (btnBoth) btnBoth.className = currentHistoryChartModule === 'both' ? activeBoth : inactive;
+}
+
+function setHistoryChartModule(mod) {
+  currentHistoryChartModule = mod;
+  syncHistoryChartModuleButtons();
+  renderHistoryChart();
+}
+
 function renderHistoryChart(items) {
+  if (items && Array.isArray(items)) {
+    allCachedHistoryItems = items;
+  }
   const canvas = document.getElementById('chart-history-evolution');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   if (historyChartInstance) {
     historyChartInstance.destroy();
+  }
+
+  const rawItems = allCachedHistoryItems || [];
+  const badge = document.getElementById('hist-chart-trend-badge');
+
+  if (!rawItems.length) {
+    if (badge) {
+      badge.className = 'text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200';
+      badge.textContent = 'Sin datos históricos';
+    }
+    return;
   }
 
   const parseCutoffSortKey = (dStr) => {
@@ -2259,54 +2301,255 @@ function renderHistoryChart(items) {
     }
     return String(dStr || '');
   };
-  const chronological = [...items].sort((a, b) => {
-    const ka = parseCutoffSortKey(a.fecha_corte);
-    const kb = parseCutoffSortKey(b.fecha_corte);
-    if (ka !== kb) return ka.localeCompare(kb);
-    return (a.id || 0) - (b.id || 0);
-  }).slice(-20);
-  const labels = chronological.map(x => {
-    const modShort = x.modulo === 'avila' ? 'Ávila' : 'Ubi';
-    return `${x.fecha_corte || '-'} (${modShort})`;
-  });
-  const moraValues = chronological.map(x => Number(x.total_mora_usd || 0));
-  const bgColors = chronological.map(x => x.modulo === 'avila' ? 'rgba(16, 185, 129, 0.8)' : 'rgba(37, 99, 235, 0.8)');
+
+  const sortChronological = (arr) => {
+    return [...arr].sort((a, b) => {
+      const ka = parseCutoffSortKey(a.fecha_corte);
+      const kb = parseCutoffSortKey(b.fecha_corte);
+      if (ka !== kb) return ka.localeCompare(kb);
+      return (a.id || 0) - (b.id || 0);
+    });
+  };
+
+  const ubiSorted = sortChronological(rawItems.filter(x => x.modulo === 'general'));
+  const avilaSorted = sortChronological(rawItems.filter(x => x.modulo === 'avila'));
+
+  let chartLabels = [];
+  let chartDatasets = [];
+  let scalesConfig = {};
+  let isDualAxis = false;
+
+  if (currentHistoryChartModule === 'both') {
+    isDualAxis = true;
+    const dateMap = new Map();
+    [...ubiSorted, ...avilaSorted].forEach(x => {
+      const k = parseCutoffSortKey(x.fecha_corte);
+      if (!dateMap.has(k)) dateMap.set(k, x.fecha_corte || '-');
+    });
+    const sortedKeys = Array.from(dateMap.keys()).sort();
+    chartLabels = sortedKeys.map(k => dateMap.get(k));
+
+    const ubiMap = new Map();
+    ubiSorted.forEach(x => ubiMap.set(parseCutoffSortKey(x.fecha_corte), Number(x.total_mora_usd || 0)));
+    const avilaMap = new Map();
+    avilaSorted.forEach(x => avilaMap.set(parseCutoffSortKey(x.fecha_corte), Number(x.total_mora_usd || 0)));
+
+    const ubiValues = sortedKeys.map(k => ubiMap.has(k) ? ubiMap.get(k) : null);
+    const avilaValues = sortedKeys.map(k => avilaMap.has(k) ? avilaMap.get(k) : null);
+
+    const gradUbi = ctx.createLinearGradient(0, 0, 0, 260);
+    gradUbi.addColorStop(0, 'rgba(37, 99, 235, 0.22)');
+    gradUbi.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
+
+    const gradAvi = ctx.createLinearGradient(0, 0, 0, 260);
+    gradAvi.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
+    gradAvi.addColorStop(1, 'rgba(16, 185, 129, 0.01)');
+
+    chartDatasets = [
+      {
+        label: 'Mora Ubi (USD)',
+        data: ubiValues,
+        yAxisID: 'y',
+        borderColor: '#2563eb',
+        backgroundColor: gradUbi,
+        fill: true,
+        tension: 0.35,
+        borderWidth: 2.5,
+        pointRadius: 4.5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#2563eb',
+        pointBorderWidth: 2,
+        spanGaps: true,
+      },
+      {
+        label: 'Mora Ávila (USD)',
+        data: avilaValues,
+        yAxisID: 'y1',
+        borderColor: '#059669',
+        backgroundColor: gradAvi,
+        fill: true,
+        tension: 0.35,
+        borderWidth: 2.5,
+        pointRadius: 4.5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: '#059669',
+        pointBorderWidth: 2,
+        spanGaps: true,
+      }
+    ];
+
+    scalesConfig = {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 10 } }
+      },
+      y: {
+        type: 'linear',
+        display: true,
+        position: 'left',
+        title: { display: true, text: 'Mora Ubi (USD)', font: { size: 10, weight: 'bold' }, color: '#2563eb' },
+        ticks: {
+          callback: v => '$' + Number(v).toLocaleString('en-US')
+        }
+      },
+      y1: {
+        type: 'linear',
+        display: true,
+        position: 'right',
+        grid: { drawOnChartArea: false },
+        title: { display: true, text: 'Mora Ávila (USD)', font: { size: 10, weight: 'bold' }, color: '#059669' },
+        ticks: {
+          callback: v => '$' + Number(v).toLocaleString('en-US')
+        }
+      }
+    };
+
+    if (badge) {
+      badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200';
+      badge.innerHTML = `<i class="fa-solid fa-chart-line mr-1"></i> Comparativa Ubi vs. Ávila (${chartLabels.length} fechas)`;
+    }
+
+  } else {
+    const targetModule = currentHistoryChartModule === 'avila' ? 'avila' : 'general';
+    const seriesItems = targetModule === 'avila' ? avilaSorted : ubiSorted;
+    const isAvila = targetModule === 'avila';
+    const colorHex = isAvila ? '#059669' : '#2563eb';
+    const fillHex = isAvila ? 'rgba(16, 185, 129, 0.22)' : 'rgba(37, 99, 235, 0.22)';
+    const fillHexEnd = isAvila ? 'rgba(16, 185, 129, 0.01)' : 'rgba(37, 99, 235, 0.01)';
+    const labelTitle = isAvila ? 'Mora Ávila (USD)' : 'Mora Ubi (USD)';
+
+    chartLabels = seriesItems.map((x, idx, arr) => {
+      const same = arr.filter(o => o.fecha_corte === x.fecha_corte);
+      if (same.length > 1) {
+        const orderIdx = same.findIndex(o => o.id === x.id) + 1;
+        return `${x.fecha_corte || '-'} (#${orderIdx})`;
+      }
+      return x.fecha_corte || '-';
+    });
+    const values = seriesItems.map(x => Number(x.total_mora_usd || 0));
+
+    const grad = ctx.createLinearGradient(0, 0, 0, 260);
+    grad.addColorStop(0, fillHex);
+    grad.addColorStop(1, fillHexEnd);
+
+    chartDatasets = [
+      {
+        label: labelTitle,
+        data: values,
+        borderColor: colorHex,
+        backgroundColor: grad,
+        fill: true,
+        tension: 0.35,
+        borderWidth: 3,
+        pointRadius: 5,
+        pointHoverRadius: 8,
+        pointBackgroundColor: '#ffffff',
+        pointBorderColor: colorHex,
+        pointBorderWidth: 2.5,
+      }
+    ];
+
+    scalesConfig = {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 10 } }
+      },
+      y: {
+        type: 'linear',
+        ticks: {
+          callback: v => '$' + Number(v).toLocaleString('en-US')
+        }
+      }
+    };
+
+    if (badge) {
+      if (values.length >= 2) {
+        const lastVal = values[values.length - 1];
+        const prevVal = values[values.length - 2];
+        const diff = lastVal - prevVal;
+        const pct = prevVal > 0 ? ((diff / prevVal) * 100).toFixed(2) : '0';
+        if (diff > 0) {
+          badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200';
+          badge.innerHTML = `<i class="fa-solid fa-arrow-trend-up mr-1"></i>+$${Number(diff).toLocaleString('en-US', { minimumFractionDigits: 2 })} (+${pct}%) Último aumento`;
+        } else if (diff < 0) {
+          badge.className = 'text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200';
+          badge.innerHTML = `<i class="fa-solid fa-arrow-trend-down mr-1"></i>-$${Number(Math.abs(diff)).toLocaleString('en-US', { minimumFractionDigits: 2 })} (${pct}%) Última reducción`;
+        } else {
+          badge.className = 'text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200';
+          badge.textContent = 'Sin variación en el último corte';
+        }
+      } else {
+        badge.className = 'text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200';
+        badge.textContent = `${values.length} corte${values.length === 1 ? '' : 's'} registrado${values.length === 1 ? '' : 's'}`;
+      }
+    }
+  }
 
   historyChartInstance = new Chart(ctx, {
-    type: 'bar',
+    type: 'line',
     data: {
-      labels: labels,
-      datasets: [
-        {
-          label: 'Deuda en Mora (USD)',
-          data: moraValues,
-          backgroundColor: bgColors,
-          borderRadius: 6,
-          maxBarThickness: 44
-        }
-      ]
+      labels: chartLabels,
+      datasets: chartDatasets
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      interaction: {
+        mode: 'index',
+        intersect: false
+      },
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: isDualAxis,
+          position: 'top',
+          labels: { font: { size: 11, weight: 'bold' }, usePointStyle: true }
+        },
         tooltip: {
+          backgroundColor: 'rgba(15, 23, 42, 0.94)',
+          titleFont: { size: 11, weight: 'bold' },
+          bodyFont: { size: 11 },
+          padding: 10,
+          cornerRadius: 8,
           callbacks: {
-            label: (context) => 'Mora Total: $' + Number(context.raw || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })
+            title: (items) => {
+              const label = items[0]?.label || '';
+              return `Fecha de Corte: ${label}`;
+            },
+            label: (context) => {
+              const val = context.raw;
+              if (val === null || val === undefined) return '';
+              const dsLabel = context.dataset.label || 'Mora';
+              return `${dsLabel}: $${Number(val).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            },
+            afterLabel: (context) => {
+              const dataIndex = context.dataIndex;
+              const ds = context.dataset.data;
+              const curr = Number(context.raw || 0);
+
+              let prev = null;
+              for (let i = dataIndex - 1; i >= 0; i--) {
+                if (ds[i] !== null && ds[i] !== undefined) {
+                  prev = Number(ds[i]);
+                  break;
+                }
+              }
+
+              if (prev !== null) {
+                const diff = curr - prev;
+                const pct = prev > 0 ? ((diff / prev) * 100).toFixed(2) : null;
+                const sign = diff >= 0 ? '+' : '-';
+                const pctStr = pct !== null ? ` (${sign}${Math.abs(pct)}%)` : '';
+                const word = diff >= 0 ? '▲ Aumento' : '▼ Disminución';
+                return `${word}: ${sign}$${Number(diff).toLocaleString('en-US', { minimumFractionDigits: 2 })}${pctStr} vs anterior`;
+              }
+              return 'Primer corte registrado en la serie';
+            }
           }
         }
       },
-      scales: {
-        x: {
-          ticks: { font: { size: 10 } }
-        },
-        y: {
-          ticks: {
-            callback: v => '$' + Number(v).toLocaleString('en-US')
-          }
-        }
-      }
+      scales: scalesConfig
     }
   });
 }
