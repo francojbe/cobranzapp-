@@ -11,12 +11,19 @@ DEFAULT_CONTACTS_PATH = os.path.join(BASE_DIR, "Base de contactos.csv")
 DEFAULT_CAMPANAS_PATH = os.path.join(BASE_DIR, "campañas.xlsx")
 DB_PATH = os.path.join(BASE_DIR, "cobranzapp.db")
 
+# Cargar variables desde archivo .env local si existe (sin exponer secretos en el repositorio)
+_ENV_FILE = os.path.join(BASE_DIR, ".env")
+if os.path.exists(_ENV_FILE):
+    with open(_ENV_FILE, "r", encoding="utf-8") as _ef:
+        for _line in _ef:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip().strip('"').strip("'"))
+
 # Configuración de Supabase (Proyecto credix: osujrrbpeayljdsatutw)
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://osujrrbpeayljdsatutw.supabase.co").rstrip("/")
-SUPABASE_SERVICE_KEY = os.getenv(
-    "SUPABASE_SERVICE_KEY",
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9zdWpycmJwZWF5bGpkc2F0dXR3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MzUwNDg0NiwiZXhwIjoyMTA5MDgwODQ2fQ.jZl3E2dDPgWqwjKdXMUlowsUzGhl_1AFM8Fhq0c0IwM"
-)
+SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "cobranzapp-credix-secret-key-2026-prod")
 
 # Interruptor de licencia para el segundo módulo (Mora Ávila)
