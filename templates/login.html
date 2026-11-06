@@ -6,260 +6,371 @@
     <title>Iniciar Sesión | Credix · Sistema de Cartera &amp; Cobranzas</title>
     <link rel="icon" type="image/webp" href="/static/img/credix/logo.webp">
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
             font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
-            background-color: #16002e;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
         }
-        .credix-bg-gradient {
-            background: radial-gradient(circle at 15% 20%, #3d0080 0%, #2e0064 40%, #170033 85%, #0f0022 100%);
+
+        /* Fondo degradado pastel-vibrante inspirado en el diseño de referencia + identidad Credix */
+        .reference-mesh-bg {
+            background:
+                radial-gradient(circle at 12% 12%, #67e8f9 0%, transparent 45%),
+                radial-gradient(circle at 80% 18%, #a5b4fc 0%, transparent 48%),
+                radial-gradient(circle at 45% 48%, #f0abfc 0%, transparent 52%),
+                radial-gradient(circle at 18% 82%, #7c3aed 0%, transparent 58%),
+                radial-gradient(circle at 88% 88%, #6ee7b7 0%, transparent 50%),
+                linear-gradient(135deg, #67e8f9 0%, #c084fc 48%, #8b5cf6 78%, #5eead4 100%);
         }
-        .credix-btn-primary {
-            background-color: #ff006e;
+
+        /* Botón principal con el degradado horizontal turquesa -> magenta Credix -> turquesa */
+        .btn-gradient-credix {
+            background: linear-gradient(90deg, #5eead4 0%, #ec4899 45%, #ff006e 52%, #5eead4 100%);
+            background-size: 105% 100%;
             color: #ffffff;
-            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 0 4px 18px rgba(255, 0, 110, 0.38);
+            transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 8px 24px -4px rgba(236, 72, 153, 0.42);
         }
-        .credix-btn-primary:hover:not(:disabled) {
-            background-color: #d0005a;
+        .btn-gradient-credix:hover:not(:disabled) {
             transform: translateY(-1px);
-            box-shadow: 0 8px 24px rgba(255, 0, 110, 0.5);
+            box-shadow: 0 12px 28px -4px rgba(255, 0, 110, 0.52);
+            filter: brightness(1.03);
         }
-        .credix-card-glass {
-            background: rgba(255, 255, 255, 0.98);
-            backdrop-filter: blur(20px);
+        .btn-gradient-credix:active:not(:disabled) {
+            transform: translateY(0);
         }
-        .wave-lines {
-            background-image: url('/static/img/credix/lines_bg_1.webp');
-            background-size: cover;
-            background-position: center;
-            opacity: 0.18;
+
+        /* Botones superiores estilo píldora con borde fino y sombra desplazada */
+        .pill-outline-btn {
+            background: #ffffff;
+            border: 1.5px solid #475569;
+            border-radius: 10px;
+            box-shadow: 2px 4px 0px rgba(15, 23, 42, 0.14);
+            transition: all 0.18s ease;
         }
-        .wave-lines-2 {
-            background-image: url('/static/img/credix/lines_bg_2.webp');
-            background-size: cover;
-            background-position: center;
-            opacity: 0.15;
+        .pill-outline-btn:hover {
+            transform: translateY(-1px);
+            border-color: #1e293b;
+            box-shadow: 2px 5px 0px rgba(15, 23, 42, 0.2);
+        }
+        .pill-outline-btn.active-pill {
+            border-color: #ff006e;
+            box-shadow: 2px 4px 0px rgba(255, 0, 110, 0.22);
+            background: #fffbfd;
+        }
+
+        /* Inputs minimalistas con línea inferior */
+        .underline-input {
+            border: none;
+            border-bottom: 1.5px solid #e2e8f0;
+            border-radius: 0;
+            background: transparent;
+            padding: 12px 2px;
+            font-size: 0.925rem;
+            color: #1e293b;
+            transition: border-color 0.25s ease;
+        }
+        .underline-input::placeholder {
+            color: #94a3b8;
+            font-weight: 400;
+        }
+        .underline-input:focus {
+            outline: none;
+            border-bottom-color: #ff006e;
+        }
+
+        /* Animación suave para la ilustración */
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-6px); }
+        }
+        .animate-float {
+            animation: floatSlow 5s ease-in-out infinite;
         }
     </style>
 </head>
-<body class="min-h-screen text-slate-800 flex flex-col justify-between relative overflow-x-hidden credix-bg-gradient">
+<body class="min-h-screen w-full reference-mesh-bg flex flex-col lg:flex-row items-stretch select-none">
 
-    <!-- Ondas y líneas de fondo oficiales de Credix -->
-    <div class="pointer-events-none fixed inset-0 overflow-hidden z-0">
-        <div class="absolute inset-0 wave-lines"></div>
-        <div class="absolute inset-0 wave-lines-2 mix-blend-screen"></div>
-        <div class="absolute -top-40 -left-40 w-[32rem] h-[32rem] rounded-full bg-[#ff006e]/15 blur-3xl"></div>
-        <div class="absolute top-1/2 -right-40 w-[30rem] h-[30rem] rounded-full bg-[#3d0080]/30 blur-3xl"></div>
-    </div>
+    <!-- =========================================================
+         PANEL IZQUIERDO: GRADIENTE, LOGO CREDIX E ILUSTRACIÓN 3D/FLAT
+         ========================================================= -->
+    <section class="w-full lg:w-[41%] xl:w-[40%] p-7 sm:p-10 lg:p-12 flex flex-col justify-between relative overflow-hidden">
 
-    <!-- Barra Superior Oficial Credix -->
-    <header class="relative z-10 w-full max-w-6xl mx-auto px-6 pt-6 flex items-center justify-between">
-        <a href="https://credix.net/" target="_blank" class="inline-flex items-center gap-3 group" title="Ir al sitio web oficial de Credix">
-            <img src="/static/img/credix/logo.webp" alt="Credix Logo" class="h-9 w-auto object-contain drop-shadow-md transition-transform group-hover:scale-105">
-            <span class="hidden sm:inline-block border-l border-white/20 pl-3 text-xs font-semibold text-white/80">
-                CobranzApp · Motor de Cartera
-            </span>
-        </a>
+        <!-- Formas decorativas translúcidas de fondo -->
+        <div class="pointer-events-none absolute top-[36%] left-[18%] w-10 h-10 rounded-xl bg-indigo-900/10 rotate-12"></div>
+        <div class="pointer-events-none absolute top-[50%] left-[34%] w-7 h-7 rounded-md bg-purple-900/10 rotate-45"></div>
 
-        <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/15 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-sm">
-            <span class="w-2 h-2 rounded-full bg-[#ff006e] animate-pulse"></span>
-            <i class="fa-solid fa-shield-halved text-[11px] text-[#ff006e]"></i>
-            <span>Portal Interno Credix</span>
+        <!-- Cabecera Izquierda: Logo Oficial Credix + Eslogan -->
+        <div class="relative z-10">
+            <a href="https://credix.net/" target="_blank" class="inline-flex items-center gap-3 group mb-8" title="Sitio oficial de Credix">
+                <div class="bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl shadow-sm border border-white/60 inline-flex items-center gap-2.5 transition-transform group-hover:scale-105">
+                    <img src="/static/img/credix/logo.webp" alt="Credix Logo" class="h-7 sm:h-8 w-auto object-contain">
+                </div>
+            </a>
+
+            <h1 class="text-white text-xl sm:text-2xl lg:text-[26px] font-medium leading-snug tracking-wide max-w-xs drop-shadow-xs">
+                Control de Cartera, Segmentación y Cobranzas aquí.
+            </h1>
         </div>
-    </header>
 
-    <!-- Contenedor Central -->
-    <main class="relative z-10 flex-grow flex items-center justify-center px-4 py-8">
-        <div class="w-full max-w-4xl grid grid-cols-1 lg:grid-cols-12 rounded-3xl overflow-hidden shadow-2xl border border-white/15 bg-[#200045]/85 backdrop-blur-2xl">
+        <!-- Ilustración Central/Inferior (Personaje + Mockup de Teléfono al estilo exacto de la referencia) -->
+        <div class="relative z-10 mt-6 lg:mt-0 pt-4 flex items-end justify-center lg:justify-end">
+            <svg viewBox="0 0 420 340" class="w-full max-w-[380px] sm:max-w-[420px] h-auto drop-shadow-sm" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Hojas blancas estilizadas detrás del teléfono (derecha) -->
+                <path d="M352 290 C375 260, 398 220, 405 182 C382 205, 362 242, 346 285 Z" fill="#F1F5F9" opacity="0.85"/>
+                <path d="M356 292 C382 276, 404 256, 416 232 C392 246, 372 268, 352 290 Z" fill="#E2E8F0" opacity="0.9"/>
 
-            <!-- Panel Izquierdo: Identidad Visual Credix -->
-            <div class="lg:col-span-5 bg-gradient-to-br from-[#2e0064] via-[#24004e] to-[#16002e] p-8 text-white flex flex-col justify-between border-b lg:border-b-0 lg:border-r border-white/10 relative overflow-hidden">
-                <!-- Decoración de onda sutil interna -->
-                <div class="absolute -right-20 -bottom-20 w-64 h-64 rounded-full bg-[#ff006e]/10 blur-2xl pointer-events-none"></div>
+                <!-- Rombo flotante sutil -->
+                <rect x="78" y="64" width="24" height="24" rx="4" transform="rotate(-22 78 64)" fill="#4C1D95" opacity="0.12"/>
+                <polygon points="155,155 170,140 185,155 170,170" fill="#4C1D95" opacity="0.10"/>
 
-                <div class="relative z-10">
-                    <div class="mb-5">
-                        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-[#ff006e]/20 text-[#ff006e] border border-[#ff006e]/30">
-                            <i class="fa-solid fa-lock text-[10px]"></i> Acceso Autorizado
-                        </span>
-                    </div>
+                <!-- PERSONAJE ESTILIZADO (Izquierda) -->
+                <g class="animate-float">
+                    <!-- Moño superior -->
+                    <circle cx="62" cy="112" r="10" stroke="#2D1B4E" stroke-width="2" fill="none"/>
+                    <!-- Cabeza -->
+                    <circle cx="80" cy="134" r="24" fill="#4338CA"/>
+                    <!-- Líneas de cabello/contorno desplazado -->
+                    <path d="M58 124 C62 106, 88 104, 98 118" stroke="#2D1B4E" stroke-width="2" stroke-linecap="round" fill="none"/>
+                    <path d="M62 150 C68 162, 92 162, 100 148" stroke="#2D1B4E" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+                    <!-- Rasgos faciales minimalistas -->
+                    <circle cx="76" cy="130" r="1.5" fill="#1E1B4B"/>
+                    <circle cx="91" cy="130" r="1.5" fill="#1E1B4B"/>
+                    <path d="M84 130 L84 138 L80 138" stroke="#1E1B4B" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M81 143 Q85 146 88 143" stroke="#1E1B4B" stroke-width="1.5" stroke-linecap="round" fill="none"/>
 
-                    <h1 class="text-2xl font-extrabold tracking-tight leading-snug mb-3 text-white">
-                        Motor de Segmentación y Cobranzas
-                    </h1>
-                    <p class="text-xs text-white/70 leading-relaxed mb-6 font-normal">
-                        Control integral de cartera vencida, vinculación de contactos y analítica estratégica en tiempo real para <strong>Credix</strong>.
-                    </p>
+                    <!-- Cuello -->
+                    <rect x="74" y="158" width="12" height="12" fill="#4338CA"/>
 
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-sm">
-                            <div class="w-9 h-9 rounded-xl bg-[#ff006e]/20 text-[#ff006e] flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-users text-sm"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs font-bold text-white">154.009 Clientes</div>
-                                <div class="text-[11px] text-white/60">Base maestra conectada a Supabase.</div>
-                            </div>
-                        </div>
+                    <!-- Brazos extendidos hacia abajo -->
+                    <path d="M56 178 L34 226 L45 232 L64 190 Z" fill="#4338CA"/>
+                    <path d="M104 178 L126 226 L115 232 L96 190 Z" fill="#4338CA"/>
 
-                        <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-sm">
-                            <div class="w-9 h-9 rounded-xl bg-purple-500/20 text-purple-300 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-layer-group text-sm"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Mora Ubi &amp; Ávila</div>
-                                <div class="text-[11px] text-white/60">Módulos de gestión independientes.</div>
-                            </div>
-                        </div>
+                    <!-- Torso / Vestido geométrico oscuro -->
+                    <path d="M64 166 L96 166 L96 174 L108 182 L100 202 L106 244 L54 244 L60 202 L52 182 L64 174 Z" fill="#1E1633"/>
 
-                        <div class="flex items-center gap-3 bg-white/5 border border-white/10 rounded-2xl p-3 backdrop-blur-sm">
-                            <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center shrink-0">
-                                <i class="fa-solid fa-clock-rotate-left text-sm"></i>
-                            </div>
-                            <div>
-                                <div class="text-xs font-bold text-white">Histórico de Cortes</div>
-                                <div class="text-[11px] text-white/60">Evolución y variación de deuda.</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                    <!-- Piernas -->
+                    <rect x="65" y="244" width="12" height="48" fill="#4338CA"/>
+                    <rect x="83" y="244" width="12" height="48" fill="#4338CA"/>
+                    <!-- Línea divisoria de piernas -->
+                    <line x1="79" y1="244" x2="79" y2="292" stroke="#1E1633" stroke-width="2"/>
+                </g>
 
-                <div class="mt-8 pt-4 border-t border-white/10 flex items-center justify-between text-[11px] text-white/50 relative z-10">
-                    <span>Credix Suite Enterprise</span>
-                    <span class="text-white/40 text-[10px] font-mono">by efinnovation.cl</span>
-                </div>
+                <!-- MOCKUP DE SMARTPHONE (Centro-Derecha) -->
+                <g>
+                    <!-- Cuerpo exterior del teléfono -->
+                    <rect x="210" y="70" width="142" height="222" rx="22" fill="#231F20"/>
+                    <!-- Botones laterales del teléfono -->
+                    <rect x="352" y="122" width="3.5" height="32" rx="1.5" fill="#231F20"/>
+
+                    <!-- Pantalla interna con degradado lavanda/malva suave -->
+                    <rect x="216" y="76" width="130" height="210" rx="17" fill="url(#phoneScreenGrad)"/>
+
+                    <!-- Notch superior -->
+                    <path d="M254 76 L308 76 C308 83, 303 86, 297 86 L265 86 C259 86, 254 83, 254 76 Z" fill="#231F20"/>
+
+                    <!-- Elementos UI dentro de la pantalla del teléfono -->
+                    <!-- Campo 1 -->
+                    <rect x="236" y="160" width="90" height="13" rx="6.5" stroke="#1E1B4B" stroke-width="1.3" fill="white" fill-opacity="0.22"/>
+                    <!-- Campo 2 -->
+                    <rect x="236" y="180" width="90" height="13" rx="6.5" stroke="#1E1B4B" stroke-width="1.3" fill="white" fill-opacity="0.22"/>
+
+                    <!-- Botón en pantalla con sombra desplazada -->
+                    <rect x="255" y="206" width="46" height="12" rx="6" fill="#4338CA"/>
+                    <rect x="259" y="203" width="46" height="12" rx="6" stroke="#1E1B4B" stroke-width="1.3" fill="none"/>
+
+                    <!-- Círculo decorativo azul en la esquina inferior izquierda de la pantalla -->
+                    <clipPath id="screenClip">
+                        <rect x="216" y="76" width="130" height="210" rx="17"/>
+                    </clipPath>
+                    <g clip-path="url(#screenClip)">
+                        <circle cx="232" cy="274" r="32" fill="#3730A3"/>
+                    </g>
+                </g>
+
+                <!-- Línea base horizontal del suelo -->
+                <line x1="18" y1="292" x2="395" y2="292" stroke="#231F20" stroke-width="2" stroke-linecap="round"/>
+
+                <defs>
+                    <linearGradient id="phoneScreenGrad" x1="216" y1="76" x2="346" y2="286" gradientUnits="userSpaceOnUse">
+                        <stop offset="0%" stop-color="#C084FC" stop-opacity="0.55"/>
+                        <stop offset="50%" stop-color="#DDD6FE" stop-opacity="0.75"/>
+                        <stop offset="100%" stop-color="#E2E8F0" stop-opacity="0.9"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+    </section>
+
+    <!-- =========================================================
+         PANEL DERECHO: TARJETA BLANCA CURVA CON FORMULARIO LIMPIO
+         ========================================================= -->
+    <main class="w-full lg:w-[59%] xl:w-[60%] bg-white lg:rounded-l-[44px] shadow-[-20px_0_60px_rgba(30,0,70,0.12)] flex flex-col justify-between p-6 sm:p-10 lg:px-16 lg:py-10 min-h-screen relative z-20">
+
+        <!-- Indicador Superior Derecho (Estilo "Language ▼" de la referencia) -->
+        <div class="w-full flex items-center justify-between lg:justify-end">
+            <div class="lg:hidden flex items-center gap-2">
+                <img src="/static/img/credix/logo.webp" alt="Credix" class="h-6 w-auto">
+            </div>
+            <div class="inline-flex items-center gap-2 text-xs sm:text-sm font-medium text-slate-500 cursor-default">
+                <span>Español (VE)</span>
+                <span class="text-[#4fd1c5] text-xs">▼</span>
+            </div>
+        </div>
+
+        <!-- Bloque Central del Formulario -->
+        <div class="w-full max-w-[440px] mx-auto my-auto py-6">
+
+            <!-- Título principal -->
+            <h2 class="text-2xl sm:text-[28px] font-extrabold text-slate-900 tracking-tight mb-7">
+                Iniciar Sesión
+            </h2>
+
+            <!-- Botones gemelos superiores estilo referencia (Selección rápida de Entorno / Cuenta) -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3.5 mb-7">
+                <button
+                    type="button"
+                    id="pill-ubi"
+                    onclick="selectQuickEnv('ubi')"
+                    class="pill-outline-btn active-pill py-2.5 px-4 flex items-center justify-center gap-2.5 text-xs sm:text-[13px] font-bold text-slate-800 cursor-pointer"
+                >
+                    <span class="w-5 h-5 rounded-full bg-[#2e0064] text-white flex items-center justify-center text-[11px] font-extrabold shrink-0">C</span>
+                    <span>Gestión Mora Ubi</span>
+                </button>
+
+                <button
+                    type="button"
+                    id="pill-avila"
+                    onclick="selectQuickEnv('avila')"
+                    class="pill-outline-btn py-2.5 px-4 flex items-center justify-center gap-2.5 text-xs sm:text-[13px] font-bold text-slate-800 cursor-pointer"
+                >
+                    <span class="w-5 h-5 rounded-full bg-[#ff006e] text-white flex items-center justify-center text-[11px] font-extrabold shrink-0">A</span>
+                    <span>Gestión Mora Ávila</span>
+                </button>
             </div>
 
-            <!-- Panel Derecho: Formulario de Login -->
-            <div class="lg:col-span-7 credix-card-glass p-8 sm:p-10 flex flex-col justify-center">
-                <div class="mb-6">
-                    <h2 class="text-2xl font-extrabold text-[#2e0064] tracking-tight">Iniciar Sesión</h2>
-                    <p class="text-xs text-slate-500 mt-1 font-medium">Ingresa tus credenciales para acceder al panel de cobranza.</p>
+            <!-- Separador "- O -" idéntico a la referencia -->
+            <div class="flex items-center justify-center gap-2.5 my-6 text-slate-400 text-xs font-bold tracking-widest uppercase">
+                <span>—</span>
+                <span>O</span>
+                <span>—</span>
+            </div>
+
+            <!-- Alerta de Error -->
+            <div id="login-error" class="hidden mb-6 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-semibold flex items-center gap-2.5">
+                <i class="fa-solid fa-circle-exclamation text-rose-600 text-sm shrink-0"></i>
+                <span id="login-error-text">Credenciales inválidas.</span>
+            </div>
+
+            <!-- Formulario con Inputs Minimalistas de Línea Inferior -->
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-6">
+                <div>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        required
+                        autocomplete="username"
+                        placeholder="Correo electrónico corporativo"
+                        class="w-full underline-input"
+                    >
                 </div>
 
-                <!-- Alerta de Error -->
-                <div id="login-error" class="hidden mb-5 p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-center gap-2.5">
-                    <i class="fa-solid fa-circle-exclamation text-rose-600 text-sm shrink-0"></i>
-                    <span id="login-error-text">Credenciales inválidas.</span>
+                <div class="relative">
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        autocomplete="current-password"
+                        placeholder="Contraseña"
+                        class="w-full underline-input pr-10"
+                    >
+                    <button
+                        type="button"
+                        onclick="togglePassword()"
+                        class="absolute right-1 top-1/2 -translate-y-1/2 text-[#5eead4] hover:text-[#14b8a6] transition-colors p-1 cursor-pointer"
+                        title="Mostrar u ocultar contraseña"
+                    >
+                        <i id="eye-icon" class="fa-solid fa-eye-slash text-base"></i>
+                    </button>
                 </div>
 
-                <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
-                    <div>
-                        <label for="email" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                            Correo Corporativo
-                        </label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-                                <i class="fa-solid fa-envelope text-sm"></i>
-                            </span>
-                            <input
-                                type="email"
-                                id="email"
-                                name="email"
-                                required
-                                autocomplete="username"
-                                placeholder="usuario@credix.net"
-                                class="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2e0064] focus:border-[#2e0064] transition"
-                            >
-                        </div>
-                    </div>
-
-                    <div>
-                        <label for="password" class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                            Contraseña
-                        </label>
-                        <div class="relative">
-                            <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400">
-                                <i class="fa-solid fa-lock text-sm"></i>
-                            </span>
-                            <input
-                                type="password"
-                                id="password"
-                                name="password"
-                                required
-                                autocomplete="current-password"
-                                placeholder="••••••••••••"
-                                class="w-full pl-10 pr-10 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#2e0064] focus:border-[#2e0064] transition"
-                            >
-                            <button
-                                type="button"
-                                onclick="togglePassword()"
-                                class="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-400 hover:text-slate-600"
-                                title="Mostrar u ocultar contraseña"
-                            >
-                                <i id="eye-icon" class="fa-solid fa-eye text-sm"></i>
-                            </button>
-                        </div>
-                    </div>
-
+                <!-- Botón Principal con el Degradado Turquesa-Magenta-Turquesa -->
+                <div class="pt-4">
                     <button
                         type="submit"
                         id="btn-submit"
-                        class="w-full mt-2 credix-btn-primary font-bold py-3.5 px-5 rounded-xl transition flex items-center justify-center gap-2 text-sm cursor-pointer"
+                        class="w-full btn-gradient-credix font-bold py-3.5 px-6 rounded-xl text-[15px] tracking-wide flex items-center justify-center gap-2 cursor-pointer"
                     >
-                        <span>Ingresar a la Plataforma</span>
-                        <i class="fa-solid fa-arrow-right text-xs"></i>
+                        <span>Iniciar Sesión</span>
                     </button>
-                </form>
-
-                <!-- Cuentas de Acceso Rápido -->
-                <div class="mt-6 pt-5 border-t border-slate-200/80">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Cuentas Administrativas</span>
-                        <span class="text-[10px] font-semibold text-[#ff006e] bg-[#ff006e]/10 px-2 py-0.5 rounded-md">Clic para autocompletar</span>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                            type="button"
-                            onclick="fillCredentials('admin@credix.com', 'Credix2026*')"
-                            class="text-left p-2.5 rounded-xl border border-slate-200 hover:border-[#ff006e] hover:bg-pink-50/30 transition group"
-                        >
-                            <div class="text-xs font-bold text-slate-800 group-hover:text-[#2e0064] flex items-center justify-between">
-                                <span>admin@credix.com</span>
-                                <i class="fa-solid fa-bolt text-[10px] text-[#ff006e]"></i>
-                            </div>
-                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">Clave: <span class="text-slate-700 font-semibold">Credix2026*</span></div>
-                        </button>
-
-                        <button
-                            type="button"
-                            onclick="fillCredentials('francojbe@gmail.com', 'Admin2026*')"
-                            class="text-left p-2.5 rounded-xl border border-slate-200 hover:border-[#ff006e] hover:bg-pink-50/30 transition group"
-                        >
-                            <div class="text-xs font-bold text-slate-800 group-hover:text-[#2e0064] flex items-center justify-between">
-                                <span>francojbe@gmail.com</span>
-                                <i class="fa-solid fa-bolt text-[10px] text-[#ff006e]"></i>
-                            </div>
-                            <div class="text-[11px] text-slate-500 font-mono mt-0.5">Clave: <span class="text-slate-700 font-semibold">Admin2026*</span></div>
-                        </button>
-                    </div>
                 </div>
+            </form>
+
+            <!-- Pie de formulario al estilo "Already have an account? Log In" -->
+            <div class="mt-6 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600 font-medium">
+                <div>
+                    <span>¿Acceso rápido de administrador?</span>
+                    <button
+                        type="button"
+                        onclick="fillCredentials('admin@credix.com', 'Credix2026*')"
+                        class="ml-1 text-[#4fd1c5] hover:text-[#0d9488] font-bold transition-colors cursor-pointer"
+                    >
+                        Autocompletar Credix
+                    </button>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="fillCredentials('francojbe@gmail.com', 'Admin2026*')"
+                    class="text-[11px] text-slate-400 hover:text-[#ff006e] transition-colors cursor-pointer"
+                    title="Autocompletar SuperAdmin"
+                >
+                    SuperAdmin
+                </button>
             </div>
         </div>
+
+        <!-- Footer inferior discreto -->
+        <footer class="w-full flex flex-col sm:flex-row items-center justify-between text-[11px] text-slate-400 gap-2 pt-4 border-t border-slate-100">
+            <span>&copy; 2026 Credix · Sistema de Cartera y Cobranzas</span>
+            <span>
+                Desarrollado por <a href="https://efinnovation.cl" target="_blank" rel="noopener noreferrer" class="text-slate-500 hover:text-[#ff006e] font-semibold transition-colors">efinnovation.cl</a>
+            </span>
+        </footer>
     </main>
 
-    <!-- Footer Discreto -->
-    <footer class="relative z-10 text-center py-4 text-xs text-white/40 flex flex-col sm:flex-row items-center justify-center gap-1.5 sm:gap-3">
-        <span>&copy; 2026 Credix · Todos los derechos reservados</span>
-        <span class="hidden sm:inline opacity-30">•</span>
-        <span class="text-[11px] text-white/35">
-            Desarrollado por <a href="https://efinnovation.cl" target="_blank" rel="noopener noreferrer" class="text-white/50 hover:text-white/80 underline decoration-white/20 underline-offset-2 transition-colors">efinnovation.cl</a>
-        </span>
-    </footer>
-
     <script>
+        let selectedModule = 'general';
+
+        function selectQuickEnv(env) {
+            const pillUbi = document.getElementById('pill-ubi');
+            const pillAvila = document.getElementById('pill-avila');
+            if (env === 'avila') {
+                selectedModule = 'avila';
+                pillAvila.classList.add('active-pill');
+                pillUbi.classList.remove('active-pill');
+            } else {
+                selectedModule = 'general';
+                pillUbi.classList.add('active-pill');
+                pillAvila.classList.remove('active-pill');
+            }
+        }
+
         function togglePassword() {
             const input = document.getElementById('password');
             const icon = document.getElementById('eye-icon');
             if (input.type === 'password') {
                 input.type = 'text';
-                icon.className = 'fa-solid fa-eye-slash text-sm';
+                icon.className = 'fa-solid fa-eye text-base';
             } else {
                 input.type = 'password';
-                icon.className = 'fa-solid fa-eye text-sm';
+                icon.className = 'fa-solid fa-eye-slash text-base';
             }
         }
 
@@ -279,7 +390,7 @@
 
             errBox.classList.add('hidden');
             btn.disabled = true;
-            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Validando en Credix...</span>';
+            btn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin"></i><span>Validando acceso...</span>';
 
             try {
                 const res = await fetch('/api/auth/login', {
@@ -291,12 +402,19 @@
                 if (!res.ok) {
                     throw new Error(data.detail || 'Credenciales inválidas');
                 }
+                try {
+                    await fetch('/api/module/select', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ module_id: selectedModule })
+                    });
+                } catch (_) {}
                 window.location.href = '/';
             } catch (err) {
                 errText.textContent = err.message;
                 errBox.classList.remove('hidden');
                 btn.disabled = false;
-                btn.innerHTML = '<span>Ingresar a la Plataforma</span><i class="fa-solid fa-arrow-right text-xs"></i>';
+                btn.innerHTML = '<span>Iniciar Sesión</span>';
             }
         }
     </script>
