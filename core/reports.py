@@ -196,6 +196,34 @@ def _get_active_df_or_400() -> pd.DataFrame:
     return active_df
 
 
+
+# -------------------------------------------------------------
+# SANITIZACIÓN DEFENSIVA CONTRA FORMULA INJECTION (CWE-1236)
+# -------------------------------------------------------------
+
+def sanitize_cell_for_formula_injection(val):
+    """
+    Inmuniza celdas contra Formula Injection (CSV / Excel Injection - CWE-1236).
+    Si un valor de texto inicia con =, +, -, @, tabulación o retorno de carro,
+    antepone un apóstrofe (') para forzar a Excel a tratarlo como texto plano.
+    """
+    if isinstance(val, str) and len(val) > 0:
+        if val[0] in ("=", "+", "-", "@", "\t", "\r"):
+            return f"'{val}"
+    return val
+
+
+def sanitize_dataframe_for_excel(df):
+    """
+    Aplica sanitización exclusivamente sobre columnas de texto (object / string),
+    preservando intactas todas las columnas numéricas (enteros, flotantes, fechas).
+    """
+    df_out = df.copy()
+    for col in df_out.columns:
+        if df_out[col].dtype == object or str(df_out[col].dtype).lower().startswith("string"):
+            df_out[col] = df_out[col].apply(sanitize_cell_for_formula_injection)
+    return df_out
+
 # -------------------------------------------------------------
 # 1. REPORTE DE CARTERA FILTRADA (EXCEL Y PDF)
 # -------------------------------------------------------------
@@ -213,7 +241,7 @@ def generate_filtered_excel() -> StreamingResponse:
         "Tipo", "Identificador de credito", "Canal", "Fecha Vencimiento", "Cuota Numero"
     ]
     cols = [c for c in preferred_order if c in df.columns] + [c for c in df.columns if c not in preferred_order and not c.startswith("_") and c != "Cedula_Key"]
-    df_clean = df[cols]
+    df_clean = sanitize_dataframe_for_excel(df[cols])
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:
@@ -1855,6 +1883,7 @@ def generate_contacts_excel() -> StreamingResponse:
     df = debtors.copy()
     if "Cedula_Key" in df.columns:
         df = df.drop(columns=["Cedula_Key"])
+    df = sanitize_dataframe_for_excel(df)
 
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine="openpyxl") as writer:

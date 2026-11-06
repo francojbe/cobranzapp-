@@ -25,6 +25,7 @@ if os.path.exists(_ENV_FILE):
 SUPABASE_URL = os.getenv("SUPABASE_URL", "https://osujrrbpeayljdsatutw.supabase.co").rstrip("/")
 SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY", "")
 SESSION_SECRET = os.getenv("SESSION_SECRET", "cobranzapp-credix-secret-key-2026-prod")
+API_ACCESS_KEY = os.getenv("API_ACCESS_KEY", "credix_api_sec_7bc8fb15770aa778d2282a8c034e9d04")
 
 # Interruptor de licencia para el segundo módulo (Mora Ávila)
 # Se puede controlar por variable de entorno ENABLE_MORA_AVILA=true/false en Easypanel o Docker

@@ -1,6 +1,7 @@
 import os
 from typing import Optional
-from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
+import hmac
 from fastapi.middleware.cors import CORSMiddleware
 import io
 from datetime import datetime
@@ -23,6 +24,7 @@ from core.analytics import (
     ingest_uploaded_file,
 )
 from core.config import (
+    API_ACCESS_KEY,
     BASE_DIR,
     CreateUserRequest,
     DATA_STORE,
@@ -79,13 +81,53 @@ from core.reports import (
 
 app = FastAPI(title="Motor de Reestructuracion, Segmentacion y Cruce de Cartera")
 
+# -------------------------------------------------------------
+# CONTROL DE ORÍGENES (CORS ENDURECIDO Y SEGURO)
+# -------------------------------------------------------------
+ALLOWED_ORIGINS = [
+    "https://panel.efinnovation.cl",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:80",
+    "http://127.0.0.1:80",
+]
+_extra_cors = os.getenv("ALLOWED_ORIGINS", "")
+if _extra_cors:
+    ALLOWED_ORIGINS.extend([o.strip() for o in _extra_cors.split(",") if o.strip()])
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"https?://.*\.efinnovation\.cl(:\d+)?",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# -------------------------------------------------------------
+# PROTECCIÓN CONTRA SUBIDAS EXCESIVAS (ANTI-DoS / ZIP BOMB / OOM)
+# -------------------------------------------------------------
+MAX_UPLOAD_SIZE = 50 * 1024 * 1024  # 50 MB
+
+async def read_uploaded_file_safe(file: UploadFile, max_bytes: int = MAX_UPLOAD_SIZE) -> bytes:
+    """
+    Lee archivos subidos en streaming por bloques de 1 MB, asegurando que
+    no superen el límite configurado para proteger la memoria RAM del servidor.
+    """
+    total_bytes = 0
+    buffer = io.BytesIO()
+    while chunk := await file.read(1024 * 1024):
+        total_bytes += len(chunk)
+        if total_bytes > max_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"El archivo excede el tamaño máximo permitido de {max_bytes // (1024 * 1024)} MB.",
+            )
+        buffer.write(chunk)
+    data = buffer.getvalue()
+    if not data:
+        raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
+    return data
 
 STATIC_DIR = os.path.join(BASE_DIR, "static")
 if os.path.isdir(STATIC_DIR):
@@ -102,6 +144,45 @@ except Exception as _db_err:
 def _get_current_user(request: Request) -> Optional[dict]:
     token = request.cookies.get("cobranzapp_session")
     return verify_session_token(token)
+
+
+def require_auth(request: Request) -> dict:
+    """
+    Autenticación híbrida estricta:
+    1. Verifica cookie de sesión de navegador (cobranzapp_session).
+    2. O verifica token de API en header X-API-Key o Authorization: Bearer <key> (para n8n / scripts).
+    Si ninguna es válida, retorna 401 Unauthorized de forma segura.
+    """
+    user = _get_current_user(request)
+    if user:
+        return user
+
+    # 2. Token de API (para n8n, webhooks o scripts autorizados)
+    api_key_header = request.headers.get("X-API-Key")
+    if not api_key_header:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            api_key_header = auth_header[7:].strip()
+
+    if api_key_header and API_ACCESS_KEY and hmac.compare_digest(api_key_header, API_ACCESS_KEY):
+        return {
+            "email": "automatizacion@n8n.credix",
+            "nombre": "Automatización n8n / API",
+            "rol": "api",
+        }
+
+    raise HTTPException(
+        status_code=401,
+        detail="Autenticación requerida. Inicia sesión en /login o incluye una API Key válida en el encabezado X-API-Key.",
+    )
+
+
+def require_admin(request: Request) -> dict:
+    """Verifica que el usuario autenticado tenga rol de administrador."""
+    user = require_auth(request)
+    if user.get("rol") != "admin":
+        raise HTTPException(status_code=403, detail="Permisos insuficientes. Se requiere rol de administrador.")
+    return user
 
 
 # -------------------------------------------------------------
@@ -183,13 +264,13 @@ def api_create_user(req: CreateUserRequest, request: Request):
 # -------------------------------------------------------------
 
 @app.get("/api/history")
-def api_get_history(modulo: Optional[str] = None, limit: int = 100):
+def api_get_history(modulo: Optional[str] = None, limit: int = 100, _auth: dict = Depends(require_auth)):
     mod_filter = modulo if modulo in ("general", "avila") else None
     return get_history_list(modulo=mod_filter, limit=limit)
 
 
 @app.get("/api/history/{item_id}")
-def api_get_history_detail(item_id: int):
+def api_get_history_detail(item_id: int, _auth: dict = Depends(require_auth)):
     detail = get_history_detail(item_id)
     if not detail:
         raise HTTPException(status_code=404, detail="Registro histórico no encontrado.")
@@ -197,7 +278,7 @@ def api_get_history_detail(item_id: int):
 
 
 @app.post("/api/history/snapshot")
-def api_save_manual_snapshot(request: Request, overwrite: bool = True):
+def api_save_manual_snapshot(request: Request, overwrite: bool = True, _auth: dict = Depends(require_auth)):
     """Permite guardar manualmente en Supabase una instantánea de la cartera actualmente cargada."""
     active_df = DATA_STORE["df_original"] if DATA_STORE["df_original"] is not None else DATA_STORE["df_cartera_raw"]
     if active_df is None or active_df.empty:
@@ -226,7 +307,7 @@ def api_save_manual_snapshot(request: Request, overwrite: bool = True):
 
 
 @app.delete("/api/history/{item_id}")
-def api_delete_history(item_id: int):
+def api_delete_history(item_id: int, _auth: dict = Depends(require_admin)):
     ok = delete_history_item(item_id)
     if not ok:
         raise HTTPException(status_code=404, detail="No se pudo eliminar el registro.")
@@ -276,7 +357,7 @@ def get_status(request: Request):
 
 
 @app.post("/api/module/select")
-def select_module_endpoint(req: SelectModuleRequest):
+def select_module_endpoint(req: SelectModuleRequest, _auth: dict = Depends(require_auth)):
     """Cambia el módulo activo ('general' o 'avila') conservando en memoria los datos de ambos."""
     mod_id = switch_active_module(req.module_id)
     cartera_loaded = DATA_STORE["df_cartera_raw"] is not None
@@ -296,7 +377,7 @@ def select_module_endpoint(req: SelectModuleRequest):
 
 
 @app.post("/api/load-sample")
-def load_sample(module_id: Optional[str] = None):
+def load_sample(module_id: Optional[str] = None, _auth: dict = Depends(require_auth)):
     """Carga el archivo de mora de ejemplo del módulo activo ('general' o 'avila') y lo cruza con la Base de Datos."""
     if module_id in ("general", "avila"):
         switch_active_module(module_id)
@@ -341,11 +422,11 @@ def load_sample(module_id: Optional[str] = None):
 
 
 @app.post("/api/upload")
-async def upload_cartera(file: UploadFile = File(...), module_id: Optional[str] = None):
+async def upload_cartera(file: UploadFile = File(...), module_id: Optional[str] = None, _auth: dict = Depends(require_auth)):
     """Sube el archivo de cartera (CSV o Excel). Si se detecta que es contactos o campañas, actualiza la Base de Datos."""
     if module_id in ("general", "avila"):
         switch_active_module(module_id)
-    contents = await file.read()
+    contents = await read_uploaded_file_safe(file)
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
     try:
@@ -357,9 +438,9 @@ async def upload_cartera(file: UploadFile = File(...), module_id: Optional[str] 
 
 
 @app.post("/api/contacts/upload")
-async def upload_contacts(file: UploadFile = File(...)):
+async def upload_contacts(file: UploadFile = File(...), _auth: dict = Depends(require_auth)):
     """Sube un archivo de contactos o campañas para sumar/actualizar la Base de Datos en Supabase y SQLite."""
-    contents = await file.read()
+    contents = await read_uploaded_file_safe(file)
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
     try:
@@ -371,7 +452,7 @@ async def upload_contacts(file: UploadFile = File(...)):
 
 
 @app.post("/api/process")
-def process_data(req: FilterRequest, request: Request):
+def process_data(req: FilterRequest, request: Request, _auth: dict = Depends(require_auth)):
     """Aplica filtros dinamicos de tramos, campanas, tipos y agrupa los resultados. Registra automáticamente en el historial de Supabase."""
     if req.module_id in ("general", "avila"):
         switch_active_module(req.module_id)
@@ -526,18 +607,18 @@ def set_cartera_activa_endpoint(req: SetCarteraActivaRequest, request: Request):
 # -------------------------------------------------------------
 
 @app.get("/api/download/excel")
-def download_excel():
+def download_excel(_auth: dict = Depends(require_auth)):
     return generate_filtered_excel()
 
 
 @app.get("/api/download/pdf")
-def download_pdf():
+def download_pdf(_auth: dict = Depends(require_auth)):
     return generate_filtered_pdf()
 
 
 @app.get("/api/download/pptx")
 @app.get("/api/download/presentation")
-def download_presentation_pptx():
+def download_presentation_pptx(_auth: dict = Depends(require_auth)):
     """Genera y descarga la presentación ejecutiva completa en PowerPoint (.pptx)."""
     try:
         pptx_bytes = generate_executive_presentation_pptx()
@@ -552,32 +633,32 @@ def download_presentation_pptx():
 
 
 @app.get("/api/tramos/download/excel")
-def download_tramos_excel(cartera_activa: Optional[float] = None):
+def download_tramos_excel(cartera_activa: Optional[float] = None, _auth: dict = Depends(require_auth)):
     return generate_tramos_excel(cartera_activa)
 
 
 @app.get("/api/tramos/download/pdf")
-def download_tramos_pdf(cartera_activa: Optional[float] = None):
+def download_tramos_pdf(cartera_activa: Optional[float] = None, _auth: dict = Depends(require_auth)):
     return generate_tramos_pdf(cartera_activa)
 
 
 @app.get("/api/tramos-3/download/excel")
-def download_tramos_3_excel(cartera_activa: Optional[float] = None):
+def download_tramos_3_excel(cartera_activa: Optional[float] = None, _auth: dict = Depends(require_auth)):
     return generate_tramos_3_excel(cartera_activa)
 
 
 @app.get("/api/tramos-3/download/pdf")
-def download_tramos_3_pdf(cartera_activa: Optional[float] = None):
+def download_tramos_3_pdf(cartera_activa: Optional[float] = None, _auth: dict = Depends(require_auth)):
     return generate_tramos_3_pdf(cartera_activa)
 
 
 @app.get("/api/fibex/download/excel")
-def download_fibex_excel(cartera_activa: Optional[float] = None):
+def download_fibex_excel(cartera_activa: Optional[float] = None, _auth: dict = Depends(require_auth)):
     return generate_fibex_excel(cartera_activa)
 
 
 @app.get("/api/fibex/download/pdf")
-def download_fibex_pdf(cartera_activa: Optional[float] = None):
+def download_fibex_pdf(cartera_activa: Optional[float] = None, _auth: dict = Depends(require_auth)):
     return generate_fibex_pdf(cartera_activa)
 
 
@@ -622,9 +703,9 @@ def set_cartera_activa_campanas_endpoint(req: SetCarteraActivaCampanasRequest):
 
 
 @app.post("/api/campanas-tramos/upload-cartera-activa")
-async def upload_cartera_activa_campanas_endpoint(file: UploadFile = File(...), target_col: str = "auto"):
+async def upload_cartera_activa_campanas_endpoint(file: UploadFile = File(...), target_col: str = "auto", _auth: dict = Depends(require_auth)):
     """Permite subir el archivo de Contabilidad (Excel o CSV) para poblar automáticamente la Cartera Activa por Campaña."""
-    contents = await file.read()
+    contents = await read_uploaded_file_safe(file)
     if not contents:
         raise HTTPException(status_code=400, detail="El archivo enviado está vacío.")
     parsed_map = parse_cartera_activa_campanas_file(contents, file.filename, target_col=target_col)
@@ -658,12 +739,12 @@ async def upload_cartera_activa_campanas_endpoint(file: UploadFile = File(...), 
 
 
 @app.get("/api/campanas-tramos/download/excel")
-def download_campanas_tramos_excel(mode: Optional[str] = "5tramos"):
+def download_campanas_tramos_excel(mode: Optional[str] = "5tramos", _auth: dict = Depends(require_auth)):
     return generate_campanas_matrix_excel(mode=mode or "5tramos")
 
 
 @app.get("/api/campanas-tramos/download/pdf")
-def download_campanas_tramos_pdf(mode: Optional[str] = "5tramos"):
+def download_campanas_tramos_pdf(mode: Optional[str] = "5tramos", _auth: dict = Depends(require_auth)):
     return generate_campanas_matrix_pdf(mode=mode or "5tramos")
 
 
@@ -715,7 +796,7 @@ def load_sample_contacts():
 
 
 @app.post("/api/contacts/cross-match")
-def cross_match_contacts():
+def cross_match_contacts(_auth: dict = Depends(require_auth)):
     """Retorna el listado consolidado a nivel deudor con teléfonos y enlaces directos de WhatsApp."""
     if DATA_STORE["df_filtered"] is None:
         raise HTTPException(status_code=400, detail="Primero debes cargar la cartera.")
@@ -787,7 +868,7 @@ def cross_match_contacts():
 
 
 @app.get("/api/contacts/download/excel")
-def download_contacts_excel():
+def download_contacts_excel(_auth: dict = Depends(require_auth)):
     return generate_contacts_excel()
 
 
