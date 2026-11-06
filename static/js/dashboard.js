@@ -249,9 +249,9 @@ function renderSuiteModulesState(data) {
       hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
     } else if (isAvila) {
       hBtnGen.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
-      hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-emerald-600 text-white shadow-xs';
+      hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-[#ff006e] text-white shadow-xs';
     } else {
-      hBtnGen.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-blue-600 text-white shadow-xs';
+      hBtnGen.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-[#2e0064] text-white shadow-xs';
       hBtnAvi.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900';
     }
   }
@@ -259,17 +259,17 @@ function renderSuiteModulesState(data) {
   // 2. Upload Box Active Module Indicator
   if (uploadBadge) {
     if (isAvila) {
-      uploadBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200';
+      uploadBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-pink-50 text-[#ff006e] border border-pink-200';
       uploadBadge.innerHTML = `<i class="fa-solid fa-mountain-sun text-[10px]"></i> Módulo Activo: Mora Ávila`;
     } else {
-      uploadBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200';
+      uploadBadge.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-[#2e0064] border border-purple-200';
       uploadBadge.innerHTML = `<i class="fa-solid fa-building-columns text-[10px]"></i> Módulo Activo: Mora Ubi`;
     }
   }
   if (uploadIcon) {
     uploadIcon.className = isAvila
-      ? 'w-12 h-12 rounded-2xl bg-emerald-600 text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors'
-      : 'w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors';
+      ? 'w-12 h-12 rounded-2xl bg-[#ff006e] text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors'
+      : 'w-12 h-12 rounded-2xl bg-[#2e0064] text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors';
   }
   if (sampleBtnLabel) {
     sampleBtnLabel.textContent = isAvila ? 'Cargar Muestra Mora Ávila' : 'Cargar Muestra Mora Ubi';
@@ -285,24 +285,24 @@ function renderSuiteModulesState(data) {
 
   if (cardGen && cardAvi) {
     if (!hasUserSelectedModule) {
-      cardGen.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-500 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
-      cardAvi.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-500 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
-      if (badgeActGen) badgeActGen.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white';
-      if (badgeActAvi) badgeActAvi.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+      cardGen.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-[#2e0064] p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      cardAvi.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-[#ff006e] p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      if (badgeActGen) badgeActGen.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2e0064] text-white';
+      if (badgeActAvi) badgeActAvi.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ff006e] text-white';
       if (btnLblGen) btnLblGen.textContent = 'Seleccionar Módulo Ubi';
       if (btnLblAvi) btnLblAvi.textContent = 'Seleccionar Módulo Ávila';
     } else if (isAvila) {
-      cardGen.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-400 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
-      cardAvi.className = 'relative rounded-2xl border-2 border-emerald-600 bg-emerald-50/20 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
-      if (badgeActGen) badgeActGen.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white';
-      if (badgeActAvi) badgeActAvi.className = 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+      cardGen.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-[#2e0064] p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      cardAvi.className = 'relative rounded-2xl border-2 border-[#ff006e] bg-pink-50/25 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      if (badgeActGen) badgeActGen.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2e0064] text-white';
+      if (badgeActAvi) badgeActAvi.className = 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ff006e] text-white';
       if (btnLblGen) btnLblGen.textContent = 'Cambiar a Mora Ubi';
       if (btnLblAvi) btnLblAvi.textContent = 'Módulo Activo';
     } else {
-      cardGen.className = 'relative rounded-2xl border-2 border-blue-600 bg-blue-50/20 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
-      cardAvi.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-emerald-400 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
-      if (badgeActGen) badgeActGen.className = 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white';
-      if (badgeActAvi) badgeActAvi.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white';
+      cardGen.className = 'relative rounded-2xl border-2 border-[#2e0064] bg-purple-50/20 p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      cardAvi.className = 'relative rounded-2xl border-2 border-slate-200 bg-white hover:border-[#ff006e] p-5 transition-all cursor-pointer hover:shadow-md flex flex-col justify-between gap-4';
+      if (badgeActGen) badgeActGen.className = 'inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2e0064] text-white';
+      if (badgeActAvi) badgeActAvi.className = 'hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ff006e] text-white';
       if (btnLblGen) btnLblGen.textContent = 'Módulo Activo';
       if (btnLblAvi) btnLblAvi.textContent = 'Cambiar a Mora Ávila';
     }
@@ -452,11 +452,11 @@ function switchTab(tabId, bypassCheck = false) {
   allNavIds.forEach(id => {
     const el = document.getElementById(id);
     if (el) {
-      el.classList.remove('tab-active', 'border-blue-600', 'text-blue-700', 'font-bold', 'bg-blue-50/80');
+      el.classList.remove('tab-active', 'border-[#ff006e]', 'text-[#2e0064]', 'font-bold', 'border-blue-600', 'text-blue-700', 'bg-blue-50/80');
       el.classList.add('border-transparent', 'text-slate-500', 'font-medium');
       const icon = el.querySelector('i');
       if (icon && !icon.classList.contains('text-emerald-600') && !icon.classList.contains('text-indigo-600')) {
-        icon.classList.remove('text-blue-600');
+        icon.classList.remove('text-[#ff006e]', 'text-blue-600');
         icon.classList.add('text-slate-400');
       }
     }
@@ -468,11 +468,11 @@ function switchTab(tabId, bypassCheck = false) {
   const targetNav = document.getElementById('nav-' + tabId.replace('tab-', ''));
   if (targetNav) {
     targetNav.classList.remove('border-transparent', 'text-slate-500', 'font-medium');
-    targetNav.classList.add('tab-active', 'border-blue-600', 'text-blue-700', 'font-bold', 'bg-blue-50/80');
+    targetNav.classList.add('tab-active', 'border-[#ff006e]', 'text-[#2e0064]', 'font-bold');
     const icon = targetNav.querySelector('i');
     if (icon && !icon.classList.contains('text-emerald-600') && !icon.classList.contains('text-indigo-600')) {
       icon.classList.remove('text-slate-400');
-      icon.classList.add('text-blue-600');
+      icon.classList.add('text-[#ff006e]');
     }
   }
 
@@ -2256,9 +2256,9 @@ function syncHistoryChartModuleButtons() {
   const btnAvi = document.getElementById('btn-chart-module-avila');
   const btnBoth = document.getElementById('btn-chart-module-both');
 
-  const activeGen = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-blue-600 text-white cursor-pointer';
-  const activeAvi = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-emerald-600 text-white cursor-pointer';
-  const activeBoth = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-indigo-600 text-white cursor-pointer';
+  const activeGen = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-[#2e0064] text-white cursor-pointer';
+  const activeAvi = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-[#ff006e] text-white cursor-pointer';
+  const activeBoth = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all shadow-xs bg-gradient-to-r from-[#2e0064] via-[#ff006e] to-[#2e0064] text-white cursor-pointer';
   const inactive = 'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all text-slate-600 hover:text-slate-900 cursor-pointer';
 
   if (btnGen) btnGen.className = currentHistoryChartModule === 'general' ? activeGen : inactive;
@@ -2338,19 +2338,19 @@ function renderHistoryChart(items) {
     const avilaValues = sortedKeys.map(k => avilaMap.has(k) ? avilaMap.get(k) : null);
 
     const gradUbi = ctx.createLinearGradient(0, 0, 0, 260);
-    gradUbi.addColorStop(0, 'rgba(37, 99, 235, 0.22)');
-    gradUbi.addColorStop(1, 'rgba(37, 99, 235, 0.01)');
+    gradUbi.addColorStop(0, 'rgba(46, 0, 100, 0.22)');
+    gradUbi.addColorStop(1, 'rgba(46, 0, 100, 0.01)');
 
     const gradAvi = ctx.createLinearGradient(0, 0, 0, 260);
-    gradAvi.addColorStop(0, 'rgba(16, 185, 129, 0.22)');
-    gradAvi.addColorStop(1, 'rgba(16, 185, 129, 0.01)');
+    gradAvi.addColorStop(0, 'rgba(255, 0, 110, 0.22)');
+    gradAvi.addColorStop(1, 'rgba(255, 0, 110, 0.01)');
 
     chartDatasets = [
       {
         label: 'Mora Ubi (USD)',
         data: ubiValues,
         yAxisID: 'y',
-        borderColor: '#2563eb',
+        borderColor: '#2e0064',
         backgroundColor: gradUbi,
         fill: true,
         tension: 0.35,
@@ -2358,7 +2358,7 @@ function renderHistoryChart(items) {
         pointRadius: 4.5,
         pointHoverRadius: 7,
         pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#2563eb',
+        pointBorderColor: '#2e0064',
         pointBorderWidth: 2,
         spanGaps: true,
       },
@@ -2366,7 +2366,7 @@ function renderHistoryChart(items) {
         label: 'Mora Ávila (USD)',
         data: avilaValues,
         yAxisID: 'y1',
-        borderColor: '#059669',
+        borderColor: '#ff006e',
         backgroundColor: gradAvi,
         fill: true,
         tension: 0.35,
@@ -2374,7 +2374,7 @@ function renderHistoryChart(items) {
         pointRadius: 4.5,
         pointHoverRadius: 7,
         pointBackgroundColor: '#ffffff',
-        pointBorderColor: '#059669',
+        pointBorderColor: '#ff006e',
         pointBorderWidth: 2,
         spanGaps: true,
       }
@@ -2389,7 +2389,7 @@ function renderHistoryChart(items) {
         type: 'linear',
         display: true,
         position: 'left',
-        title: { display: true, text: 'Mora Ubi (USD)', font: { size: 10, weight: 'bold' }, color: '#2563eb' },
+        title: { display: true, text: 'Mora Ubi (USD)', font: { size: 10, weight: 'bold' }, color: '#2e0064' },
         ticks: {
           callback: v => '$' + Number(v).toLocaleString('en-US')
         }
@@ -2399,7 +2399,7 @@ function renderHistoryChart(items) {
         display: true,
         position: 'right',
         grid: { drawOnChartArea: false },
-        title: { display: true, text: 'Mora Ávila (USD)', font: { size: 10, weight: 'bold' }, color: '#059669' },
+        title: { display: true, text: 'Mora Ávila (USD)', font: { size: 10, weight: 'bold' }, color: '#ff006e' },
         ticks: {
           callback: v => '$' + Number(v).toLocaleString('en-US')
         }
@@ -2415,9 +2415,9 @@ function renderHistoryChart(items) {
     const targetModule = currentHistoryChartModule === 'avila' ? 'avila' : 'general';
     const seriesItems = targetModule === 'avila' ? avilaSorted : ubiSorted;
     const isAvila = targetModule === 'avila';
-    const colorHex = isAvila ? '#059669' : '#2563eb';
-    const fillHex = isAvila ? 'rgba(16, 185, 129, 0.22)' : 'rgba(37, 99, 235, 0.22)';
-    const fillHexEnd = isAvila ? 'rgba(16, 185, 129, 0.01)' : 'rgba(37, 99, 235, 0.01)';
+    const colorHex = isAvila ? '#ff006e' : '#2e0064';
+    const fillHex = isAvila ? 'rgba(255, 0, 110, 0.20)' : 'rgba(46, 0, 100, 0.20)';
+    const fillHexEnd = isAvila ? 'rgba(255, 0, 110, 0.01)' : 'rgba(46, 0, 100, 0.01)';
     const labelTitle = isAvila ? 'Mora Ávila (USD)' : 'Mora Ubi (USD)';
 
     chartLabels = seriesItems.map((x, idx, arr) => {

@@ -11,18 +11,46 @@
   <!-- Font Awesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-    body { font-family: 'Inter', sans-serif; }
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      background-color: #f8fafc;
+      background-image:
+        radial-gradient(circle at 8% 0%, rgba(94, 234, 212, 0.14) 0%, transparent 40%),
+        radial-gradient(circle at 92% 0%, rgba(255, 0, 110, 0.09) 0%, transparent 38%),
+        radial-gradient(circle at 50% 8%, rgba(192, 132, 252, 0.08) 0%, transparent 45%);
+      background-repeat: no-repeat;
+      background-attachment: fixed;
+    }
+    .header-gradient-bar {
+      height: 3px;
+      background: linear-gradient(90deg, #5eead4 0%, #ec4899 45%, #ff006e 55%, #7c3aed 100%);
+    }
+    .btn-gradient-credix {
+      background: linear-gradient(90deg, #5eead4 0%, #ec4899 45%, #ff006e 52%, #5eead4 100%);
+      background-size: 110% 100%;
+      color: #ffffff;
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 4px 18px -2px rgba(255, 0, 110, 0.38);
+    }
+    .btn-gradient-credix:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px -2px rgba(255, 0, 110, 0.52);
+      filter: brightness(1.03);
+    }
+    .btn-gradient-credix:active:not(:disabled) {
+      transform: translateY(0);
+    }
     .tab-active {
-      border-bottom: 3px solid #2563eb !important;
-      color: #1d4ed8 !important;
-      font-weight: 700 !important;
-      background-color: #eff6ff !important;
+      border-bottom: 3px solid #ff006e !important;
+      color: #2e0064 !important;
+      font-weight: 800 !important;
+      background: linear-gradient(180deg, rgba(255, 0, 110, 0.03) 0%, rgba(255, 0, 110, 0.09) 100%) !important;
       border-top-left-radius: 0.75rem !important;
       border-top-right-radius: 0.75rem !important;
     }
     .tab-active i {
-      color: #2563eb !important;
+      color: #ff006e !important;
     }
     @keyframes progressPulse {
       0%, 100% { opacity: 1; }
@@ -48,16 +76,17 @@
   <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-3 max-w-sm sm:max-w-md w-full pointer-events-none px-4 sm:px-0"></div>
 
   <!-- Header -->
-  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+  <header class="bg-white/95 backdrop-blur-md border-b border-slate-200 sticky top-0 z-30">
+    <div class="header-gradient-bar w-full"></div>
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <div class="bg-[#1b0038] px-3 py-1.5 rounded-xl shadow-sm flex items-center justify-center border border-white/10">
+        <div class="bg-gradient-to-r from-[#200045] to-[#2e0064] px-3.5 py-1.5 rounded-xl shadow-xs flex items-center justify-center border border-[#ff006e]/20">
           <img src="/static/img/credix/logo.webp" alt="Credix" class="h-6 w-auto object-contain">
         </div>
         <div>
           <div class="flex items-center gap-2">
-            <h1 class="text-base font-extrabold text-slate-900 leading-tight">CobranzApp</h1>
-            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ff006e]/10 text-[#ff006e] border border-[#ff006e]/20">Credix Suite</span>
+            <h1 class="text-base font-extrabold text-[#2e0064] leading-tight">CobranzApp</h1>
+            <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#ff006e]/10 text-[#ff006e] border border-[#ff006e]/25">Credix Suite</span>
           </div>
           <p class="text-xs text-slate-500">Motor de Segmentación, Enriquecimiento e Histórico de Cartera</p>
         </div>
@@ -65,21 +94,21 @@
       <div class="flex items-center gap-3 flex-wrap justify-end">
         <!-- Conmutador Rápido de Módulos (Suite Dual) -->
         <div id="header-module-switcher" class="inline-flex items-center bg-slate-100 p-1 rounded-xl border border-slate-200/80 shadow-inner">
-          <button type="button" id="header-btn-mod-general" onclick="selectActiveModule('general')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-blue-600 text-white shadow-xs">
+          <button type="button" id="header-btn-mod-general" onclick="selectActiveModule('general')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer bg-[#2e0064] text-white shadow-xs">
             <i class="fa-solid fa-building-columns text-[11px]"></i>
             <span>Mora Ubi</span>
-            <span id="header-dot-general" class="w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5"></span>
+            <span id="header-dot-general" class="w-1.5 h-1.5 rounded-full bg-[#5eead4] ml-0.5"></span>
           </button>
           <button type="button" id="header-btn-mod-avila" onclick="selectActiveModule('avila')" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer text-slate-600 hover:text-slate-900">
             <i class="fa-solid fa-mountain-sun text-[11px]"></i>
             <span>Mora Ávila</span>
-            <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-700 border border-emerald-200">Módulo 2</span>
+            <span class="text-[9px] font-extrabold uppercase px-1.5 py-0.2 rounded bg-pink-100 text-[#ff006e] border border-pink-200">Módulo 2</span>
             <span id="header-dot-avila" class="w-1.5 h-1.5 rounded-full bg-slate-300 ml-0.5"></span>
           </button>
         </div>
 
-        <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-colors shadow-xs cursor-pointer">
-          <i class="fa-solid fa-circle-question text-blue-600"></i> Manual Visual
+        <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition-colors shadow-xs cursor-pointer">
+          <i class="fa-solid fa-circle-question text-teal-600"></i> Manual Visual
         </button>
         <div id="file-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
@@ -99,8 +128,8 @@
 
     <!-- Navigation Tabs (Compacto, estilizado y sin barra de scroll) -->
     <div class="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 flex items-center justify-between gap-1 sm:gap-2 border-t border-slate-100 text-xs font-semibold overflow-x-auto no-scrollbar">
-      <button onclick="switchTab('tab-upload')" id="nav-upload" class="flex-1 py-2.5 px-2 border-b-2 border-blue-600 text-blue-700 font-bold bg-blue-50/80 rounded-t-xl tab-active flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-cloud-arrow-up text-xs"></i> <span>1. Carga & Cruce</span>
+      <button onclick="switchTab('tab-upload')" id="nav-upload" class="flex-1 py-2.5 px-2 border-b-2 border-[#ff006e] text-[#2e0064] font-bold rounded-t-xl tab-active flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
+        <i class="fa-solid fa-cloud-arrow-up text-xs text-[#ff006e]"></i> <span>1. Carga & Cruce</span>
       </button>
       <button onclick="switchTab('tab-segment')" id="nav-segment" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
         <i class="fa-solid fa-sliders text-xs"></i> <span>2. Segmentación</span>
@@ -154,17 +183,17 @@
             <div>
               <div class="flex items-start justify-between gap-3">
                 <div class="flex items-center gap-3">
-                  <div id="icon-box-mod-general" class="w-11 h-11 rounded-xl bg-blue-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+                  <div id="icon-box-mod-general" class="w-11 h-11 rounded-xl bg-[#2e0064] text-white flex items-center justify-center text-lg shadow-sm shrink-0">
                     <i class="fa-solid fa-building-columns"></i>
                   </div>
                   <div>
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 border border-blue-200">Módulo 1 · Principal</span>
-                      <span id="badge-active-general" class="hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                      <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-100 text-[#2e0064] border border-purple-200">Módulo 1 · Principal</span>
+                      <span id="badge-active-general" class="hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#2e0064] text-white">
                         <i class="fa-solid fa-circle-check text-[9px]"></i> Seleccionado
                       </span>
                     </div>
-                    <h3 class="text-base font-bold text-slate-900 mt-1">Módulo Especializado Mora Ubi</h3>
+                    <h3 class="text-base font-bold text-[#2e0064] mt-1">Módulo Especializado Mora Ubi</h3>
                   </div>
                 </div>
                 <span id="status-pill-general" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">Sin cargar</span>
@@ -179,7 +208,7 @@
                 Ningún archivo cargado en este módulo
               </div>
               <div class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
-                <button type="button" onclick="selectActiveModule('general', true)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs">
+                <button type="button" onclick="selectActiveModule('general', true)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#2e0064] hover:bg-[#200045] text-white text-xs font-bold transition-all cursor-pointer shadow-xs">
                   <span id="btn-label-open-general">Seleccionar Módulo Ubi</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
                 </button>
               </div>
@@ -191,17 +220,17 @@
             <div>
               <div class="flex items-start justify-between gap-3">
                 <div class="flex items-center gap-3">
-                  <div id="icon-box-mod-avila" class="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center text-lg shadow-sm shrink-0">
+                  <div id="icon-box-mod-avila" class="w-11 h-11 rounded-xl bg-[#ff006e] text-white flex items-center justify-center text-lg shadow-sm shrink-0">
                     <i class="fa-solid fa-mountain-sun"></i>
                   </div>
                   <div>
                     <div class="flex items-center gap-2 flex-wrap">
-                      <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200">Módulo 2 · Adicional</span>
-                      <span id="badge-active-avila" class="hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-600 text-white">
+                      <span class="text-[10px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-pink-100 text-[#ff006e] border border-pink-200">Módulo 2 · Adicional</span>
+                      <span id="badge-active-avila" class="hidden items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#ff006e] text-white">
                         <i class="fa-solid fa-circle-check text-[9px]"></i> Seleccionado
                       </span>
                     </div>
-                    <h3 class="text-base font-bold text-slate-900 mt-1">Módulo Especializado Mora Ávila</h3>
+                    <h3 class="text-base font-bold text-[#ff006e] mt-1">Módulo Especializado Mora Ávila</h3>
                   </div>
                 </div>
                 <span id="status-pill-avila" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">Sin cargar</span>
@@ -216,7 +245,7 @@
                 Ningún archivo cargado en este módulo
               </div>
               <div class="flex items-center gap-2 shrink-0" onclick="event.stopPropagation()">
-                <button type="button" onclick="selectActiveModule('avila', true)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all cursor-pointer shadow-xs">
+                <button type="button" onclick="selectActiveModule('avila', true)" class="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ff006e] hover:bg-[#d0005a] text-white text-xs font-bold transition-all cursor-pointer shadow-xs">
                   <span id="btn-label-open-avila">Seleccionar Módulo Ávila</span> <i class="fa-solid fa-arrow-right text-[10px]"></i>
                 </button>
               </div>
@@ -238,13 +267,13 @@
         <!-- Cabecera de la Caja -->
         <div class="p-5 sm:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-50/70">
           <div class="flex items-center gap-3.5">
-            <div id="upload-box-icon" class="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors">
+            <div id="upload-box-icon" class="w-12 h-12 rounded-2xl bg-[#2e0064] text-white flex items-center justify-center text-xl shadow-xs shrink-0 transition-colors">
               <i class="fa-solid fa-cloud-arrow-up"></i>
             </div>
             <div>
               <div class="flex items-center gap-2 flex-wrap">
                 <h3 id="upload-box-title" class="text-lg font-bold text-slate-900 leading-tight">Sube tus archivos</h3>
-                <span id="upload-active-module-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                <span id="upload-active-module-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-[#2e0064] border border-purple-200">
                   <i class="fa-solid fa-building-columns text-[10px]"></i> Módulo: Mora Ubi
                 </span>
               </div>
@@ -388,7 +417,7 @@
             <div class="text-xs text-slate-500 flex items-center gap-1.5" id="process-help-text">
               <i class="fa-solid fa-circle-check text-emerald-600"></i> Base de clientes conectada en Supabase
             </div>
-            <button onclick="handleProcessClick()" id="btn-process-files" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-sm transition-all cursor-pointer">
+            <button onclick="handleProcessClick()" id="btn-process-files" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 btn-gradient-credix text-xs font-bold rounded-xl shadow-sm cursor-pointer">
               <span>Procesar Cartera</span> <i class="fa-solid fa-arrow-right"></i>
             </button>
           </div>
@@ -612,7 +641,7 @@
           <button onclick="switchTab('tab-upload')" class="text-sm text-slate-500 hover:text-slate-700 cursor-pointer">
             <i class="fa-solid fa-arrow-left mr-1"></i> Volver a carga
           </button>
-          <button onclick="processFilters()" id="btn-process" class="inline-flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-md transition-all cursor-pointer">
+          <button onclick="processFilters()" id="btn-process" class="inline-flex items-center gap-2 px-6 py-2.5 btn-gradient-credix text-sm font-bold rounded-xl cursor-pointer">
             <i class="fa-solid fa-bolt"></i> Generar Cartera y Ver Métricas
           </button>
         </div>
@@ -1555,6 +1584,6 @@
   </div>
 
   <!-- Controlador JavaScript Modular con cache-buster -->
-  <script src="/static/js/dashboard.js?v=20261102_v11"></script>
+  <script src="/static/js/dashboard.js?v=20261106_credix_style"></script>
 </body>
 </html>
