@@ -228,8 +228,11 @@ def calculate_totals(df: pd.DataFrame):
     promedio = monto_total / total_clientes if total_clientes > 0 else 0.0
 
     # Metricas de contactabilidad sobre la cartera activa
-    has_tel = (df_active["Telefono_1"].fillna("") != "") | (df_active["Telefono_2"].fillna("") != "") | (df_active["Telefono_3"].fillna("") != "")
-    has_mail = df_active["Correo"].fillna("") != ""
+    t1 = df_active["Telefono_1"].fillna("").astype(str) if "Telefono_1" in df_active.columns else pd.Series("", index=df_active.index)
+    t2 = df_active["Telefono_2"].fillna("").astype(str) if "Telefono_2" in df_active.columns else pd.Series("", index=df_active.index)
+    t3 = df_active["Telefono_3"].fillna("").astype(str) if "Telefono_3" in df_active.columns else pd.Series("", index=df_active.index)
+    has_tel = (t1 != "") | (t2 != "") | (t3 != "")
+    has_mail = (df_active["Correo"].fillna("").astype(str) != "") if "Correo" in df_active.columns else pd.Series(False, index=df_active.index)
     has_contact = has_tel | has_mail
 
     clientes_con_tel = df_active[has_tel]["Cedula Cliente"].nunique() if "Cedula Cliente" in df_active.columns else int(has_tel.sum())
