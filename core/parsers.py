@@ -336,33 +336,67 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """Estandariza columnas, teléfonos, campaña y cédula del archivo de contactos o campañas."""
-    col_map = {}
-    for c in df.columns:
-        norm = clean_col(str(c))
-        if any(re.match(p, norm) for p in [r"^cedula.*", r"^dni$", r"^identificacion$", r"^etiquetasdefila$", r"^clienteci$", r"^ci$"]):
-            col_map[c] = "Cedula"
-        elif any(re.match(p, norm) for p in [r"^telefono1$", r"^tel1$", r"^telf1$", r"^celular1$", r"^celular$", r"^telefono$", r".*telefonomovil.*", r".*telefonoppal.*"]):
-            col_map[c] = "Telefono_1"
-        elif any(re.match(p, norm) for p in [r"^telefono2$", r"^tel2$", r"^telf2$", r"^celular2$"]):
-            col_map[c] = "Telefono_2"
-        elif any(re.match(p, norm) for p in [r"^telefono3$", r"^tel3$", r"^telf3$", r"^celular3$"]):
-            col_map[c] = "Telefono_3"
-        elif any(re.match(p, norm) for p in [r"^correo.*", r"^email.*", r"^mail$", r".*correoppal.*"]):
-            col_map[c] = "Correo"
-        elif any(re.match(p, norm) for p in [r"^nombre.*", r"^cliente$"]):
-            col_map[c] = "Nombre_Contacto"
-        elif any(re.match(p, norm) for p in [r"^tipodecampana.*", r"^campana.*", r"^tipocampana.*"]):
-            col_map[c] = "Tipo_Campana"
-        elif any(re.match(p, norm) for p in [r"^programa.*", r"^plan.*"]):
-            col_map[c] = "Programa_Contacto"
-        elif any(re.match(p, norm) for p in [r"^canal.*"]):
-            col_map[c] = "Canal_Contacto"
+CONTACT_TARGET_PATTERNS = {
+    "Cedula": [
+        r"^documentocondigito$", r"^cedulacon.*", r"^cedulakey$",
+        r"^cedula.*", r"^clienteci$", r"^ci$", r"^dni$",
+        r"^identificacion$", r"^documento.*", r"^etiquetasdefila$"
+    ],
+    "Telefono_1": [
+        r"^telefononormalizado$", r"^telefono1$", r"^tel1$", r"^telf1$",
+        r"^celular1$", r"^telefono$", r"^celular$", r".*telefonomovil.*", r".*telefonoppal.*"
+    ],
+    "Telefono_2": [
+        r"^telefono2$", r"^tel2$", r"^telf2$", r"^celular2$"
+    ],
+    "Telefono_3": [
+        r"^telefono3$", r"^tel3$", r"^telf3$", r"^celular3$"
+    ],
+    "Correo": [
+        r"^correo.*", r"^email.*", r"^mail$", r".*correoppal.*"
+    ],
+    "Nombre_Contacto": [
+        r"^nombre.*", r"^cliente$"
+    ],
+    "Tipo_Campana": [
+        r"^tipodecampana.*", r"^campana.*", r"^tipocampana.*",
+        r"^origenfuente$", r"^origenmigracionapp$", r"^origen.*"
+    ],
+    "Programa_Contacto": [
+        r"^programa.*", r"^plan.*"
+    ],
+    "Canal_Contacto": [
+        r"^canal.*", r"^comercio.*"
+    ],
+}
 
-    df = df.rename(columns=col_map)
+
+def standardize_contacts_dataframe(df: pd.DataFrame) -> pd.DataFrame:
+    """Estandariza columnas, teléfonos, campaña y cédula del archivo de contactos o campañas sin colisiones."""
+    matched = {}
+    used_cols = set()
+
+    for target, patterns in CONTACT_TARGET_PATTERNS.items():
+        for pat in patterns:
+            found = None
+            for col in df.columns:
+                if col in used_cols:
+                    continue
+                cleaned = clean_col(str(col))
+                if re.match(pat, cleaned):
+                    found = col
+                    break
+            if found:
+                matched[found] = target
+                used_cols.add(found)
+                break
+
+    df = df.rename(columns=matched)
     if "Cedula" not in df.columns:
-        raise HTTPException(status_code=400, detail="El archivo de contactos o campañas debe contener una columna de Cédula (ej. 'Cedula' o 'cliente_ci').")
+        raise HTTPException(
+            status_code=400,
+            detail="El archivo de contactos o campañas debe contener una columna de Cédula (ej. 'Cedula', 'Documento', 'cliente_ci')."
+        )
 
     df["Cedula"] = df["Cedula"].apply(normalize_cedula_str)
     df = df[~df["Cedula"].isin(["", "NAN", "NULL", "NONE"])].copy()

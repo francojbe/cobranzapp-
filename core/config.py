@@ -202,7 +202,8 @@ TARGET_PATTERNS = {
     ],
     "Cedula Cliente": [
         r"^cedulacliente$", r"^cedula$", r"^ceduladeudor$", r"^identificacion$",
-        r"^dni$", r"^rut$", r"^etiquetasdefila$", r"^etiquetadefila$", r"^nrocedula$"
+        r"^dni$", r"^rut$", r"^etiquetasdefila$", r"^etiquetadefila$", r"^nrocedula$",
+        r"^documentocondigito$", r"^documento$", r"^documento.*", r"^clienteci$", r"^ci$"
     ],
     "Nombre Cliente": [
         r"^nombrecliente$", r"^nombre$", r"^cliente$", r"^deudor$", r"^nombrey?apellido$"
