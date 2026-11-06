@@ -2,7 +2,9 @@ import os
 from typing import Optional
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, RedirectResponse
+import io
+from datetime import datetime
+from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from core.analytics import (
@@ -56,6 +58,7 @@ from core.parsers import (
     standardize_cartera_dataframe,
     standardize_contacts_dataframe,
 )
+from core.presentation import generate_executive_presentation_pptx
 from core.reports import (
     generate_campanas_matrix_excel,
     generate_campanas_matrix_pdf,
@@ -530,6 +533,22 @@ def download_excel():
 @app.get("/api/download/pdf")
 def download_pdf():
     return generate_filtered_pdf()
+
+
+@app.get("/api/download/pptx")
+@app.get("/api/download/presentation")
+def download_presentation_pptx():
+    """Genera y descarga la presentación ejecutiva completa en PowerPoint (.pptx)."""
+    try:
+        pptx_bytes = generate_executive_presentation_pptx()
+        fname = f"Informe_Ejecutivo_Cartera_{datetime.now().strftime('%Y%m%d_%H%M')}.pptx"
+        return StreamingResponse(
+            io.BytesIO(pptx_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            headers={"Content-Disposition": f"attachment; filename={fname}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Error al generar presentación PPTX: {str(e)}")
 
 
 @app.get("/api/tramos/download/excel")
