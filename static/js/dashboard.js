@@ -131,7 +131,7 @@ const ProgressController = {
         descElem.textContent = 'Transfiriendo bytes al servidor...';
       } else if (current < 70) {
         current += 4;
-        descElem.textContent = 'Procesando hojas de cálculo con motor Calamine...';
+        descElem.textContent = 'Procesando hojas de cálculo de alta velocidad...';
       } else if (current < 88) {
         current += 2;
         descElem.textContent = 'Estandarizando cédulas y unificando cartera con contactos...';
@@ -542,7 +542,7 @@ function updateUIState(data) {
     }
     if (carteraName) carteraName.textContent = currentFilesState.cartera_filename || 'Cartera de Mora activa';
     if (carteraCount) carteraCount.textContent = `${Number(meta.total_rows || 0).toLocaleString()} cuotas`;
-    if (carteraDetail) carteraDetail.textContent = 'Cargada y vinculada con Supabase';
+    if (carteraDetail) carteraDetail.textContent = 'Cargada y vinculada con el padrón de clientes';
     if (carteraCard) carteraCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
   } else {
     if (carteraBadge) {
@@ -583,7 +583,7 @@ function updateUIState(data) {
         contactsCount.textContent = `${(totalContactsIdx || totalWithPhone).toLocaleString()} en BD`;
       }
     }
-    if (contactsDetail) contactsDetail.textContent = 'Sincronizada en Supabase';
+    if (contactsDetail) contactsDetail.textContent = 'Sincronizada en base centralizada';
     if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-emerald-50/20 p-3.5 rounded-xl border border-emerald-200/80 shadow-2xs transition-all';
   } else {
     if (contactsBadge) {
@@ -595,7 +595,7 @@ function updateUIState(data) {
     }
     if (contactsName) contactsName.textContent = 'Base de Contactos';
     if (contactsCount) contactsCount.textContent = '0 en BD';
-    if (contactsDetail) contactsDetail.textContent = 'Sincronizada en Supabase';
+    if (contactsDetail) contactsDetail.textContent = 'Sincronizada en base centralizada';
     if (contactsCard) contactsCard.className = 'flex items-center justify-between bg-white p-3.5 rounded-xl border border-slate-200/90 shadow-2xs transition-all';
   }
 
@@ -688,7 +688,7 @@ async function loadSampleFiles(moduleId = null) {
   }
 
   const sampleLabel = targetMod === 'avila' ? 'reporte_mora_2026-10-28.csv (Mora Ávila)' : 'mora.csv (Mora Ubi)';
-  ProgressController.start('Cargando cartera de prueba...', `Leyendo ${sampleLabel} y cruzando con la Base de Datos Supabase...`);
+  ProgressController.start('Cargando cartera de prueba...', `Leyendo ${sampleLabel} y vinculando con la base maestra de clientes...`);
 
   try {
     const url = moduleId ? `/api/load-sample?module_id=${encodeURIComponent(moduleId)}` : '/api/load-sample';
@@ -702,7 +702,7 @@ async function loadSampleFiles(moduleId = null) {
         enable_mora_avila: data.enable_mora_avila,
         modules_summary: data.modules_summary,
         cartera_filename: data.metadata?.cartera_filename || sampleLabel,
-        contacts_filename: data.metadata?.contacts_filename || 'Base de Datos Supabase (Contactos + Campañas)',
+        contacts_filename: data.metadata?.contacts_filename || 'Base Centralizada de Clientes (Contactos + Campañas)',
         metadata: data.metadata,
         totals: data.totals,
         resumen_global_tramos: data.resumen_global_tramos,
@@ -1342,8 +1342,8 @@ function renderGlobalTramosScorecard(globalSummary) {
   renderExecutiveScorecard({
     summary: globalSummary,
     rows: globalSummary.tramos,
-    title: 'Resumen Agrupado por Tramos de Mora',
-    subtitle: 'Distribución consolidada de los 5 tramos sobre la Cartera Activa Total (fijo e independiente de los filtros).',
+    title: 'Estratificación Global por Tramos de Mora',
+    subtitle: 'Distribución consolidada de los 5 tramos estratégicos sobre la Cartera Activa Total institucional.',
     col1Header: 'Fase / Categoría',
     col2Header: 'Rango / Etiqueta',
     chartTitleText: 'Distribución de Tarifa',
@@ -1377,8 +1377,8 @@ function renderTramos3Scorecard(tramos3Summary) {
   renderExecutiveScorecard({
     summary: tramos3Summary,
     rows: tramos3Summary.tramos,
-    title: 'Resumen de Cartera en Mora (3 Tramos Contables)',
-    subtitle: 'Clasificación contable ejecutiva: Irregular (1 a 15 días), Vencido Gestión (16 a 30 días) y Vencido Contable (Más de 30 días).',
+    title: 'Estratificación Contable de Mora (3 Tramos)',
+    subtitle: 'Clasificación contable regulatoria: Irregular (1 a 15 días), Vencido Gestión (16 a 30 días) y Vencido Contable (> 30 días).',
     col1Header: 'Categoría Contable',
     col2Header: 'Tramo / Días de Mora',
     chartTitleText: 'Distribución Contable (3 Tramos)',
@@ -1412,8 +1412,8 @@ function renderFibexScorecard(fibexSummary) {
   renderExecutiveScorecard({
     summary: fibexSummary,
     rows: fibexSummary.segments,
-    title: 'Resumen Comparativo: Clientes Fibex vs. NO Fibex',
-    subtitle: 'Distribución de cartera entre clientes sin servicio Fibex (NO Fibex) y clientes con suscripción Fibex / Resto.',
+    title: 'Segmentación Comparativa: Fibex vs. NO Fibex',
+    subtitle: 'Distribución y concentración de morosidad entre clientes sin suscripción activa (NO Fibex) y cartera Fibex / General.',
     col1Header: 'Segmento de Cartera',
     col2Header: 'Definición / Origen',
     chartTitleText: 'Proporción de Cartera',
@@ -1913,7 +1913,7 @@ async function saveCampaignCarteraActiva() {
     }
 
     closeCampaignCarteraModal();
-    showToast('success', '¡Cartera Activa por Campaña Guardada!', 'Los porcentajes de morosidad de Fin de Mes, Día Anterior y Variación se actualizaron y guardaron en Supabase.');
+    showToast('success', '¡Cartera Activa por Campaña Guardada!', 'Las tasas relativas de morosidad y variaciones se actualizaron y consolidaron en el sistema.');
   } catch (err) {
     showToast('error', 'Error al guardar', err.message);
   } finally {
@@ -2216,7 +2216,7 @@ function renderModuleComparisonCard(prefix, comp, accentColor) {
 async function loadHistoryData() {
   const tbody = document.getElementById('history-tbody');
   if (tbody) {
-    tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Consultando historial en Supabase...</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="11" class="p-6 text-center text-slate-400"><i class="fa-solid fa-spinner fa-spin mr-2"></i> Consultando historial consolidado...</td></tr>`;
   }
 
   try {
@@ -2230,7 +2230,7 @@ async function loadHistoryData() {
 
     const totalBadge = document.getElementById('history-total-badge');
     if (totalBadge && data.summary) {
-      totalBadge.textContent = `${data.summary.total_snapshots || 0} cortes guardados en Supabase`;
+      totalBadge.textContent = `${data.summary.total_snapshots || 0} cortes registrados`;
     }
 
     if (data.summary) {
@@ -2620,7 +2620,7 @@ async function saveCurrentSnapshotToHistory() {
       showToast('warning', 'Aviso', data.detail || 'No hay cartera cargada para guardar.');
       return;
     }
-    showToast('success', '¡Corte Guardado en Supabase!', 'La instantánea actual de mora se registró correctamente en el historial.');
+    showToast('success', '¡Corte de Cartera Registrado!', 'La instantánea actual de morosidad se registró correctamente en el historial consolidado.');
     loadHistoryData();
   } catch (err) {
     showToast('error', 'Error', 'No se pudo guardar la instantánea: ' + err.message);
@@ -2836,7 +2836,7 @@ async function confirmOverwriteCutoff() {
     if (res.ok) {
       const fCorte = pendingCutoffConflict?.fecha_corte || '';
       closeCutoffConflictModal(false);
-      showToast('success', '¡Corte Sobrescrito!', `El registro histórico del ${fCorte} fue actualizado en Supabase con los nuevos datos.`);
+      showToast('success', '¡Corte Actualizado!', `El registro histórico del ${fCorte} fue actualizado con éxito en el historial consolidado.`);
       const histTab = document.getElementById('tab-history');
       if (histTab && !histTab.classList.contains('hidden')) {
         loadHistoryData();

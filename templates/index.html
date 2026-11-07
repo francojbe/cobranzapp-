@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CobranzApp - Sistema de Reestructuración, Segmentación y Cruce de Cartera</title>
+  <title>CobranzApp · Plataforma de Inteligencia y Gestión de Cobranza | Credix</title>
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- Chart.js -->
@@ -88,7 +88,7 @@
             <h1 class="text-base font-extrabold text-[#2e0064] leading-tight">CobranzApp</h1>
             <span class="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-[#ff006e]/10 text-[#ff006e] border border-[#ff006e]/25">Credix Suite</span>
           </div>
-          <p class="text-xs text-slate-500">Motor de Segmentación, Enriquecimiento e Histórico de Cartera</p>
+          <p class="text-xs text-slate-500">Inteligencia de Cartera, Estratificación Financiera y Cobranza Omnicanal</p>
         </div>
       </div>
       <div class="flex items-center gap-3 flex-wrap justify-end">
@@ -108,7 +108,7 @@
         </div>
 
         <button onclick="toggleGuideModal(true)" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-teal-50 hover:bg-teal-100 text-teal-800 border border-teal-200 transition-colors shadow-xs cursor-pointer">
-          <i class="fa-solid fa-circle-question text-teal-600"></i> Manual Visual
+          <i class="fa-solid fa-circle-question text-teal-600"></i> Guía Operativa
         </button>
         <div id="file-status-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
           <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
@@ -135,13 +135,13 @@
         <i class="fa-solid fa-sliders text-xs"></i> <span>2. Segmentación</span>
       </button>
       <button onclick="switchTab('tab-results')" id="nav-results" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-chart-simple text-xs"></i> <span>3. Métricas & Reportes</span>
+        <i class="fa-solid fa-chart-simple text-xs"></i> <span>3. Indicadores & Reportes</span>
       </button>
       <button onclick="switchTab('tab-contacts')" id="nav-contacts" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-phone-volume text-emerald-600 text-xs"></i> <span>4. Call Center & WA</span>
+        <i class="fa-solid fa-phone-volume text-emerald-600 text-xs"></i> <span>4. Contactabilidad & WA</span>
       </button>
       <button onclick="switchTab('tab-history', true)" id="nav-history" class="flex-1 py-2.5 px-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-50 rounded-t-xl flex items-center justify-center gap-1.5 whitespace-nowrap transition-all cursor-pointer">
-        <i class="fa-solid fa-clock-rotate-left text-indigo-600 text-xs"></i> <span>5. Histórico de Mora</span>
+        <i class="fa-solid fa-clock-rotate-left text-indigo-600 text-xs"></i> <span>5. Historial Consolidado</span>
       </button>
     </div>
   </header>
@@ -165,15 +165,15 @@
             </div>
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <h2 class="text-base font-bold text-slate-900">Suite Multi-Cartera: Selecciona el Módulo de Operación</h2>
+                <h2 class="text-base font-bold text-slate-900">Gestión Multi-Cartera: Módulos Operativos</h2>
                 <span class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">2 Módulos Habilitados</span>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">Selecciona la cartera que deseas operar.</p>
+              <p class="text-xs text-slate-500 mt-0.5">Selecciona la cartera para análisis de morosidad, cruce de contactos y cálculo de indicadores ejecutivos.</p>
             </div>
           </div>
           <div class="text-xs text-slate-500 flex items-center gap-1.5 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/80 self-start sm:self-auto">
             <i class="fa-solid fa-database text-emerald-600"></i>
-            <span>Base Supabase Conectada: <strong class="text-slate-800">154.009 clientes</strong></span>
+            <span>Base Maestra de Clientes: <strong class="text-slate-800">154.009 registrados</strong></span>
           </div>
         </div>
 
@@ -193,13 +193,13 @@
                         <i class="fa-solid fa-circle-check text-[9px]"></i> Seleccionado
                       </span>
                     </div>
-                    <h3 class="text-base font-bold text-[#2e0064] mt-1">Módulo Especializado Mora Ubi</h3>
+                    <h3 class="text-base font-bold text-[#2e0064] mt-1">Cartera Operativa Mora Ubi</h3>
                   </div>
                 </div>
                 <span id="status-pill-general" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">Sin cargar</span>
               </div>
               <p class="text-xs text-slate-600 mt-3 leading-relaxed">
-                Gestión integral de cartera <strong>Mora Ubi</strong> (<code>mora.csv</code>), análisis de 5 tramos oficiales, indicador Fibex vs. NO Fibex y matriz de 26 campañas comerciales.
+                Gestión integral de cartera <strong>Mora Ubi</strong> (Cartera General), estratificación en 5 tramos oficiales, indicador de conectividad Fibex y matriz comercial.
               </p>
             </div>
 
@@ -230,13 +230,13 @@
                         <i class="fa-solid fa-circle-check text-[9px]"></i> Seleccionado
                       </span>
                     </div>
-                    <h3 class="text-base font-bold text-[#ff006e] mt-1">Módulo Especializado Mora Ávila</h3>
+                    <h3 class="text-base font-bold text-[#ff006e] mt-1">Cartera Especial Mora Ávila</h3>
                   </div>
                 </div>
                 <span id="status-pill-avila" class="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200 shrink-0">Sin cargar</span>
               </div>
               <p class="text-xs text-slate-600 mt-3 leading-relaxed">
-                Motor dedicado para cartera <strong>Mora Ávila</strong> (<em>Piloto Nº 1 CREDIX-AVILA, Línea Consumo Migración, Piloto-Doblete y VIP</em>) con cálculo de deuda total integrada.
+                Gestión especializada para cartera <strong>Mora Ávila</strong> (<em>Piloto Nº 1 CREDIX-AVILA, Línea Consumo, Migración y VIP</em>) con liquidación de saldo consolidado e integrado.
               </p>
             </div>
 
@@ -272,18 +272,18 @@
             </div>
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <h3 id="upload-box-title" class="text-lg font-bold text-slate-900 leading-tight">Sube tus archivos</h3>
+                <h3 id="upload-box-title" class="text-lg font-bold text-slate-900 leading-tight">Carga y Procesamiento de Cartera</h3>
                 <span id="upload-active-module-badge" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-purple-50 text-[#2e0064] border border-purple-200">
                   <i class="fa-solid fa-building-columns text-[10px]"></i> Módulo: Mora Ubi
                 </span>
               </div>
-              <p class="text-xs text-slate-500 mt-0.5">Arrastra tu archivo de mora para iniciar el análisis.</p>
+              <p class="text-xs text-slate-500 mt-0.5">Carga el archivo de morosidad (CSV o Excel) para iniciar el enriquecimiento y diagnóstico de cartera.</p>
             </div>
           </div>
           
           <!-- Botón de Cargar Archivos de Prueba Integrado -->
           <button onclick="loadSampleFiles()" id="btn-load-samples" class="inline-flex items-center gap-2 px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-xs transition-all cursor-pointer self-start md:self-auto shrink-0">
-            <i class="fa-solid fa-play text-amber-400"></i> <span id="btn-load-samples-label">Cargar Cartera de Prueba Local</span>
+            <i class="fa-solid fa-play text-amber-400"></i> <span id="btn-load-samples-label">Cargar Cartera Demostración</span>
           </button>
         </div>
 
@@ -301,7 +301,7 @@
               </div>
               
               <div>
-                <p class="text-base sm:text-lg font-bold text-slate-900">Haz clic o arrastra aquí el archivo de mora</p>
+                <p class="text-base sm:text-lg font-bold text-slate-900">Haz clic o arrastra aquí el archivo de morosidad</p>
                 <p class="text-xs text-slate-400 mt-1 max-w-md mx-auto">
                   Formatos compatibles: CSV o Excel (.xlsx, .xls)
                 </p>
@@ -313,7 +313,7 @@
                   <i class="fa-solid fa-file-invoice-dollar text-blue-600"></i> Cartera de Mora
                 </span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 bg-white rounded-full border border-slate-200 shadow-2xs font-medium">
-                  <i class="fa-solid fa-database text-emerald-600"></i> Base Supabase (154.009 clientes)
+                  <i class="fa-solid fa-database text-emerald-600"></i> Base Maestra de Clientes (154.009 registrados)
                 </span>
               </div>
             </div>
@@ -349,8 +349,8 @@
             </div>
 
             <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-              <span id="progress-step-indicator" class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Motor Calamine + Supabase</span>
-              <span id="progress-engine-tag" class="font-mono text-[10px] text-slate-500">Pipeline en memoria activa</span>
+              <span id="progress-step-indicator" class="flex items-center gap-1.5"><i class="fa-solid fa-bolt text-amber-400"></i> Motor de Análisis Financiero Credix</span>
+              <span id="progress-engine-tag" class="font-mono text-[10px] text-slate-500">Procesamiento de alta velocidad</span>
             </div>
           </div>
         </div>
@@ -359,7 +359,7 @@
         <div class="bg-slate-50 border-t border-slate-100 p-5 sm:p-6 space-y-4">
           <div class="flex items-center justify-between">
             <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
-              <i class="fa-solid fa-list-check text-blue-600"></i> Estado de Fuentes
+              <i class="fa-solid fa-list-check text-blue-600"></i> Estado de Fuentes de Datos de Datos
             </h4>
             <span id="files-status-summary" class="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700">Verificando...</span>
           </div>
@@ -397,9 +397,9 @@
                 <div class="truncate">
                   <div class="flex items-center gap-2">
                     <span class="text-xs font-bold text-slate-900 truncate" id="contacts-filename-label">Base de Contactos</span>
-                    <span id="badge-contacts" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">✓ En Base de Datos</span>
+                    <span id="badge-contacts" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">✓ Base Conectada</span>
                   </div>
-                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Sincronizada en Supabase (154.009 clientes)</div>
+                  <div class="text-[11px] text-slate-400 mt-0.5" id="contacts-status-detail">Base maestra activa (154.009 clientes)</div>
                 </div>
               </div>
               <div class="flex items-center gap-2 shrink-0 ml-2">
@@ -415,7 +415,7 @@
           <!-- Botón de Procesar Archivos -->
           <div class="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/60">
             <div class="text-xs text-slate-500 flex items-center gap-1.5" id="process-help-text">
-              <i class="fa-solid fa-circle-check text-emerald-600"></i> Base de clientes conectada en Supabase
+              <i class="fa-solid fa-circle-check text-emerald-600"></i> Base maestra de clientes vinculada y lista
             </div>
             <button onclick="handleProcessClick()" id="btn-process-files" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3 btn-gradient-credix text-xs font-bold rounded-xl shadow-sm cursor-pointer">
               <span>Procesar Cartera</span> <i class="fa-solid fa-arrow-right"></i>
@@ -435,11 +435,11 @@
             </div>
             <div>
               <h3 class="text-base font-bold text-slate-900">Cartera Vinculada y Enriquecida</h3>
-              <p class="text-xs text-slate-500" id="summary-subtitle">Información unificada de cuotas, montos, teléfonos y campañas.</p>
+              <p class="text-xs text-slate-500" id="summary-subtitle">Consolidado institucional con saldos vencidos, datos de contacto verificados y origen comercial.</p>
             </div>
           </div>
           <span class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-xs font-semibold self-start sm:self-auto shadow-2xs">
-            <i class="fa-solid fa-check-double text-emerald-600"></i> Cruce sincronizado en memoria
+            <i class="fa-solid fa-check-double text-emerald-600"></i> Cruce y enriquecimiento completado
           </span>
         </div>
 
@@ -483,8 +483,8 @@
     <div id="tab-segment" class="hidden space-y-6">
       <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
         <div class="border-b border-slate-100 pb-4 mb-6">
-          <h2 class="text-lg font-bold text-slate-900">Definir Criterios de Reestructuración y Segmentación</h2>
-          <p class="text-xs text-slate-500 mt-0.5">Filtra por los tramos oficiales de mora, tipo de campaña de clientes o estatus.</p>
+          <h2 class="text-lg font-bold text-slate-900">Criterios de Segmentación y Filtros de Cartera</h2>
+          <p class="text-xs text-slate-500 mt-0.5">Personaliza el universo de análisis seleccionando tramos de antigüedad, campañas comerciales y estatus de gestión.</p>
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -509,7 +509,7 @@
 
             <!-- Botones de Acceso Rápido a Tramos Oficiales -->
             <div>
-              <span class="text-xs font-semibold text-slate-700 block mb-2">Tramos Estratégicos de Cobranza:</span>
+              <span class="text-xs font-semibold text-slate-700 block mb-2">Estructura Oficial por Tramos de Antigüedad:</span>
               <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                 <button type="button" onclick="setMoraRange(1, 30, '1 - 30 días • Preventiva')" class="p-2 text-left rounded-lg border border-emerald-200 bg-emerald-50/60 hover:bg-emerald-100 text-emerald-900 transition-all cursor-pointer">
                   <div class="font-bold flex items-center justify-between">
@@ -561,10 +561,10 @@
               <div class="p-3 bg-blue-50/70 border border-blue-200 rounded-xl">
                 <div class="flex items-center gap-2 text-xs font-bold text-blue-900">
                   <i class="fa-solid fa-layer-group text-blue-600"></i>
-                  <span>Resumen Agrupado: Fijo por Tramos</span>
+                  <span>Estructura Oficial de Cobranza</span>
                 </div>
                 <p class="text-[11px] text-blue-700 mt-1 leading-snug">
-                  El informe ejecutivo se presenta agrupado de forma fija por los 5 tramos estratégicos oficiales de mora.
+                  Los reportes directivos consolidan la deuda según la clasificación regulatoria y contable institucional.
                 </p>
               </div>
             </div>
@@ -642,7 +642,7 @@
             <i class="fa-solid fa-arrow-left mr-1"></i> Volver a carga
           </button>
           <button onclick="processFilters()" id="btn-process" class="inline-flex items-center gap-2 px-6 py-2.5 btn-gradient-credix text-sm font-bold rounded-xl cursor-pointer">
-            <i class="fa-solid fa-bolt"></i> Generar Cartera y Ver Métricas
+            <i class="fa-solid fa-chart-pie"></i> Aplicar Criterios y Generar Resultados
           </button>
         </div>
       </div>
@@ -656,15 +656,15 @@
       <!-- Barra de Acciones de Descarga -->
       <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
         <div>
-          <h2 class="text-lg font-bold text-slate-900" id="results-title">Resultados de Cartera Desglosada</h2>
-          <p class="text-xs text-slate-500" id="results-subtitle">Filtro aplicado: Toda la cartera</p>
+          <h2 class="text-lg font-bold text-slate-900" id="results-title">Diagnóstico Ejecutivo de Cartera</h2>
+          <p class="text-xs text-slate-500" id="results-subtitle">Segmento activo: Universo consolidado de morosidad</p>
         </div>
         <div class="flex items-center gap-2.5 flex-wrap">
           <a href="/api/download/excel" class="inline-flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors">
-            <i class="fa-solid fa-file-excel"></i> Descargar Excel Enriquecido
+            <i class="fa-solid fa-file-excel"></i> Exportar Cartera Excel
           </a>
           <a href="/api/download/pdf" target="_blank" class="inline-flex items-center gap-2 px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors">
-            <i class="fa-solid fa-file-pdf"></i> Reporte PDF Ejecutivo
+            <i class="fa-solid fa-file-pdf"></i> Informe Ejecutivo PDF
           </a>
           <a href="/api/download/pptx" class="inline-flex items-center gap-2 px-4 py-2.5 btn-gradient-credix text-white text-xs font-bold rounded-xl shadow-sm cursor-pointer transition-all hover:scale-105" title="Descargar presentación ejecutiva editable en PowerPoint (16:9 widescreen)">
             <i class="fa-solid fa-file-powerpoint text-sm"></i> Presentación PPTX Ejecutiva
@@ -746,8 +746,8 @@
                 </button>
               </div>
             </div>
-            <h3 class="text-lg font-bold text-slate-900 mt-1.5" id="executive-indicator-title">Resumen Agrupado por Tramos de Mora</h3>
-            <p class="text-xs text-slate-500" id="executive-indicator-subtitle">Distribución consolidada de los 5 tramos sobre la Cartera Activa Total (fijo e independiente de los filtros).</p>
+            <h3 class="text-lg font-bold text-slate-900 mt-1.5" id="executive-indicator-title">Estratificación Global por Tramos de Mora</h3>
+            <p class="text-xs text-slate-500" id="executive-indicator-subtitle">Distribución consolidada de saldo en mora y clientes sobre la Cartera Activa Total institucional.</p>
           </div>
 
           <!-- Acciones de Descarga Exclusivas + Card Cartera Activa Armonizada -->
@@ -768,7 +768,7 @@
                 <i class="fa-solid fa-vault"></i>
               </div>
               <div>
-                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Tarifa Pendiente Total</div>
+                <div class="text-[10px] font-bold uppercase tracking-wider text-slate-300">Saldo Vencido Consolidado</div>
                 <div id="banner-cartera-activa" class="text-xl font-black font-mono tracking-tight text-white">$0 USD</div>
               </div>
             </div>
@@ -866,8 +866,8 @@
                 </button>
               </div>
             </div>
-            <h3 class="text-lg font-bold text-slate-900 mt-1" id="matrix-section-title">Desglose por Tramos y Categorías (Campañas)</h3>
-            <p class="text-xs text-slate-500" id="matrix-section-subtitle">Distribución de mora (USD), clientes únicos y % de morosidad contra Cartera Activa de Fin de Mes y Día Anterior por campaña.</p>
+            <h3 class="text-lg font-bold text-slate-900 mt-1" id="matrix-section-title">Matriz de Concentración por Campañas Comerciales</h3>
+            <p class="text-xs text-slate-500" id="matrix-section-subtitle">Distribución de saldo en mora, clientes únicos y tasas de morosidad comparativas respecto a la Cartera Activa de Fin de Mes y Día Anterior.</p>
           </div>
 
           <!-- Barra de Acciones: Cartera Activa por Campaña + Buscador + Botones Exportar -->
@@ -875,7 +875,7 @@
             <!-- Botón Configurar Cartera Activa por Campaña (Fin de Mes y Día Anterior) -->
             <button type="button" onclick="openCampaignCarteraModal()" class="inline-flex items-center gap-1.5 px-3.5 py-2 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-300 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer" title="Cargar o editar la Cartera Activa de Fin de Mes y del Día Anterior por campaña para calcular el % de morosidad">
               <i class="fa-solid fa-calculator text-orange-600"></i>
-              <span>Cartera Activa por Campaña</span>
+              <span>Ajustar Cartera Activa</span>
             </button>
 
             <!-- Buscador en tiempo real de la tabla -->
@@ -962,8 +962,8 @@
       <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-sm font-bold text-slate-900">Vista Previa del Detalle (Primeras 100 filas)</h3>
-            <p class="text-xs text-slate-400">Datos enriquecidos con Cédula, Nombre, Días Mora, Tramo, Teléfonos, Campaña y WhatsApp.</p>
+            <h3 class="text-sm font-bold text-slate-900">Muestra de Auditoría Individual (Primeros 100 registros)</h3>
+            <p class="text-xs text-slate-400">Detalle individual con identificación, días de mora, tramo asignado, datos de contacto verificados y origen comercial.</p>
           </div>
           <span id="preview-tag" class="text-xs bg-slate-100 px-3 py-1 rounded-full text-slate-600 font-medium">0 registros</span>
         </div>
@@ -990,15 +990,15 @@
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Marcador y WhatsApp</span>
-              <span id="callcenter-status-badge" class="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-medium border border-emerald-200">Base sincronizada</span>
+              <span class="text-xs font-bold text-emerald-600 uppercase tracking-wider bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">Canales Directos de Cobranza</span>
+              <span id="callcenter-status-badge" class="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-medium border border-emerald-200">Padrón Sincronizado</span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900 mt-1">Gestión Consolidada por Deudor (Marcación y Chat)</h2>
-            <p class="text-xs text-slate-500 mt-0.5">Vista agrupada a nivel de cliente con deuda total consolidada, teléfonos directos y enlace inmediato a WhatsApp.</p>
+            <h2 class="text-xl font-bold text-slate-900 mt-1">Consolidado de Contactabilidad y Cobranza Directa</h2>
+            <p class="text-xs text-slate-500 mt-0.5">Padrón de deudores agrupados a nivel de cliente con deuda acumulada exigible, teléfonos validados y enlace directo a WhatsApp.</p>
           </div>
           <div class="flex items-center gap-3">
             <a href="/api/contacts/download/excel" class="inline-flex items-center gap-2 px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm transition-colors cursor-pointer">
-              <i class="fa-solid fa-file-excel text-sm"></i> Exportar a Marcador / Excel
+              <i class="fa-solid fa-file-excel text-sm"></i> Exportar Padrón de Contacto
             </a>
           </div>
         </div>
@@ -1021,7 +1021,7 @@
           <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-100">
             <div class="text-xs text-amber-700 font-medium">Monto Contactable</div>
             <div id="cc-kpi-monto" class="text-xl font-bold text-amber-700 mt-1">$0.00 USD</div>
-            <div id="cc-kpi-monto-pct" class="text-[10px] text-amber-600 font-semibold mt-0.5">0% del dinero</div>
+            <div id="cc-kpi-monto-pct" class="text-[10px] text-amber-600 font-semibold mt-0.5">0% de deuda recuperable</div>
           </div>
         </div>
       </div>
@@ -1029,8 +1029,8 @@
       <!-- Tabla de Deudores con Enlace Directo a WhatsApp -->
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex items-center justify-between">
-          <h3 class="text-sm font-bold text-slate-900">Listado de Clientes con Mayor Deuda y Enlace de Marcación</h3>
-          <span class="text-xs text-slate-400">Clic en WhatsApp abre chat directo con el cliente</span>
+          <h3 class="text-sm font-bold text-slate-900">Padrón de Deudores Prioritarios para Contacto</h3>
+          <span class="text-xs text-slate-400">Selecciona el enlace telefónico o WhatsApp para iniciar contacto inmediato</span>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left text-xs">
@@ -1077,9 +1077,9 @@
                 Sincronizado en tiempo real
               </span>
             </div>
-            <h2 class="text-xl font-bold text-slate-900 mt-1.5">Histórico y Evolución de Cargas de Mora</h2>
+            <h2 class="text-xl font-bold text-slate-900 mt-1.5">Evolución Histórica y Trazabilidad de Cartera</h2>
             <p class="text-xs text-slate-500 mt-0.5">
-              Registro persistente de cada procesamiento manual (Web) y automatizado (Google Drive + n8n) para <strong>Mora Ubi</strong> y <strong>Mora Ávila</strong>.
+              Registro histórico consolidado de procesamientos operativos y cortes de cierre para <strong>Mora Ubi</strong> y <strong>Mora Ávila</strong>.
             </p>
           </div>
 
@@ -1169,12 +1169,12 @@
           <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-2 border-b border-slate-200/60">
             <div>
               <div class="flex items-center gap-2 flex-wrap">
-                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Curva de Evolución de Mora (USD)</h3>
+                <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">Tendencia Histórica de Morosidad (USD)</h3>
                 <span id="hist-chart-trend-badge" class="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                   Línea de tendencia
                 </span>
               </div>
-              <p class="text-[11px] text-slate-500 mt-0.5">Evolución continua de la morosidad a lo largo del tiempo con detalle de aumentos y disminuciones.</p>
+              <p class="text-[11px] text-slate-500 mt-0.5">Seguimiento cronológico del saldo en mora con indicadores de variación y cierre entre períodos contables.</p>
             </div>
 
             <!-- Selector de Cartera para la Curva de Evolución -->
@@ -1263,8 +1263,8 @@
             <i class="fa-solid fa-book-open"></i>
           </div>
           <div>
-            <h3 class="text-base font-bold text-slate-900">Guía Visual de Operación</h3>
-            <p class="text-xs text-slate-500">Manual integral de CobranzApp: Cartera, Cruce de Contactos y WhatsApp</p>
+            <h3 class="text-base font-bold text-slate-900">Guía Operativa de CobranzApp</h3>
+            <p class="text-xs text-slate-500">Procedimiento institucional: procesamiento de cartera, cruce de datos y gestión de cobranza</p>
           </div>
         </div>
         <button onclick="toggleGuideModal(false)" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors cursor-pointer">
@@ -1278,7 +1278,7 @@
         <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2">
           <div class="flex items-center gap-2 font-bold text-slate-900">
             <span class="w-6 h-6 rounded-full bg-blue-600 text-white text-xs flex items-center justify-center">1</span>
-            <h4>Carga Inicial y Cruce Automático de Información</h4>
+            <h4>1. Ingesta de Cartera y Cruce Automático de Contactos</h4>
           </div>
           <p class="text-xs text-slate-600 leading-relaxed">
             Puedes cargar tanto el archivo principal de cartera (<strong class="text-slate-800">mora.csv o Excel</strong>) como la <strong class="text-slate-800">Base de Clientes y Contactos</strong> en la pestaña 1. El motor realiza un cruce instantáneo vinculando la cédula del deudor con sus <strong class="text-slate-800">teléfonos, correo y Tipo de Campaña</strong>.
@@ -1307,7 +1307,7 @@
         <div class="space-y-3">
           <div class="flex items-center gap-2 font-bold text-slate-900">
             <span class="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs flex items-center justify-center">2</span>
-            <h4>Los 5 Tramos Estratégicos de Cobranza</h4>
+            <h4>2. Clasificación en 5 Tramos Oficiales de Mora</h4>
           </div>
 
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
@@ -1357,7 +1357,7 @@
         <div class="bg-slate-50 border border-slate-200/80 rounded-xl p-4 space-y-2">
           <div class="flex items-center gap-2 font-bold text-slate-900">
             <span class="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs flex items-center justify-center">3</span>
-            <h4>Call Center y Descargas</h4>
+            <h4>3. Contactabilidad Omnicanal y Exportación Ejecutiva</h4>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
             <div class="bg-white p-3 rounded-xl border border-slate-200">
@@ -1368,7 +1368,7 @@
             </div>
             <div class="bg-white p-3 rounded-xl border border-slate-200">
               <div class="font-bold text-rose-700 flex items-center gap-1.5 mb-1">
-                <i class="fa-solid fa-file-pdf"></i> Reporte PDF Ejecutivo
+                <i class="fa-solid fa-file-pdf"></i> Informe Ejecutivo PDF
               </div>
               <p class="text-[11px] text-slate-500">Documento listo para gerencia con los subtotales financieros y de contactabilidad.</p>
             </div>
@@ -1398,8 +1398,8 @@
             <i class="fa-solid fa-table-list"></i>
           </div>
           <div>
-            <h3 id="hist-modal-title" class="text-base font-bold text-slate-900">Detalle de Corte Histórico</h3>
-            <p id="hist-modal-subtitle" class="text-xs text-slate-500">Instantánea guardada en Supabase</p>
+            <h3 id="hist-modal-title" class="text-base font-bold text-slate-900">Desglose de Corte de Cartera</h3>
+            <p id="hist-modal-subtitle" class="text-xs text-slate-500">Instantánea histórica de mora consolidada</p>
           </div>
         </div>
         <button onclick="closeHistoryModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 flex items-center justify-center transition cursor-pointer">
@@ -1430,8 +1430,8 @@
             <i class="fa-solid fa-triangle-exclamation"></i>
           </div>
           <div>
-            <h3 class="text-sm font-extrabold text-slate-900">Ya existe un corte para esta fecha</h3>
-            <p id="conflict-modal-subtitle" class="text-xs text-amber-800 font-medium">Se detectaron datos diferentes para la misma fecha de corte</p>
+            <h3 class="text-sm font-extrabold text-slate-900">Corte Preexistente para esta Fecha</h3>
+            <p id="conflict-modal-subtitle" class="text-xs text-amber-800 font-medium">Se identificaron variaciones respecto al corte registrado previamente</p>
           </div>
         </div>
         <button onclick="closeCutoffConflictModal()" class="w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-amber-100/60 flex items-center justify-center transition cursor-pointer">
@@ -1441,21 +1441,21 @@
 
       <div class="p-6 space-y-4 text-xs text-slate-600">
         <p class="leading-relaxed text-slate-700">
-          Ya existe un archivo guardado en el <strong>Histórico de Supabase</strong> para la fecha de corte
+          Ya existe un registro en el <strong>Historial Centralizado</strong> para la fecha de corte
           <span id="conflict-fecha-badge" class="font-mono font-bold px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">-</span>
           con montos o cantidades distintas:
         </p>
 
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="p-3.5 rounded-xl bg-slate-50 border border-slate-200 space-y-1">
-            <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Registro Actual en BD</div>
+            <div class="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Registro Guardado Anterior</div>
             <div id="conflict-old-file" class="font-bold text-slate-800 truncate" title="">-</div>
             <div id="conflict-old-mora" class="text-sm font-extrabold font-mono text-slate-900">$0.00 USD</div>
             <div id="conflict-old-meta" class="text-[11px] text-slate-500">0 cuotas · 0 clientes</div>
           </div>
 
           <div class="p-3.5 rounded-xl bg-blue-50/60 border border-blue-200 space-y-1">
-            <div class="text-[10px] font-bold uppercase text-blue-600 tracking-wider">Nuevo Archivo Subido</div>
+            <div class="text-[10px] font-bold uppercase text-blue-600 tracking-wider">Nueva Cartera Procesada</div>
             <div id="conflict-new-file" class="font-bold text-blue-950 truncate" title="">-</div>
             <div id="conflict-new-mora" class="text-sm font-extrabold font-mono text-blue-700">$0.00 USD</div>
             <div id="conflict-new-meta" class="text-[11px] text-blue-800">0 cuotas · 0 clientes</div>
@@ -1464,16 +1464,16 @@
 
         <p class="text-xs text-slate-600 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
           <i class="fa-solid fa-circle-info text-blue-600 mr-1"></i>
-          <strong>¿Deseas sobrescribir el registro histórico de esta fecha?</strong> Si aceptas, el nuevo archivo reemplazará al corte anterior en la gráfica histórica sin duplicar la barra.
+          <strong>¿Deseas actualizar el registro de esta fecha?</strong> Al confirmar, se actualizarán los saldos y volúmenes en el historial y la gráfica de tendencia sin duplicar registros.
         </p>
       </div>
 
       <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex flex-col sm:flex-row items-center justify-end gap-2.5">
         <button onclick="closeCutoffConflictModal()" class="w-full sm:w-auto px-4 py-2 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-semibold rounded-xl transition cursor-pointer">
-          No sobrescribir (Conservar anterior)
+          Conservar Registro Anterior
         </button>
         <button id="btn-confirm-overwrite-cutoff" onclick="confirmOverwriteCutoff()" class="w-full sm:w-auto px-5 py-2 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center justify-center gap-1.5">
-          <i class="fa-solid fa-arrows-rotate"></i> Sí, sobrescribir corte
+          <i class="fa-solid fa-arrows-rotate"></i> Actualizar Corte Histórico
         </button>
       </div>
     </div>
@@ -1490,9 +1490,9 @@
           </div>
           <div>
             <span class="text-[10px] font-bold uppercase tracking-wider bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full border border-orange-200">
-              Cálculo de % Morosidad por Campaña
+              Indicadores Relativos de Morosidad
             </span>
-            <h3 class="text-base font-extrabold text-slate-900 mt-0.5">Cartera Activa de Fin de Mes y Día Anterior por Campaña</h3>
+            <h3 class="text-base font-extrabold text-slate-900 mt-0.5">Cartera Activa de Referencia por Campaña</h3>
           </div>
         </div>
         <button type="button" onclick="closeCampaignCarteraModal()" class="w-8 h-8 rounded-lg bg-white hover:bg-slate-100 text-slate-500 flex items-center justify-center border border-slate-200 cursor-pointer">
@@ -1537,7 +1537,7 @@
       <!-- Tabla Editable de Campañas -->
       <div class="p-6 overflow-y-auto space-y-3 flex-1">
         <p class="text-xs text-slate-500">
-          Ingresa o edita la <strong>Cartera Activa de Fin de Mes</strong> (queda guardada fija todo el mes en Supabase) y la <strong>Cartera Activa del Día Anterior</strong> para cada campaña. El sistema divide automáticamente la <strong>Mora de Hoy</strong> entre cada una:
+          Ingresa o edita los saldos de <strong>Cartera Activa de Fin de Mes</strong> (fijo mensual) y <strong>Cartera Activa del Día Anterior</strong> para cada campaña comercial. El sistema calcula las tasas relativas de morosidad y variaciones:
         </p>
 
         <div class="overflow-x-auto border border-slate-200 rounded-xl">
@@ -1582,7 +1582,7 @@
             Cancelar
           </button>
           <button type="button" id="btn-save-ca-campanas" onclick="saveCampaignCarteraActiva()" class="px-5 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold rounded-xl shadow-xs transition cursor-pointer flex items-center gap-1.5">
-            <i class="fa-solid fa-floppy-disk"></i> Guardar en Supabase y Calcular %
+            <i class="fa-solid fa-floppy-disk"></i> Guardar y Calcular Indicadores
           </button>
         </div>
       </div>
