@@ -1071,7 +1071,7 @@
           <div>
             <div class="flex items-center gap-2 flex-wrap">
               <span class="inline-flex items-center gap-1.5 text-[11px] font-bold text-indigo-700 uppercase tracking-wider bg-indigo-50 px-2.5 py-0.5 rounded-full border border-indigo-200">
-                <i class="fa-solid fa-database"></i> Supabase PostgreSQL · Proyecto Credix
+                <i class="fa-solid fa-server"></i> Registro Centralizado de Mora · Credix
               </span>
               <span id="history-total-badge" class="text-xs text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full font-semibold border border-emerald-200">
                 Sincronizado en tiempo real
@@ -1203,8 +1203,11 @@
       <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div>
-            <h3 class="text-sm font-bold text-slate-900">Bitácora de Cargas y Cortes en Supabase (`public.historial_cargas`)</h3>
-            <p class="text-xs text-slate-400">Haz clic en "Ver Tramos" para inspeccionar la foto exacta de los 5 Tramos Oficiales y Fibex de esa fecha.</p>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <i class="fa-solid fa-clock-rotate-left text-indigo-600"></i>
+              Historial Consolidado de Cortes y Cierres de Cartera
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">Trazabilidad cronológica de morosidad. Selecciona «Ver Tramos» para consultar el desglose oficial y la distribución Fibex de cada fecha de corte.</p>
           </div>
         </div>
         <div class="overflow-x-auto">
@@ -1226,7 +1229,7 @@
             </thead>
             <tbody id="history-tbody" class="divide-y divide-slate-100">
               <tr>
-                <td colspan="11" class="p-6 text-center text-slate-400">Cargando historial desde Supabase...</td>
+                <td colspan="11" class="p-6 text-center text-slate-400"><i class="fa-solid fa-circle-notch fa-spin mr-2"></i>Cargando registro histórico de cartera...</td>
               </tr>
             </tbody>
           </table>
