@@ -44,9 +44,8 @@ def detect_cartera_module(df: pd.DataFrame, filename: str = "") -> str:
 
 
 def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Resuelve la columna monetaria activa (_Tot) y consolida Tramo y Campaña por cliente único (Cedula_Key):
-    - En Mora Ávila (cuando Pendiente Cuota supera a Pendiente Tarifa), utiliza la suma total de la deuda
-      (Pendiente Tarifa + Pendiente Cuota + Pendiente Mora).
+    """Resuelve la columna monetaria activa (_Tot) y asigna Tramo según los días reales de cada cuota (Columna C):
+    - En Mora Ávila (cuando Pendiente Cuota supera a Pendiente Tarifa), utiliza exclusivamente Pendiente Cuota.
     - En Mora Ubi (Cartera General), utiliza exclusivamente Pendiente Tarifa y filtra filas con deuda > 0."""
     df = df.copy()
 
@@ -64,30 +63,30 @@ def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
     else:
         is_avila = (DATA_STORE.get("active_module") == "avila")
 
-    if is_avila and all(c in df.columns for c in ["Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora"]):
-        df["_Tot"] = df["Pendiente Tarifa"] + df["Pendiente Cuota"] + df["Pendiente Mora"]
+    if is_avila and "Pendiente Cuota" in df.columns and cuota_sum > 0:
+        df["_Tot"] = df["Pendiente Cuota"]
     elif "Pendiente Tarifa" in df.columns and tarifa_sum > 0:
         df["_Tot"] = df["Pendiente Tarifa"]
+    elif "Pendiente Cuota" in df.columns and cuota_sum > 0:
+        df["_Tot"] = df["Pendiente Cuota"]
     elif "Total" in df.columns:
         df["_Tot"] = df["Total"]
-    elif "Pendiente Cuota" in df.columns and "Pendiente Mora" in df.columns and (cuota_sum + float(df["Pendiente Mora"].sum())) > 0:
-        df["_Tot"] = df["Pendiente Cuota"] + df["Pendiente Mora"]
     else:
         df["_Tot"] = 0.0
 
     df_act = df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
 
-    # Consolidar Tramo_Mora y Campaña a nivel de Cédula Única sobre las cuotas activas,
-    # garantizando que ningún cliente se duplique entre distintos tramos ni entre distintas campañas.
-    if not df_act.empty and "Cedula_Key" in df_act.columns:
+    # Asignar Tramo_Mora y Tramo_3_Mora estrictamente según los días reales de mora de cada obligación (Columna C),
+    # y unificar Campaña por cliente único.
+    if not df_act.empty:
         if "Dias de Mora" in df_act.columns:
-            max_dias_cliente = df_act.groupby("Cedula_Key")["Dias de Mora"].transform("max")
-            df_act["Tramo_Mora"] = max_dias_cliente.apply(assign_tramo_mora)
-            df_act["Tramo_3_Mora"] = max_dias_cliente.apply(assign_tramo_3_mora)
-        if "Tipo_Campana" in df_act.columns:
-            df_act["Tipo_Campana"] = df_act.groupby("Cedula_Key")["Tipo_Campana"].transform("first")
-        if "Programa" in df_act.columns:
-            df_act["Programa"] = df_act.groupby("Cedula_Key")["Programa"].transform("first")
+            df_act["Tramo_Mora"] = df_act["Dias de Mora"].apply(assign_tramo_mora)
+            df_act["Tramo_3_Mora"] = df_act["Dias de Mora"].apply(assign_tramo_3_mora)
+        if "Cedula_Key" in df_act.columns:
+            if "Tipo_Campana" in df_act.columns:
+                df_act["Tipo_Campana"] = df_act.groupby("Cedula_Key")["Tipo_Campana"].transform("first")
+            if "Programa" in df_act.columns:
+                df_act["Programa"] = df_act.groupby("Cedula_Key")["Programa"].transform("first")
 
     return df_act
 
@@ -150,9 +149,8 @@ def enrich_and_merge_datasets():
     if not merged.empty and "Cedula_Key" in merged.columns:
         merged["Tipo_Campana"] = merged.groupby("Cedula_Key")["Tipo_Campana"].transform("first")
         merged["Programa"] = merged.groupby("Cedula_Key")["Programa"].transform("first")
-        max_dias = merged.groupby("Cedula_Key")["Dias de Mora"].transform("max")
-        merged["Tramo_Mora"] = max_dias.apply(assign_tramo_mora)
-        merged["Tramo_3_Mora"] = max_dias.apply(assign_tramo_3_mora)
+        merged["Tramo_Mora"] = merged["Dias de Mora"].apply(assign_tramo_mora)
+        merged["Tramo_3_Mora"] = merged["Dias de Mora"].apply(assign_tramo_3_mora)
 
     DATA_STORE["df_original"] = merged
     DATA_STORE["df_filtered"] = merged
@@ -187,6 +185,7 @@ def build_debtor_matched_dataset(df: pd.DataFrame):
     )
 
     debtors["Tramo_Mora"] = debtors["Max_Dias_Mora"].apply(assign_tramo_mora)
+    debtors["Tramo_3_Mora"] = debtors["Max_Dias_Mora"].apply(assign_tramo_3_mora)
     debtors["Monto_Total_USD"] = debtors["Monto_Total_USD"].round(2)
     debtors["Pendiente_Tarifa"] = debtors["Pendiente_Tarifa"].round(2)
     debtors["Pendiente_Cuota"] = debtors["Pendiente_Cuota"].round(2)

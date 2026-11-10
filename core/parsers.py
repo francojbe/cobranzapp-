@@ -104,26 +104,34 @@ def parse_number_value(val) -> float:
 
 def assign_tramo_mora(dias: int) -> str:
     """Asigna el tramo oficial de mora segun la antiguedad de la deuda."""
-    if dias <= 30:
+    dias_val = int(round(float(dias))) if pd.notna(dias) else 0
+    if dias_val <= 30:
         return "1 a 30 días (Cobranza preventiva / temprana)"
-    elif dias <= 60:
+    elif dias_val <= 60:
         return "31 a 60 días (Cobranza administrativa)"
-    elif dias <= 90:
+    elif dias_val <= 90:
         return "61 a 90 días (Reestructuración / negociación)"
-    elif dias <= 180:
+    elif dias_val <= 180:
         return "91 a 180 días (Pre-jurídica)"
     else:
         return "181+ días (Castigo / cartera pesada)"
 
 
 def assign_tramo_3_mora(dias: int) -> str:
-    """Asigna el tramo contable en 3 categorías según la antigüedad de la deuda."""
-    if dias <= 15:
+    """Asigna el tramo contable en 3 categorías estrictamente según los días reales de mora (Columna C):
+    - Irregular (Desde el día 1 hasta el 15): 1 <= Dias de Mora <= 15
+    - Vencido Gestión (Desde el día 16 al 30): 16 <= Dias de Mora <= 30
+    - Vencido contable (Más de 30 días): Dias de Mora > 30 (31 en adelante)
+    """
+    dias_val = int(round(float(dias))) if pd.notna(dias) else 0
+    if 1 <= dias_val <= 15:
         return "Irregular (Desde el día 1 hasta el 15)"
-    elif dias <= 30:
+    elif 16 <= dias_val <= 30:
         return "Vencido Gestión (Desde el día 16 al 30)"
-    else:
+    elif dias_val > 30:
         return "Vencido contable (Más de 30 días)"
+    else:
+        return "Irregular (Desde el día 1 hasta el 15)"
 
 
 def safe_read_bytes(path: str) -> bytes:
@@ -319,11 +327,10 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     df = df[df["Cedula Cliente"] != ""].copy()
     df["Cedula_Key"] = df["Cedula Cliente"].str.upper()
 
-    # Asignar Tramo_Mora consolidado por cliente (según su máximo día de mora) para no duplicar cédulas entre tramos
+    # Asignar Tramo_Mora y Tramo_3_Mora directamente según los días reales de mora de cada obligación (Columna C)
     if not df.empty:
-        max_dias_cliente = df.groupby("Cedula_Key")["Dias de Mora"].transform("max")
-        df["Tramo_Mora"] = max_dias_cliente.apply(assign_tramo_mora)
-        df["Tramo_3_Mora"] = max_dias_cliente.apply(assign_tramo_3_mora)
+        df["Tramo_Mora"] = df["Dias de Mora"].apply(assign_tramo_mora)
+        df["Tramo_3_Mora"] = df["Dias de Mora"].apply(assign_tramo_3_mora)
     else:
         df["Tramo_Mora"] = pd.Series(dtype=str)
         df["Tramo_3_Mora"] = pd.Series(dtype=str)
