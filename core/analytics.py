@@ -79,7 +79,9 @@ def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
     else:
         df["_Tot"] = 0.0
 
-    df_act = df[df["_Tot"] > 0].copy() if (df["_Tot"] > 0).any() else df.copy()
+    # Conservar todas las filas del archivo de mora (incluyendo cuotas donde Pendiente Tarifa == 0 pero tienen Pendiente Mora > 0
+    # o ajustes negativos), tal como hace la Tabla Dinámica de Excel sobre el archivo crudo.
+    df_act = df.copy()
     if df_act.empty:
         return df_act
 
