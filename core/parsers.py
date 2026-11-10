@@ -298,6 +298,12 @@ def standardize_cartera_dataframe(df: pd.DataFrame) -> pd.DataFrame:
         else:
             df[c] = 0.0
 
+    for extra_num_col in ["Monto Tarifa", "Monto Cuota", "Monto Mora"]:
+        if extra_num_col in df.columns:
+            df[extra_num_col] = df[extra_num_col].apply(parse_number_value).fillna(0.0)
+
+    df["_Cuotas_Count"] = 1
+
     tarifa_sum = float(df["Pendiente Tarifa"].sum())
     cuota_sum = float(df["Pendiente Cuota"].sum())
     mora_sum = float(df["Pendiente Mora"].sum())
