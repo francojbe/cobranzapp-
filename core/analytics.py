@@ -43,15 +43,25 @@ def detect_cartera_module(df: pd.DataFrame, filename: str = "") -> str:
     return DATA_STORE.get("active_module", "general")
 
 
+def _count_unique_clients(df: pd.DataFrame) -> int:
+    """Cuenta cédulas únicas usando Cedula_Key (o Cedula Cliente como respaldo)."""
+    if df is None or df.empty:
+        return 0
+    if "Cedula_Key" in df.columns:
+        return int(df["Cedula_Key"].nunique())
+    if "Cedula Cliente" in df.columns:
+        return int(df["Cedula Cliente"].nunique())
+    return len(df)
+
+
 def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
-    """Resuelve la columna monetaria activa (_Tot) y consolida la cartera por cliente único (Cedula_Key):
-    1. En Mora Ávila utiliza exclusivamente Pendiente Cuota; en Mora Ubi utiliza exclusivamente Pendiente Tarifa.
-    2. Filtra filas con deuda activa (_Tot > 0).
-    3. Agrupa primero por cliente (Cedula_Key):
-       - Toma el Día de Mora Máximo (max) entre todas sus cuotas pendientes como 'Dias de Mora' (Columna C).
-       - Suma la cantidad total de cuotas vencidas del cliente en '_Cuotas_Count' y 'Cuota Numero' (Columna S).
-       - Suma los montos pendientes acumulados del cliente (Pendiente Tarifa, Pendiente Cuota, Pendiente Mora, Total).
-    4. Clasifica el rango de mora ('Tramo_Mora' en Columna D y 'Tramo_3_Mora' en Columna X) a raíz de ese Día de Mora Máximo."""
+    """Resuelve la columna monetaria activa (_Tot) conservando cada cuota individual y asignando
+    los atributos de clasificación consolidada por cliente (peor tramo) para el conteo único de clientes:
+    - En Mora Ávila utiliza exclusivamente Pendiente Cuota; en Mora Ubi utiliza exclusivamente Pendiente Tarifa.
+    - Cada fila conserva su propio Dias de Mora (Columna C), Tramo_Mora (Columna D), Tramo_3_Mora (Columna X) y montos,
+      para que los montos y cantidades de cuotas caigan exactamente en el rango de cada cuota.
+    - Calcula _Client_Max_Dias, _Client_Max_Tramo y _Client_Max_Tramo_3 según la cuota más antigua de cada cliente,
+      para que cada cliente se contabilice una sola vez en su peor tramo de mora."""
     df = df.copy()
 
     tarifa_sum = float(df["Pendiente Tarifa"].sum()) if "Pendiente Tarifa" in df.columns else 0.0
@@ -91,48 +101,34 @@ def resolve_active_debt_df(df: pd.DataFrame) -> pd.DataFrame:
     if "_Cutoff_Date" not in df_act.columns:
         df_act["_Cutoff_Date"] = get_cutoff_date(df_act)
 
-    if "Cedula_Key" in df_act.columns:
-        orig_cols = list(df_act.columns)
-        # Ordenar por Dias de Mora descendente para que 'first' en columnas descriptivas tome la cuota más vencida
-        if "Dias de Mora" in df_act.columns:
-            df_act = df_act.sort_values(by="Dias de Mora", ascending=False, kind="mergesort")
-
-        sum_cols = {
-            "Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora", "Total", "_Tot",
-            "Monto Tarifa", "Monto Cuota", "Monto Mora", "_Cuotas_Count"
-        }
-        agg_dict = {}
-        for col in orig_cols:
-            if col == "Cedula_Key":
-                continue
-            elif col == "Dias de Mora":
-                agg_dict[col] = "max"
-            elif col in sum_cols:
-                agg_dict[col] = "sum"
-            else:
-                agg_dict[col] = "first"
-
-        df_act = df_act.groupby("Cedula_Key", as_index=False, sort=False).agg(agg_dict)
-
-        for m_col in ["Pendiente Tarifa", "Pendiente Cuota", "Pendiente Mora", "Total", "_Tot", "Monto Tarifa", "Monto Cuota", "Monto Mora"]:
-            if m_col in df_act.columns:
-                df_act[m_col] = pd.to_numeric(df_act[m_col], errors="coerce").fillna(0.0).round(2)
-
-        df_act["_Cuotas_Count"] = pd.to_numeric(df_act["_Cuotas_Count"], errors="coerce").fillna(1).astype(int)
-        if "Cuota Numero" in df_act.columns:
-            df_act["Cuota Numero"] = df_act["_Cuotas_Count"]
-
-        if "Dias de Mora" in df_act.columns:
-            df_act["Dias de Mora"] = pd.to_numeric(df_act["Dias de Mora"], errors="coerce").fillna(0).astype(int)
-            df_act["Tramo_Mora"] = df_act["Dias de Mora"].apply(assign_tramo_mora)
-            df_act["Tramo_3_Mora"] = df_act["Dias de Mora"].apply(assign_tramo_3_mora)
-
-        # Conservar el orden exacto de columnas original (Columna C = Dias de Mora, Columna D = Tramo_Mora, Columna X = Tramo_3_Mora)
-        final_cols = [c for c in orig_cols if c in df_act.columns] + [c for c in df_act.columns if c not in orig_cols]
-        df_act = df_act[final_cols]
-    elif "Dias de Mora" in df_act.columns:
+    if "Dias de Mora" in df_act.columns:
+        df_act["Dias de Mora"] = pd.to_numeric(df_act["Dias de Mora"], errors="coerce").fillna(0).astype(int)
         df_act["Tramo_Mora"] = df_act["Dias de Mora"].apply(assign_tramo_mora)
         df_act["Tramo_3_Mora"] = df_act["Dias de Mora"].apply(assign_tramo_3_mora)
+
+    key_col = "Cedula_Key" if "Cedula_Key" in df_act.columns else ("Cedula Cliente" if "Cedula Cliente" in df_act.columns else None)
+    if key_col:
+        if "Dias de Mora" in df_act.columns:
+            max_dias_cli = df_act.groupby(key_col)["Dias de Mora"].transform("max")
+            df_act["_Client_Max_Dias"] = pd.to_numeric(max_dias_cli, errors="coerce").fillna(0).astype(int)
+            df_act["_Client_Max_Tramo"] = df_act["_Client_Max_Dias"].apply(assign_tramo_mora)
+            df_act["_Client_Max_Tramo_3"] = df_act["_Client_Max_Dias"].apply(assign_tramo_3_mora)
+
+        # Unificar campaña por cliente único usando la de su cuota más vencida para no duplicar clientes entre campañas
+        if "Dias de Mora" in df_act.columns:
+            idx_max = df_act.groupby(key_col)["Dias de Mora"].idxmax()
+        else:
+            idx_max = df_act.groupby(key_col).head(1).index
+        if "Tipo_Campana" in df_act.columns:
+            camp_map = df_act.loc[idx_max].set_index(key_col)["Tipo_Campana"].to_dict()
+            df_act["Tipo_Campana"] = df_act[key_col].map(camp_map)
+        if "Programa" in df_act.columns:
+            prog_map = df_act.loc[idx_max].set_index(key_col)["Programa"].to_dict()
+            df_act["Programa"] = df_act[key_col].map(prog_map)
+    else:
+        df_act["_Client_Max_Dias"] = df_act["Dias de Mora"] if "Dias de Mora" in df_act.columns else 0
+        df_act["_Client_Max_Tramo"] = df_act["Tramo_Mora"] if "Tramo_Mora" in df_act.columns else ""
+        df_act["_Client_Max_Tramo_3"] = df_act["Tramo_3_Mora"] if "Tramo_3_Mora" in df_act.columns else ""
 
     return df_act
 
@@ -192,12 +188,13 @@ def enrich_and_merge_datasets():
         merged["Telefono_3"] = ""
         merged["Correo"] = ""
 
-    # Consolidar por cliente único (Paso 1: agrupar clientes -> Paso 2: día de mora máximo -> Paso 3: clasificar rango)
-    consolidated = resolve_active_debt_df(merged)
+    # Preparar dataset detallado por cuota con clasificación de tramo estricta por cuota (Columna C -> D y X)
+    # y clasificación de cliente único por peor tramo (_Client_Max_Tramo / _Client_Max_Tramo_3)
+    detailed = resolve_active_debt_df(merged)
 
-    DATA_STORE["df_original"] = consolidated
-    DATA_STORE["df_filtered"] = consolidated
-    build_debtor_matched_dataset(consolidated)
+    DATA_STORE["df_original"] = detailed
+    DATA_STORE["df_filtered"] = detailed
+    build_debtor_matched_dataset(detailed)
     sync_active_module_to_slot()
 
 
@@ -328,9 +325,17 @@ def get_cutoff_date(df: pd.DataFrame) -> str:
     return datetime.now().strftime("%d-%m-%Y")
 
 
-def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
-    """Calcula el Resumen Fijo Oficial por Tramos de Mora para la Cartera Total,
-    calculando los porcentajes respecto a la Cartera Activa Total si ha sido ingresada."""
+def _compute_tramos_summary(
+    df: pd.DataFrame,
+    tramos_config: list,
+    row_tramo_col: str,
+    client_tramo_col: str,
+    cartera_activa: Optional[float] = None,
+    include_pct_badge: bool = False,
+):
+    """Calcula resúmenes de mora por tramos combinando:
+    - Montos y cantidad de cuotas clasificados individualmente por cada cuota (row_tramo_col).
+    - Conteo de clientes únicos clasificados una sola vez por su peor situación (client_tramo_col)."""
     if df is None or df.empty:
         return {
             "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
@@ -346,25 +351,26 @@ def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[f
 
     total_cartera_usd = round(float(df_active["_Tot"].sum()), 2)
     total_cuotas = int(df_active["_Cuotas_Count"].sum()) if "_Cuotas_Count" in df_active.columns else len(df_active)
-    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else len(df_active)
+    total_clientes = _count_unique_clients(df_active)
 
-    # Denominador para el cálculo de porcentaje sobre la Cartera Activa Total disponible
     target_ca = cartera_activa if (cartera_activa is not None and cartera_activa > 0) else DATA_STORE.get("cartera_activa_manual")
     denom = float(target_ca) if (target_ca is not None and target_ca > 0) else None
     total_pct = round((total_cartera_usd / denom * 100), 2) if denom else None
 
     tramos = []
-    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        sub = df_active[df_active["Tramo_Mora"] == t_cfg["grupo"]]
-        cuotas_cnt = int(sub["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub.columns else len(sub)
-        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else len(sub)
-        p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
-        p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
-        p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
-        monto_grp = round(float(sub["_Tot"].sum()), 2)
+    for t_cfg in tramos_config:
+        sub_cuotas = df_active[df_active[row_tramo_col] == t_cfg["grupo"]]
+        sub_cli = df_active[df_active[client_tramo_col] == t_cfg["grupo"]]
+
+        cuotas_cnt = int(sub_cuotas["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub_cuotas.columns else len(sub_cuotas)
+        clientes_cnt = _count_unique_clients(sub_cli)
+        p_tarifa = round(float(sub_cuotas["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub_cuotas.columns else 0.0
+        p_cuota = round(float(sub_cuotas["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub_cuotas.columns else 0.0
+        p_mora = round(float(sub_cuotas["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub_cuotas.columns else 0.0
+        monto_grp = round(float(sub_cuotas["_Tot"].sum()), 2)
         pct = round((monto_grp / denom * 100), 2) if denom else None
 
-        tramos.append({
+        item = {
             "id": t_cfg["id"],
             "fase": t_cfg["fase"],
             "etiqueta": t_cfg["etiqueta"],
@@ -381,7 +387,10 @@ def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[f
             "cuota_mas_mora": round(p_cuota + p_mora, 2),
             "total_monto": monto_grp,
             "porcentaje": pct
-        })
+        }
+        if include_pct_badge:
+            item["pct_badge_class"] = t_cfg.get("pct_badge_class", "")
+        tramos.append(item)
 
     return {
         "cutoff_date": get_cutoff_date(df_active),
@@ -392,71 +401,31 @@ def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[f
         "total_porcentaje": total_pct,
         "tramos": tramos
     }
+
+
+def calculate_global_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
+    """Calcula el Resumen Fijo Oficial por Tramos de Mora para la Cartera Total,
+    calculando los porcentajes respecto a la Cartera Activa Total si ha sido ingresada."""
+    return _compute_tramos_summary(
+        df=df,
+        tramos_config=OFFICIAL_TRAMOS_CONFIG,
+        row_tramo_col="Tramo_Mora",
+        client_tramo_col="_Client_Max_Tramo",
+        cartera_activa=cartera_activa,
+        include_pct_badge=False,
+    )
 
 
 def calculate_3_tramos_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
     """Calcula el Resumen Ejecutivo en 3 Categorías Contables (Irregular 1-15d, Vencido Gestión 16-30d, Vencido contable +30d)."""
-    if df is None or df.empty:
-        return {
-            "cutoff_date": datetime.now().strftime("%d-%m-%Y"),
-            "total_cartera_usd": 0.0,
-            "total_cuotas": 0,
-            "total_clientes": 0,
-            "cartera_activa_usd": None,
-            "total_porcentaje": None,
-            "tramos": []
-        }
-
-    df_active = resolve_active_debt_df(df)
-
-    total_cartera_usd = round(float(df_active["_Tot"].sum()), 2)
-    total_cuotas = int(df_active["_Cuotas_Count"].sum()) if "_Cuotas_Count" in df_active.columns else len(df_active)
-    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else len(df_active)
-
-    target_ca = cartera_activa if (cartera_activa is not None and cartera_activa > 0) else DATA_STORE.get("cartera_activa_manual")
-    denom = float(target_ca) if (target_ca is not None and target_ca > 0) else None
-    total_pct = round((total_cartera_usd / denom * 100), 2) if denom else None
-
-    tramos = []
-    for t_cfg in OFFICIAL_3_TRAMOS_CONFIG:
-        sub = df_active[df_active["Tramo_3_Mora"] == t_cfg["grupo"]]
-        cuotas_cnt = int(sub["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub.columns else len(sub)
-        clientes_cnt = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else len(sub)
-        p_tarifa = round(float(sub["Pendiente Tarifa"].sum()), 2) if "Pendiente Tarifa" in sub.columns else 0.0
-        p_cuota = round(float(sub["Pendiente Cuota"].sum()), 2) if "Pendiente Cuota" in sub.columns else 0.0
-        p_mora = round(float(sub["Pendiente Mora"].sum()), 2) if "Pendiente Mora" in sub.columns else 0.0
-        monto_grp = round(float(sub["_Tot"].sum()), 2)
-        pct = round((monto_grp / denom * 100), 2) if denom else None
-
-        tramos.append({
-            "id": t_cfg["id"],
-            "fase": t_cfg["fase"],
-            "etiqueta": t_cfg["etiqueta"],
-            "grupo": t_cfg["grupo"],
-            "color": t_cfg["color"],
-            "badge_class": t_cfg["badge_class"],
-            "pct_badge_class": t_cfg["pct_badge_class"],
-            "min_dias": t_cfg["min"],
-            "max_dias": t_cfg["max"],
-            "cuotas": cuotas_cnt,
-            "clientes": clientes_cnt,
-            "pendiente_tarifa": p_tarifa,
-            "pendiente_cuota": p_cuota,
-            "pendiente_mora": p_mora,
-            "cuota_mas_mora": round(p_cuota + p_mora, 2),
-            "total_monto": monto_grp,
-            "porcentaje": pct
-        })
-
-    return {
-        "cutoff_date": get_cutoff_date(df_active),
-        "total_cartera_usd": total_cartera_usd,
-        "total_cuotas": total_cuotas,
-        "total_clientes": total_clientes,
-        "cartera_activa_usd": denom,
-        "total_porcentaje": total_pct,
-        "tramos": tramos
-    }
+    return _compute_tramos_summary(
+        df=df,
+        tramos_config=OFFICIAL_3_TRAMOS_CONFIG,
+        row_tramo_col="Tramo_3_Mora",
+        client_tramo_col="_Client_Max_Tramo_3",
+        cartera_activa=cartera_activa,
+        include_pct_badge=True,
+    )
 
 
 def calculate_fibex_summary(df: pd.DataFrame, cartera_activa: Optional[float] = None):
@@ -477,7 +446,7 @@ def calculate_fibex_summary(df: pd.DataFrame, cartera_activa: Optional[float] = 
 
     total_cartera_usd = round(float(df_active["_Tot"].sum()), 2)
     total_cuotas = int(df_active["_Cuotas_Count"].sum()) if "_Cuotas_Count" in df_active.columns else len(df_active)
-    total_clientes = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else len(df_active)
+    total_clientes = _count_unique_clients(df_active)
 
     target_ca = cartera_activa if (cartera_activa is not None and cartera_activa > 0) else DATA_STORE.get("cartera_activa_manual")
     denom = float(target_ca) if (target_ca is not None and target_ca > 0) else None
@@ -495,16 +464,17 @@ def calculate_fibex_summary(df: pd.DataFrame, cartera_activa: Optional[float] = 
     def _build_segment(sub_df, seg_id, etiqueta, subtitulo, color, badge_class):
         monto = round(float(sub_df["_Tot"].sum()), 2)
         cuotas = int(sub_df["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub_df.columns else len(sub_df)
-        clientes = int(sub_df["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_df.columns else len(sub_df)
+        clientes = _count_unique_clients(sub_df)
         pct_mora = round((monto / total_cartera_usd * 100), 2) if total_cartera_usd > 0 else 0.0
         pct_activa = round((monto / denom * 100), 2) if denom else None
 
         tramos_dict = {}
         for t_cfg in OFFICIAL_TRAMOS_CONFIG:
             sub_t = sub_df[sub_df["Tramo_Mora"] == t_cfg["grupo"]]
+            sub_t_cli = sub_df[sub_df["_Client_Max_Tramo"] == t_cfg["grupo"]]
             tramos_dict[t_cfg["id"]] = {
                 "monto": round(float(sub_t["_Tot"].sum()), 2),
-                "clientes": int(sub_t["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t.columns else len(sub_t),
+                "clientes": _count_unique_clients(sub_t_cli),
                 "cuotas": int(sub_t["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub_t.columns else len(sub_t)
             }
 
@@ -649,62 +619,39 @@ def calculate_campanas_tramos_matrix(df: pd.DataFrame):
             "totals_by_tramo_3": {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_3_TRAMOS_CONFIG},
         }
 
+    def _build_tramo_map(sub_df: pd.DataFrame, tramos_cfg: list, row_col: str, client_col: str) -> dict:
+        out = {}
+        for cfg in tramos_cfg:
+            sub_cuotas = sub_df[sub_df[row_col] == cfg["grupo"]]
+            sub_cli = sub_df[sub_df[client_col] == cfg["grupo"]]
+            out[cfg["id"]] = {
+                "monto": round(float(sub_cuotas["_Tot"].sum()), 2),
+                "clientes": _count_unique_clients(sub_cli),
+                "cuotas": int(sub_cuotas["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub_cuotas.columns else len(sub_cuotas),
+            }
+        return out
+
     df_active = resolve_active_debt_df(df)
 
     total_cartera = float(df_active["_Tot"].sum())
-    total_clientes_global = int(df_active["Cedula Cliente"].nunique()) if "Cedula Cliente" in df_active.columns else len(df_active)
+    total_clientes_global = _count_unique_clients(df_active)
     total_cuotas_global = int(df_active["_Cuotas_Count"].sum()) if "_Cuotas_Count" in df_active.columns else len(df_active)
 
     col_campana = "Tipo_Campana" if "Tipo_Campana" in df_active.columns else "Programa"
     df_active["_Macro_Campana"] = df_active[col_campana].apply(normalize_campaign_name)
 
     matrix = []
-    totals_by_tramo = {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_TRAMOS_CONFIG}
-    totals_by_tramo_3 = {t["id"]: {"monto": 0.0, "clientes": 0, "cuotas": 0} for t in OFFICIAL_3_TRAMOS_CONFIG}
-
-    # Totales globales por 5 tramos operativos
-    for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-        sub_t = df_active[df_active["Tramo_Mora"] == t_cfg["grupo"]]
-        totals_by_tramo[t_cfg["id"]]["monto"] = round(float(sub_t["_Tot"].sum()), 2)
-        totals_by_tramo[t_cfg["id"]]["cuotas"] = int(sub_t["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub_t.columns else len(sub_t)
-        totals_by_tramo[t_cfg["id"]]["clientes"] = int(sub_t["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t.columns else len(sub_t)
-
-    # Totales globales por 3 tramos contables
-    for t3_cfg in OFFICIAL_3_TRAMOS_CONFIG:
-        sub_t3 = df_active[df_active["Tramo_3_Mora"] == t3_cfg["grupo"]]
-        totals_by_tramo_3[t3_cfg["id"]]["monto"] = round(float(sub_t3["_Tot"].sum()), 2)
-        totals_by_tramo_3[t3_cfg["id"]]["cuotas"] = int(sub_t3["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub_t3.columns else len(sub_t3)
-        totals_by_tramo_3[t3_cfg["id"]]["clientes"] = int(sub_t3["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub_t3.columns else len(sub_t3)
+    totals_by_tramo = _build_tramo_map(df_active, OFFICIAL_TRAMOS_CONFIG, "Tramo_Mora", "_Client_Max_Tramo")
+    totals_by_tramo_3 = _build_tramo_map(df_active, OFFICIAL_3_TRAMOS_CONFIG, "Tramo_3_Mora", "_Client_Max_Tramo_3")
 
     # Detalle por campaña
     for camp, grp in df_active.groupby("_Macro_Campana"):
         camp_tot = float(grp["_Tot"].sum())
-        camp_cl = int(grp["Cedula Cliente"].nunique()) if "Cedula Cliente" in grp.columns else len(grp)
+        camp_cl = _count_unique_clients(grp)
         camp_cuotas = int(grp["_Cuotas_Count"].sum()) if "_Cuotas_Count" in grp.columns else len(grp)
 
-        tramos_dict = {}
-        for t_cfg in OFFICIAL_TRAMOS_CONFIG:
-            sub = grp[grp["Tramo_Mora"] == t_cfg["grupo"]]
-            m = float(sub["_Tot"].sum())
-            cl = int(sub["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub.columns else len(sub)
-            cu = int(sub["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub.columns else len(sub)
-            tramos_dict[t_cfg["id"]] = {
-                "monto": round(m, 2),
-                "clientes": cl,
-                "cuotas": cu
-            }
-
-        tramos_3_dict = {}
-        for t3_cfg in OFFICIAL_3_TRAMOS_CONFIG:
-            sub3 = grp[grp["Tramo_3_Mora"] == t3_cfg["grupo"]]
-            m3 = float(sub3["_Tot"].sum())
-            cl3 = int(sub3["Cedula Cliente"].nunique()) if "Cedula Cliente" in sub3.columns else len(sub3)
-            cu3 = int(sub3["_Cuotas_Count"].sum()) if "_Cuotas_Count" in sub3.columns else len(sub3)
-            tramos_3_dict[t3_cfg["id"]] = {
-                "monto": round(m3, 2),
-                "clientes": cl3,
-                "cuotas": cu3
-            }
+        tramos_dict = _build_tramo_map(grp, OFFICIAL_TRAMOS_CONFIG, "Tramo_Mora", "_Client_Max_Tramo")
+        tramos_3_dict = _build_tramo_map(grp, OFFICIAL_3_TRAMOS_CONFIG, "Tramo_3_Mora", "_Client_Max_Tramo_3")
 
         ca_entry = norm_camp_map.get(camp.lower(), {})
         ca_fin_mes = round(float(ca_entry.get("fin_mes") or 0.0), 2)
