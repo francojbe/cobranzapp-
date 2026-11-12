@@ -241,10 +241,92 @@ def ensure_supabase_default_users():
 # BASE MAESTRA DE CLIENTES (SQLITE + SUPABASE)
 # -------------------------------------------------------------
 
+def _sync_contacts_from_supabase_to_sqlite(conn: sqlite3.Connection) -> int:
+    """Descarga clientes faltantes o actualizados desde Supabase public.master_clientes hacia SQLite local."""
+    if not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
+        return 0
+
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*), COALESCE(MAX(updated_at), '') FROM master_clientes")
+    total_local, max_upd = cur.fetchone()
+
+    select_cols = (
+        "cedula_key,nombre,telefono_1,telefono_2,telefono_3,"
+        "correo,tipo_campana,programa,canal,updated_at"
+    )
+    page_size = 1000
+    offset = 0
+    synced_rows = 0
+
+    try:
+        for _ in range(300):
+            if total_local == 0 or not max_upd:
+                ep = (
+                    f"master_clientes?select={select_cols}"
+                    f"&order=cedula_key.asc&limit={page_size}&offset={offset}"
+                )
+            else:
+                encoded_ts = urllib.parse.quote(str(max_upd))
+                ep = (
+                    f"master_clientes?select={select_cols}"
+                    f"&updated_at=gt.{encoded_ts}"
+                    f"&order=updated_at.asc,cedula_key.asc&limit={page_size}&offset={offset}"
+                )
+
+            batch = _supabase_request("GET", ep, timeout=10)
+            if not batch:
+                break
+
+            upsert_tuples = [
+                (
+                    str(item.get("cedula_key") or "").strip().upper(),
+                    str(item.get("nombre") or "").strip(),
+                    str(item.get("telefono_1") or "").strip(),
+                    str(item.get("telefono_2") or "").strip(),
+                    str(item.get("telefono_3") or "").strip(),
+                    str(item.get("correo") or "").strip(),
+                    str(item.get("tipo_campana") or "").strip(),
+                    str(item.get("programa") or "").strip(),
+                    str(item.get("canal") or "").strip(),
+                    str(item.get("updated_at") or "").strip(),
+                )
+                for item in batch
+                if str(item.get("cedula_key") or "").strip()
+            ]
+            if upsert_tuples:
+                cur.executemany("""
+                    INSERT INTO master_clientes (
+                        cedula_key, nombre, telefono_1, telefono_2, telefono_3,
+                        correo, tipo_campana, programa, canal, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(cedula_key) DO UPDATE SET
+                        nombre = CASE WHEN excluded.nombre != '' THEN excluded.nombre ELSE master_clientes.nombre END,
+                        telefono_1 = CASE WHEN excluded.telefono_1 != '' THEN excluded.telefono_1 ELSE master_clientes.telefono_1 END,
+                        telefono_2 = CASE WHEN excluded.telefono_2 != '' THEN excluded.telefono_2 ELSE master_clientes.telefono_2 END,
+                        telefono_3 = CASE WHEN excluded.telefono_3 != '' THEN excluded.telefono_3 ELSE master_clientes.telefono_3 END,
+                        correo = CASE WHEN excluded.correo != '' THEN excluded.correo ELSE master_clientes.correo END,
+                        tipo_campana = CASE WHEN excluded.tipo_campana != '' AND excluded.tipo_campana != 'Sin Campaña Asignada' THEN excluded.tipo_campana ELSE master_clientes.tipo_campana END,
+                        programa = CASE WHEN excluded.programa != '' THEN excluded.programa ELSE master_clientes.programa END,
+                        canal = CASE WHEN excluded.canal != '' THEN excluded.canal ELSE master_clientes.canal END,
+                        updated_at = CASE WHEN excluded.updated_at > COALESCE(master_clientes.updated_at, '') THEN excluded.updated_at ELSE master_clientes.updated_at END
+                """, upsert_tuples)
+                conn.commit()
+                synced_rows += len(upsert_tuples)
+
+            if len(batch) < page_size:
+                break
+            offset += page_size
+    except Exception as e:
+        print("Aviso al sincronizar contactos desde Supabase hacia SQLite:", e)
+
+    return synced_rows
+
+
 def load_contacts_from_db() -> pd.DataFrame:
-    """Lee la tabla master_clientes de SQLite a memoria (caché ultrarrápido) o descarga desde Supabase si está vacía."""
+    """Lee la tabla master_clientes de SQLite a memoria (caché ultrarrápido), sincronizando novedades desde Supabase."""
     ensure_db_table()
     conn = sqlite3.connect(DB_PATH)
+    _sync_contacts_from_supabase_to_sqlite(conn)
     df_db = pd.read_sql_query("""
         SELECT
             cedula_key AS Cedula_Key,
@@ -267,11 +349,11 @@ def load_contacts_from_db() -> pd.DataFrame:
     return df_db
 
 
-def _sync_contacts_batches_to_supabase(rows: list):
+def _sync_contacts_batches_to_supabase(rows: list) -> bool:
     """Sincroniza en lotes hacia Supabase public.master_clientes."""
     if not rows or not SUPABASE_URL or not SUPABASE_SERVICE_KEY:
-        return
-    batch_size = 1500
+        return False
+    batch_size = 1000
     batches = []
     for i in range(0, len(rows), batch_size):
         chunk = rows[i:i + batch_size]
@@ -292,6 +374,8 @@ def _sync_contacts_batches_to_supabase(rows: list):
         ]
         batches.append(payload)
 
+    errors = []
+
     def _post_batch(b):
         try:
             _supabase_request(
@@ -299,13 +383,21 @@ def _sync_contacts_batches_to_supabase(rows: list):
                 "master_clientes?on_conflict=cedula_key",
                 data=b,
                 prefer="resolution=merge-duplicates,return=minimal",
-                timeout=25,
+                timeout=30,
             )
         except Exception as err:
+            errors.append(str(err))
             print("Aviso al sincronizar lote de contactos con Supabase:", err)
 
     with ThreadPoolExecutor(max_workers=4) as ex:
         list(ex.map(_post_batch, batches))
+
+    return len(errors) == 0
+
+
+def _clean_contact_field(val, empty_placeholders=("NAN", "NULL", "NONE")) -> str:
+    s = "" if val is None else str(val).strip()
+    return "" if s.upper() in empty_placeholders else s
 
 
 def upsert_contacts_to_db(df: pd.DataFrame) -> dict:
@@ -316,50 +408,82 @@ def upsert_contacts_to_db(df: pd.DataFrame) -> dict:
     cur.execute("SELECT COUNT(*) FROM master_clientes")
     count_before = cur.fetchone()[0]
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    now_str = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     rows = []
     for _, r in df.iterrows():
-        ced = str(r.get("Cedula_Key", "")).strip().upper()
-        if not ced or ced in ("NAN", "NULL", "NONE"):
+        ced = _clean_contact_field(r.get("Cedula_Key", "")).upper()
+        if not ced:
             continue
+        nombre = _clean_contact_field(r.get("Nombre_Contacto", ""))
+        tel1 = _clean_contact_field(r.get("Telefono_1", ""))
+        tel2 = _clean_contact_field(r.get("Telefono_2", ""))
+        tel3 = _clean_contact_field(r.get("Telefono_3", ""))
+        correo = _clean_contact_field(r.get("Correo", ""))
+        campana = _clean_contact_field(r.get("Tipo_Campana", ""))
+        programa = _clean_contact_field(r.get("Programa_Contacto", ""))
+        canal = _clean_contact_field(r.get("Canal_Contacto", ""))
+
+        has_valid_campana = bool(campana and campana != "Sin Campaña Asignada")
+        if not any([nombre, tel1, tel2, tel3, correo, has_valid_campana, programa, canal]):
+            continue
+
         rows.append((
             ced,
-            str(r.get("Nombre_Contacto", "")).strip(),
-            str(r.get("Telefono_1", "")).strip(),
-            str(r.get("Telefono_2", "")).strip(),
-            str(r.get("Telefono_3", "")).strip(),
-            str(r.get("Correo", "")).strip(),
-            str(r.get("Tipo_Campana", "")).strip(),
-            str(r.get("Programa_Contacto", "")).strip(),
-            str(r.get("Canal_Contacto", "")).strip(),
-            now_str
+            nombre,
+            tel1,
+            tel2,
+            tel3,
+            correo,
+            campana if has_valid_campana else "",
+            programa,
+            canal,
+            now_str,
         ))
 
-    cur.executemany("""
-        INSERT INTO master_clientes (
-            cedula_key, nombre, telefono_1, telefono_2, telefono_3,
-            correo, tipo_campana, programa, canal, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(cedula_key) DO UPDATE SET
-            nombre = CASE WHEN excluded.nombre != '' THEN excluded.nombre ELSE master_clientes.nombre END,
-            telefono_1 = CASE WHEN excluded.telefono_1 != '' THEN excluded.telefono_1 ELSE master_clientes.telefono_1 END,
-            telefono_2 = CASE WHEN excluded.telefono_2 != '' THEN excluded.telefono_2 ELSE master_clientes.telefono_2 END,
-            telefono_3 = CASE WHEN excluded.telefono_3 != '' THEN excluded.telefono_3 ELSE master_clientes.telefono_3 END,
-            correo = CASE WHEN excluded.correo != '' THEN excluded.correo ELSE master_clientes.correo END,
-            tipo_campana = CASE WHEN excluded.tipo_campana != '' AND excluded.tipo_campana != 'Sin Campaña Asignada' THEN excluded.tipo_campana ELSE master_clientes.tipo_campana END,
-            programa = CASE WHEN excluded.programa != '' THEN excluded.programa ELSE master_clientes.programa END,
-            canal = CASE WHEN excluded.canal != '' THEN excluded.canal ELSE master_clientes.canal END,
-            updated_at = excluded.updated_at
-    """, rows)
-    conn.commit()
+    if rows:
+        cur.executemany("""
+            INSERT INTO master_clientes (
+                cedula_key, nombre, telefono_1, telefono_2, telefono_3,
+                correo, tipo_campana, programa, canal, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(cedula_key) DO UPDATE SET
+                nombre = CASE WHEN excluded.nombre != '' THEN excluded.nombre ELSE master_clientes.nombre END,
+                telefono_1 = CASE WHEN excluded.telefono_1 != '' THEN excluded.telefono_1 ELSE master_clientes.telefono_1 END,
+                telefono_2 = CASE WHEN excluded.telefono_2 != '' THEN excluded.telefono_2 ELSE master_clientes.telefono_2 END,
+                telefono_3 = CASE WHEN excluded.telefono_3 != '' THEN excluded.telefono_3 ELSE master_clientes.telefono_3 END,
+                correo = CASE WHEN excluded.correo != '' THEN excluded.correo ELSE master_clientes.correo END,
+                tipo_campana = CASE WHEN excluded.tipo_campana != '' AND excluded.tipo_campana != 'Sin Campaña Asignada' THEN excluded.tipo_campana ELSE master_clientes.tipo_campana END,
+                programa = CASE WHEN excluded.programa != '' THEN excluded.programa ELSE master_clientes.programa END,
+                canal = CASE WHEN excluded.canal != '' THEN excluded.canal ELSE master_clientes.canal END,
+                updated_at = excluded.updated_at
+        """, rows)
+        conn.commit()
+
+    # Leer desde SQLite los registros ya combinados para no sobrescribir datos previos en Supabase con vacíos
+    affected_keys = list(dict.fromkeys(r[0] for r in rows))
+    merged_rows = []
+    for i in range(0, len(affected_keys), 900):
+        chunk_keys = affected_keys[i:i + 900]
+        placeholders = ",".join("?" * len(chunk_keys))
+        cur.execute(
+            f"""
+            SELECT cedula_key, nombre, telefono_1, telefono_2, telefono_3,
+                   correo, tipo_campana, programa, canal, updated_at
+            FROM master_clientes
+            WHERE cedula_key IN ({placeholders})
+            """,
+            chunk_keys,
+        )
+        merged_rows.extend(cur.fetchall())
 
     cur.execute("SELECT COUNT(*) FROM master_clientes")
     count_after = cur.fetchone()[0]
     conn.close()
 
-    # Sincronizar también en Supabase public.master_clientes
+    # Sincronizar también en Supabase public.master_clientes usando las filas combinadas
+    supabase_synced = False
     try:
-        _sync_contacts_batches_to_supabase(rows)
+        supabase_synced = _sync_contacts_batches_to_supabase(merged_rows)
     except Exception as e:
         print("Aviso al sincronizar contactos con Supabase:", e)
 
@@ -369,7 +493,8 @@ def upsert_contacts_to_db(df: pd.DataFrame) -> dict:
     return {
         "processed": len(rows),
         "added": max(0, count_after - count_before),
-        "total_in_db": count_after
+        "total_in_db": count_after,
+        "supabase_synced": supabase_synced,
     }
 
 
